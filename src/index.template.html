@@ -19,7 +19,6 @@
 
   #topbar { position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); top: calc(var(--u) * 8); display: flex; gap: calc(var(--u) * 6); align-items: center; }
   .pill { display: flex; align-items: center; gap: calc(var(--u) * 5); height: calc(var(--u) * 30); padding: 0 calc(var(--u) * 10); background: #fff8e7; border-radius: calc(var(--u) * 15); box-shadow: 0 calc(var(--u) * 2) 0 #d9c49a; font-weight: 700; font-size: calc(var(--u) * 14); }
-  #bottleBtn { background: #e2f6fb; box-shadow: 0 calc(var(--u) * 2) 0 #9fd3e2; }
   #shopBtn { margin-left: auto; font-size: calc(var(--u) * 12); }
   #helpBtn, #menuBtn { width: calc(var(--u) * 30); padding: 0; justify-content: center; }
 
@@ -38,6 +37,9 @@
   .face .qm { font-weight: 700; font-size: calc(var(--u) * 15); color: #c9b48a; }
   .face.known .px { display: block; }
   .face.known .qm { display: none; }
+  .face .hg { display: none; position: absolute; right: calc(var(--u) * 1); top: calc(var(--u) * 1); }
+  .face.hungry .hg { display: block; }
+  .face.hungry .hg .px { display: block; }
 
   #toast { position: absolute; left: calc(var(--u) * 24); right: calc(var(--u) * 24); top: calc(var(--u) * 46); padding: calc(var(--u) * 8) calc(var(--u) * 12); margin-right: calc(var(--u) * 26); background: #fff8e7f2; border-radius: calc(var(--u) * 12); box-shadow: 0 calc(var(--u) * 2) 0 #d9c49a; text-align: center; opacity: 0; transform: translateY(calc(var(--u) * -6)); transition: opacity .25s, transform .25s; }
   #toast.on { opacity: 1; transform: none; }
@@ -58,6 +60,9 @@
   .hearts i { font-style: normal; color: #e6d8bd; }
   .hearts i.full { color: #ec7f9d; }
   .hearts i.half { color: #f5bccb; }
+  .hunger { width: calc(var(--u) * 74); height: calc(var(--u) * 6); margin-top: calc(var(--u) * 3); background: #e6d8bd; border-radius: calc(var(--u) * 3); overflow: hidden; }
+  .hunger i { display: block; height: 100%; background: #8fce74; }
+  .hunger.low i { background: #efaa55; }
   .goods { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 6); }
   .head + .goods { margin-top: calc(var(--u) * 8); }
   .good { display: flex; align-items: center; gap: calc(var(--u) * 6); min-height: calc(var(--u) * 46); padding: calc(var(--u) * 4) calc(var(--u) * 7); text-align: left; background: #ffefc8; border-radius: calc(var(--u) * 10); }
@@ -71,6 +76,8 @@
   .good .gc { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: calc(var(--u) * 2); }
   .wide { display: block; width: 100%; min-height: calc(var(--u) * 42); margin-top: calc(var(--u) * 6); background: #e2f6fb; border-radius: calc(var(--u) * 10); font-weight: 700; }
   .wide.danger { background: #fbe3df; color: #9c4a3f; }
+  #reloadBox, #consent { z-index: 2; }
+  #reloadBox p, #consent p { margin: 0 0 calc(var(--u) * 4); }
 
   .float { position: absolute; transform: translate(-50%, -100%); font-weight: 700; font-size: calc(var(--u) * 15); color: #fff; text-shadow: 0 0 calc(var(--u) * 3) #1c6fa8, 0 calc(var(--u) * 1) 0 #1c6fa8; animation: rise .9s ease-out forwards; pointer-events: none; }
   @keyframes rise { to { margin-top: calc(var(--u) * -26); opacity: 0; } }
@@ -79,7 +86,7 @@
   #puff.on { opacity: 1; }
 
   #unhide { display: none; position: absolute; inset: 0; background: transparent; }
-  #ui.hide > *:not(#unhide):not(#puff) { display: none; }
+  #ui.hide > *:not(#unhide):not(#puff):not(#reloadBox) { display: none; }
   #ui.hide #unhide { display: block; }
 
   #panel { position: fixed; top: 8px; right: 8px; width: 270px; max-height: calc(100vh - 16px); overflow: auto; background: #17131fee; color: #f2d7b8; font: 11px/1.45 ui-monospace, Consolas, monospace; padding: 10px; border: 2px solid #4a2823; display: none; box-sizing: border-box; z-index: 5; }
@@ -98,7 +105,6 @@
   <div id="ui" hidden>
     <div id="topbar">
       <div class="pill"><span id="glassIcon"></span><span id="glassN">0</span></div>
-      <button class="pill" id="bottleBtn" hidden aria-label="小びんを開ける"><span id="bottleIcon"></span><span id="bottleN"></span></button>
       <button class="pill" id="shopBtn">おみせ</button>
       <button class="pill" id="helpBtn" aria-label="遊び方">？</button>
       <button class="pill" id="menuBtn" aria-label="メニュー">≡</button>
@@ -113,6 +119,8 @@
     <div id="shop" class="sheet"></div>
     <div id="help" class="sheet"></div>
     <div id="menu" class="sheet"></div>
+    <div id="consent" class="sheet"></div>
+    <div id="reloadBox" class="sheet"><p>絵がうまく表示できませんでした。</p><button id="reloadBtn" class="wide">再読み込み</button></div>
     <div id="puff"></div>
     <button id="unhide" aria-label="文字を表示する"></button>
   </div>

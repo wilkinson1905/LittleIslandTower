@@ -180,13 +180,16 @@ const roofR = h => {
   for (let i = 1; i < P.length; i++) if (h <= P[i][0]) return lerp(P[i - 1][1], P[i][1], (h - P[i - 1][0]) / (P[i][0] - P[i - 1][0]));
   return P[P.length - 1][1];
 };
+/* the colour the roof was bought in: which ramp, and how far along it, so each reads as itself */
+const ROOF_RAMPS = { blue: ['sea', 0], red: ['red', 0], green: ['lef', 0], pink: ['pin', -1] };
+const roofCol = lv => { const [r, d] = ROOF_RAMPS[WORLD.roof]; return C[r + clamp(lv + d, 0, 7)]; };
 function bellRoof(n) {
   const Zb = TOP_Z(n), BANDS = [6, 7, 27, 28, 50, 51];
   O('roof' + n, [3, 3, Zb, 110, 110, Zb + 120], () => {
     // the moulded cornice the roof rests on
     skirt(Zb, 6, 1.05, (s, r, side) => {
       const lv = side === 0 ? 6 : side === 1 ? 5 : 4;
-      return r === 0 ? C['crm' + (lv - 3)] : r === 3 ? C.sea2 : r > 3 ? C.crm7 : C['crm' + lv];
+      return r === 0 ? C['crm' + (lv - 3)] : r === 3 ? roofCol(2) : r > 3 ? C.crm7 : C['crm' + lv];
     });
     const z0 = Zb + 6;
     for (let h = 0; h <= 104; h++) {
@@ -208,7 +211,7 @@ function bellRoof(n) {
         // the bulb catches the sun on its upper left
         if (h > 50 && h < 76 && s < -hw * .25 && t < hh * .5) lv += 1;
         const [x, y] = worldAt(s, t);
-        const col = gold ? (s < 0 ? C.amb7 : C.amb5) : C['sea' + clamp(Math.round(lv), 0, 7)];
+        const col = gold ? (s < 0 ? C.amb7 : C.amb5) : roofCol(clamp(Math.round(lv), 0, 7));
         put(OX + s, scrY(t, z0 + h), col, x | 0, y | 0, z0 + h, NBILL);
       }
     }

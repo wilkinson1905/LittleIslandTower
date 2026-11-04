@@ -48,6 +48,23 @@ check('the penguin shelters under the parasol', rain.penguin === 1, rain.penguin
 check('the rainbow is watched from where it can be seen', rain.bads === 0, rain.bads ? rain.bad.join(', ') : 'never in front of or behind the tower');
 const shower = await page.evaluate(`(() => { const C = dollhouse.CFG, b = dollhouse.SCRIPT_NAMES.indexOf('rainbow'); return b; })()`);
 
+/* the rainbow thins out smoothly: the same pixel, drifting towards the sky behind it */
+const bow = await page.evaluate(`(() => {
+  const C = dollhouse.CFG, F = dollhouse.FX, z = 68, b = C.block, cv = document.getElementById('view'), g = cv.getContext('2d');
+  const offs = ['clouds', 'gulls', 'jelly', 'shower', 'actors', 'dust'];
+  C.block = dollhouse.SCRIPT_NAMES.indexOf('rainbow');
+  for (const k of offs) F[k] = false;
+  const sx = 180 + Math.cos(Math.PI / 6) * 170, sy = 212 - Math.sin(Math.PI / 6) * 170 * .8, X = Math.round(sx / 360 * cv.width), Y = Math.round(sy / 640 * cv.height);
+  const at = t => { dollhouse.renderAt(t); return [...g.getImageData(X, Y, 1, 1).data].slice(0, 3); };
+  F.rainbow = false; const sky = at(z + 19); F.rainbow = true;
+  const dist = c => Math.hypot(c[0] - sky[0], c[1] - sky[1], c[2] - sky[2]);
+  const seq = [17, 19, 21, 22, 23, 25, 26.5].map(d => +dist(at(z + d)).toFixed(1));
+  for (const k of offs) F[k] = true;
+  C.block = b;
+  return seq;
+})()`);
+check('the rainbow fades through transparency', bow[0] > 8 && bow.every((v, n) => !n || v <= bow[n - 1]) && bow[6] === 0 && new Set(bow).size >= 5, 'distance from the sky over 8 s: ' + bow.join(', '));
+
 const boundary = await page.evaluate('dollhouse.boundaryCheck(40)');
 check('endless boundaries', !boundary.bad.length, boundary.bad.length ? `blocks ${boundary.bad}` : `${boundary.blocks} boundaries identical`);
 

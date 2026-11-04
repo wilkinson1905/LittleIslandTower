@@ -8,9 +8,10 @@ const RULES = {
   floorCost: { 2: 120, 3: 300 },
   spawnEvery: 10,          // a new piece of glass, seconds
   beachCap: 12,            // never more than this lying about
-  bottleEvery: 45,         // while closed: one piece per this many seconds
-  bottleCaps: [10, 20, 30, 45, 60],   // and no more than this in the bottle, level by level
-  bottlePrices: [15, 30, 50, 80],     // what the next size costs
+  hungerMinutes: 30,       // from full to empty, while the game is open
+  roofPrice: 20,
+  glowAfter: 15,           // nothing picked up for this long: one piece starts to shine
+  repaintAfter: 10,        // hidden this long: the whole picture is drawn again on return
   balloonFirst: 180,       // the first balloon comes early, so it gets noticed
   balloonEvery: [240, 360],  // then one per this many seconds, while the game is open
   balloonCross: 30,        // seconds to cross the sea
@@ -25,8 +26,8 @@ const KINDS = [
   { id: 'amber', value: 5, chance: .05 },
 ];
 const GOODS = {
-  cookie: { name: '貝がらクッキー', type: 'おやつ', price: 5, gain: 1, dur: 5 },
-  ice: { name: 'ラムネアイス', type: 'おやつ', price: 12, gain: 2, dur: 6.5 },
+  cookie: { name: '貝がらクッキー', type: 'おやつ', price: 5, gain: 1, dur: 5, fill: .5 },
+  ice: { name: 'ラムネアイス', type: 'おやつ', price: 12, gain: 2, dur: 6.5, fill: 1 },
   ball: { name: 'ビーチボール', type: 'おもちゃ', price: 8, gain: 2, dur: 8 },
   wheel: { name: 'かざぐるま', type: 'おもちゃ', price: 15, gain: 3, dur: 9 },
 };
@@ -63,11 +64,14 @@ const FURNITURE = {
 const FURN_KEYS = Object.keys(FURNITURE);
 const PET_ORDER = ['dragon', 'sheep', 'penguin'];
 const PRESENT_VALUES = [15, 25, 50];
+const ROOF_NAMES = { blue: '青', red: '赤', green: '緑', pink: 'ピンク' };
 const newState = () => ({
-  v: 1, glass: 0, stash: 0, total: 0, storeys: 1, pets: [],
+  v: 1, glass: 0, total: 0, storeys: 1, pets: [],
   aff: { cat: 0, pup: 0, rabbit: 0, sheep: 0, dragon: 0, penguin: 0 },
+  hunger: { cat: 1, pup: 1, rabbit: 1, sheep: 1, dragon: 1, penguin: 1 },
+  roof: 'blue',
   beach: [], n: 0, spawnIn: 6, sill: false, played: 0, doneAt: 0, lastSeen: 0, furn: [],
-  bottleLv: 0, presents: [], balloonIn: RULES.balloonFirst, bn: 0,
+  presents: [], balloonIn: RULES.balloonFirst, bn: 0,
 });
 let GS = newState();
 let gameOn = false;
@@ -90,9 +94,9 @@ function readSave() {
   if (!o || o.v !== 1) return null;
   const s = newState();
   s.glass = cleanNum(o.glass, 0, 1e7, 0) | 0;
-  // what's already in the bottle stays, even above the size of an old save's bottle
-  s.stash = cleanNum(o.stash, 0, RULES.bottleCaps.at(-1), 0) | 0;
-  s.bottleLv = cleanNum(o.bottleLv, 0, RULES.bottlePrices.length, 0) | 0;
+  // an old save's bottle is simply not read: what was in it, and what it cost, are gone
+  for (const k in s.hunger) s.hunger[k] = cleanNum(o.hunger && o.hunger[k], 0, 1, 1);
+  if (ROOF_NAMES[o.roof]) s.roof = o.roof;
   s.presents = Array.isArray(o.presents) ? o.presents.filter(p => p && Number.isInteger(p.slot) && p.slot >= 0 && p.slot < 60 && PRESENT_VALUES.includes(p.value)).slice(0, RULES.presentCap) : [];
   s.balloonIn = cleanNum(o.balloonIn, 0, RULES.balloonEvery[1], RULES.balloonFirst);
   s.bn = cleanNum(o.bn, 0, 1e9, 0) | 0;
@@ -131,10 +135,29 @@ function initSlots() {
   }
 }
 const GLASS_SPR = [
-  mk(['..ooo..', '.oWaao.', 'oaaaaao', 'oaaabbo', '.oooo..'], 'o:azu2 W:cld7 a:sea6 b:sea4', 3, 3),
-  mk(['.oooo..', 'oWaaao.', 'oaaaabo', '.oaabbo', '..oooo.'], 'o:lef1 W:cld7 a:lef6 b:lef4', 3, 3),
-  mk(['..ooo..', '.oWaao.', 'oWaaabo', 'oaaabbo', '.oabbo.', '..ooo..'], 'o:hon1 W:cld7 a:amb7 b:amb5', 3, 3),
+  mk(['...ooo...', '..oWWao..', '.oWaaaao.', 'oWaaaaabo', 'oaaaaabbo', '.oabbbbo.', '..oooo...'], 'o:sea1 W:cld7 a:sea6 b:sea4', 4, 4),
+  mk(['..oooo...', '.oWWaao..', 'oWaaaaao.', 'oWaaaaabo', '.oaaaabbo', '.ooabbbo.', '...oooo..'], 'o:lef1 W:cld7 a:lef6 b:lef4', 4, 4),
+  mk(['...ooo...', '..oWWao..', '.oWaaaao.', 'oWaaaaabo', 'oaaaaaabo', 'oaaaabbbo', '.oabbbo..', '..oooo...'], 'o:hon1 W:cld7 a:amb7 b:amb5', 4, 4),
 ];
+/* a star that opens and closes */
+function drawCross(x, y, reach, col = P.cld7) {
+  spx(x, y, P.cld7);
+  for (let k = 1; k <= reach; k++) {
+    const c = k === reach ? P.sea7 : col;
+    spx(x - k, y, c); spx(x + k, y, c); spx(x, y - k, c); spx(x, y + k, c);
+  }
+}
+/* the sea leaves it there: a small splash where it lands */
+const SPLASHES = [];
+function drawSplashes(now) {
+  for (let n = SPLASHES.length - 1; n >= 0; n--) {
+    const p = SPLASHES[n], u = (now - p.t0) / .8;
+    if (u >= 1 || u < 0) { SPLASHES.splice(n, 1); continue; }
+    const r = 3 + u * 10;
+    for (let a = 0; a < 16; a++) if (a % 2 || u < .5) spx(Math.round(p.x + Math.cos(a / 16 * TAU) * r), Math.round(p.y + Math.sin(a / 16 * TAU) * r * .45), P.cld7);
+    for (let i = 0; i < 5; i++) spx(p.x - 6 + i * 3, p.y - 2 - Math.round(Math.sin(u * Math.PI) * (5 + (i % 3) * 3)), P.cld7);
+  }
+}
 /* big enough to see from the whole-island camera */
 const BALLOON_SPR = (() => {
   const rx = 10, ry = 12, rows = [];
@@ -169,16 +192,20 @@ function drawGameGround(t) {
     sblit(PRESENT_SPR, s.x, s.y - hop);
     if (c > .1 && c < .16) { spx(s.x + 4, s.y - 9, P.cld7); spx(s.x + 3, s.y - 9, P.cld7); spx(s.x + 5, s.y - 9, P.cld7); spx(s.x + 4, s.y - 10, P.cld7); spx(s.x + 4, s.y - 8, P.cld7); }
   }
+  drawSplashes(WORLD.now);
   for (const g of WORLD.beach) {
     const s = SLOTS[g.slot];
     if (!s) continue;
     const k = g.kind, tw = cyc(t, 12 + g.slot % 7, g.slot * .13);
-    sblit(GLASS_SPR[k], s.x, s.y);
-    if (tw < .1) {
-      const big = tw > .03 && tw < .07;
-      spx(s.x - 1, s.y - 3, P.cld7);
-      if (big) { spx(s.x - 2, s.y - 3, P.cld7); spx(s.x, s.y - 3, P.cld7); spx(s.x - 1, s.y - 4, P.cld7); spx(s.x - 1, s.y - 2, P.cld7); }
+    if (g.slot === WORLD.glow) {     // it has been waiting: a slow, wide pulse that's hard to miss
+      const p = .5 + .5 * Math.sin(WORLD.now * 4.5), rx = 9 + p * 5, ry = 5 + p * 3, col = k === 2 ? P.amb7 : k === 1 ? P.lef7 : P.sea7;
+      for (let a = 0; a < 26; a++) if ((a + (WORLD.now * 6 | 0)) % 2) spx(Math.round(s.x + Math.cos(a / 26 * TAU) * rx), Math.round(s.y - 1 + Math.sin(a / 26 * TAU) * ry), col);
+      sblit(GLASS_SPR[k], s.x, s.y - Math.round(p * 2));
+      drawCross(s.x - 1, s.y - 4 - Math.round(p * 2), 3 + Math.round(p * 4));
+      continue;
     }
+    sblit(GLASS_SPR[k], s.x, s.y);
+    if (tw < .1) drawCross(s.x - 1, s.y - 3, 1 + Math.round(Math.sin(tw / .1 * Math.PI) * 4));
   }
   if (WORLD.sillTreat && storeys >= 2) {
     const s = -53, sy = scrY(backT(s) + 2, Z2 + 18);
@@ -254,6 +281,8 @@ function pushWorld() {
   WORLD.beach = GS.beach;
   WORLD.presents = GS.presents;
   WORLD.sillTreat = GS.sill;
+  WORLD.hunger = GS.hunger;
+  WORLD.roof = GS.roof;
 }
 function spawnGlass() {
   if (GS.beach.length >= RULES.beachCap || !SLOTS.length) return false;
@@ -262,10 +291,16 @@ function spawnGlass() {
   while (used.has(slot)) slot = (slot + 1) % SLOTS.length;
   const roll = hsh(n, 162);
   GS.beach.push({ slot, kind: roll < KINDS[0].chance ? 0 : roll < KINDS[0].chance + KINDS[1].chance ? 1 : 2 });
+  if (SPLASHES.length >= RULES.beachCap) SPLASHES.shift();
+  SPLASHES.push({ x: SLOTS[slot].x, y: SLOTS[slot].y, t0: WORLD.now });
   return true;
 }
+let unpicked = 0;       // seconds since anything was picked up; only for the shine, so it isn't saved
 function advance(sec) {
   GS.played += sec;
+  for (const id of ACTOR_IDS) if (present(id)) GS.hunger[id] = Math.max(0, GS.hunger[id] - sec / (RULES.hungerMinutes * 60));
+  unpicked += sec;
+  WORLD.glow = unpicked >= RULES.glowAfter && GS.beach.length ? GS.beach[0].slot : -1;
   GS.spawnIn -= sec;
   while (GS.spawnIn <= 0) { GS.spawnIn += RULES.spawnEvery; spawnGlass(); }
   if (FLOAT && (FLOAT.e += sec) >= RULES.balloonCross) FLOAT = null;   // missed: it's gone
@@ -310,36 +345,19 @@ function openPresent(index) {
   GS.glass += p.value; GS.total += p.value;
   return p.value;
 }
-const bottleCap = () => RULES.bottleCaps[GS.bottleLv];
-const nextBottlePrice = () => RULES.bottlePrices[GS.bottleLv] || 0;
-function upgradeBottle() {
-  const price = nextBottlePrice();
-  if (!price || GS.glass < price) return false;
-  GS.glass -= price;
-  GS.bottleLv++;
-  return true;
-}
 function collectAt(index) {
   const g = GS.beach[index];
   if (!g) return 0;
   GS.beach.splice(index, 1);
   const v = KINDS[g.kind].value;
   GS.glass += v; GS.total += v;
-  return v;
-}
-function emptyBottle() {
-  const v = GS.stash;
-  GS.glass += v; GS.total += v; GS.stash = 0;
+  unpicked = 0; WORLD.glow = -1;
   return v;
 }
 /* what happens while no one was looking */
 function settleAbsence(sec) {
-  const out = { glass: 0, pet: null };
+  const out = { pet: null };
   if (!(sec > 0)) return out;
-  const before = GS.stash;
-  // an old save may hold more than its bottle: that's kept, it just doesn't grow
-  if (before < bottleCap()) GS.stash = Math.min(bottleCap(), before + Math.floor(sec / RULES.bottleEvery));
-  out.glass = GS.stash - before;
   if (GS.sill) {
     const next = PET_ORDER.find(p => !GS.pets.includes(p));
     if (next) {
@@ -354,18 +372,22 @@ function settleAbsence(sec) {
 const nextFloorCost = () => RULES.floorCost[GS.storeys + 1] || 0;
 const towerDone = () => GS.storeys >= 3;
 const allPets = () => PET_ORDER.every(p => GS.pets.includes(p));
-function canBuy(id, good) { return present(id) && GS.glass >= GOODS[good].price && !WORLD.react[id]; }
+/* really out for the count, not just on its way home on an empty stomach */
+const isAsleep = id => GS.hunger[id] <= 0 && BLOCK_TIER[id] === 2;
+const canFeedOnly = (id, good) => GS.hunger[id] <= 0 && !GOODS[good].fill;   // no toys until it has eaten
+function canBuy(id, good) { return present(id) && GS.glass >= GOODS[good].price && !WORLD.react[id] && !canFeedOnly(id, good); }
 function buyFor(id, good) {
   if (!canBuy(id, good)) return false;
   const g = GOODS[good];
   GS.glass -= g.price;
   GS.aff[id] = Math.min(10, GS.aff[id] + g.gain);
   WORLD.aff[id] = GS.aff[id];
+  if (g.fill) GS.hunger[id] = Math.min(1, GS.hunger[id] + g.fill);
   WORLD.react[id] = { t0: WORLD.now, dur: g.dur, anim: g.type === 'おやつ' ? 'eat' : 'play', item: good };
   return true;
 }
 function petAnimal(id) {
-  if (!present(id) || WORLD.react[id]) return false;
+  if (!present(id) || WORLD.react[id] || isAsleep(id)) return false;   // a pat doesn't wake a hungry animal
   WORLD.react[id] = { t0: WORLD.now, dur: 1.5, anim: 'happy', stay: true };
   return true;
 }
@@ -386,6 +408,42 @@ function furnish(key) {
   pushWorld();
   rebake();
   return true;
+}
+/* ── the roof's colour ────────────────────────────────────────────────── */
+const canRoof = color => !!ROOF_NAMES[color] && color !== GS.roof && GS.glass >= RULES.roofPrice;
+function changeRoof(color) {
+  if (!canRoof(color)) return false;
+  GS.glass -= RULES.roofPrice;
+  GS.roof = color;
+  pushWorld();
+  rebake();
+  return true;
+}
+function placeRoof(color) {
+  if (!changeRoof(color)) return;
+  closeSheets();
+  setView('all');
+  startHighlight('roof');
+  const top = OY + 56 - TOP_Z(storeys);
+  for (let i = 0; i < 12; i++) spark(180 + hsh(i, 175) * 110 - 55, top - hsh(i, 176) * 90, 'amb7', 13, 1);
+  saveGame(); refreshUI();
+}
+/* the shop's small picture: the same bell, from the same curve */
+const ROOF_MINI = {};
+function roofMini(color) {
+  if (ROOF_MINI[color]) return ROOF_MINI[color];
+  const [ramp, d] = ROOF_RAMPS[color], lv = n => ramp + clamp(n + d, 0, 7), rows = [], tall = 30, hw = 17;
+  for (let j = 0; j < tall; j++) {
+    const h = 104 * (1 - j / (tall - 1)), w = Math.max(.5, hw * roofR(h));
+    let row = '';
+    for (let x = -hw; x <= hw; x++) {
+      if (Math.abs(x) > w) { row += '.'; continue; }
+      if (h >= 77 && h <= 81) { row += 'g'; continue; }
+      row += Math.abs(x) > w - 1 ? 'o' : x < -w * .35 ? 'c' : x > w * .4 ? 'a' : 'b';
+    }
+    rows.push(row);
+  }
+  return ROOF_MINI[color] = mk(rows, `o:${lv(0)} a:${lv(2)} b:${lv(3)} c:${lv(5)} g:amb7`, hw, tall - 1);
 }
 /* ── the furniture's picture: the room's own art, cut out ───────────────── */
 const ART = {};
@@ -454,8 +512,8 @@ function movingPixels(key, t) {
   return list;
 }
 function startHighlight(key) {
-  const list = [];
-  for (let i = 0; i < N; i++) { const id = gId[i]; if (id && OBJ[id].o.furn === key) list.push(i); }
+  const list = [], roofId = key === 'roof' ? NAMED['roof' + storeys].id : -1;
+  for (let i = 0; i < N; i++) { const id = gId[i]; if (id && (id === roofId || OBJ[id].o.furn === key)) list.push(i); }
   const moving = MOVING_ART[key] ? movingPixels(key, 0) : [];
   let x0 = W, y0 = H, x1 = 0, y1 = 0;
   for (const l of [list, moving]) for (const i of l) { const sx = i % W, sy = i / W | 0; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
@@ -531,12 +589,15 @@ function lookAt(id) {
 /* ── the screen ───────────────────────────────────────────────────────── */
 const UI = {};
 const $ = id => document.getElementById(id);
-function spriteCanvas(s, scale = 2, u = 1) {
-  const c = document.createElement('canvas');
-  c.width = s.w; c.height = s.h;
+function paintSprite(c, s) {
   const g = c.getContext('2d'), im = g.createImageData(s.w, s.h), d = new Uint32Array(im.data.buffer);
   for (let i = 0; i < s.w * s.h; i++) if (s.d[i]) d[i] = PAL32[s.d[i]];
   g.putImageData(im, 0, 0);
+}
+function spriteCanvas(s, scale = 2, u = 1) {
+  const c = document.createElement('canvas');
+  c.width = s.w; c.height = s.h;
+  paintSprite(c, s);
   c.style.width = `calc(var(--u) * ${s.w * scale})`; c.style.height = `calc(var(--u) * ${s.h * scale})`;
   c.className = 'px';
   return c;
@@ -560,17 +621,19 @@ function floatNumber(ix, iy, text) {
 }
 function buildUI() {
   UI.ui = $('ui'); UI.ui.hidden = false;
-  for (const k of ['glassN', 'bottleBtn', 'bottleN', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
-  $('glassIcon').appendChild(spriteCanvas(GLASS_SPR[0], 2));
-  $('bottleIcon').appendChild(spriteCanvas(BOTTLE, 2));
+  for (const k of ['glassN', 'reloadBox', 'consent', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
+  const keep = (s, scale) => { const c = spriteCanvas(s, scale); UI.icons.push([c, s]); return c; };
+  UI.icons = [];
+  $('glassIcon').appendChild(keep(GLASS_SPR[0], 2));
   UI.faceBtns = {};
   const faces = FACE();
   for (const id of ['cat', 'pup', 'rabbit', 'dragon', 'sheep', 'penguin']) {
     const b = document.createElement('button');
     b.className = 'face'; b.setAttribute('aria-label', ANIMALS[id].name);
-    const img = spriteCanvas(faces[id], faces[id].w > 13 ? 1.5 : 2);
+    const img = keep(faces[id], faces[id].w > 13 ? 1.5 : 2);
     const q = document.createElement('span'); q.className = 'qm'; q.textContent = '？';
-    b.append(img, q);
+    const hg = document.createElement('span'); hg.className = 'hg'; hg.appendChild(keep(ITEM.cookie, 1));
+    b.append(img, q, hg);
     b.onclick = () => {
       if (present(id)) { petAnimal(id); lookAt(id); openCard(id); }
     };
@@ -584,17 +647,14 @@ function buildUI() {
     UI.floors.appendChild(b);
   }
   UI.growBtn.onclick = onMainButton;
-  UI.bottleBtn.onclick = () => {
-    if (emptyBottle()) { saveGame(); refreshUI(); }
-  };
   UI.shopBtn.onclick = () => { const on = !shopOpen; closeSheets(); shopOpen = on; renderShop(); };
   UI.helpBtn.onclick = () => { const on = !helpOpen; closeSheets(); helpOpen = on; renderHelp(); };
   UI.menuBtn.onclick = () => { const on = !menuOpen; closeSheets(); menuOpen = on; renderMenu(); };
   UI.unhide.onclick = () => { UI.ui.classList.remove('hide'); };
-  display.addEventListener('pointerup', onCanvasTap);
+  // not pointerup: a card opened then would be under the finger when the click arrives, and buy whatever's there
+  display.addEventListener('click', onCanvasTap);
   refreshUI();
 }
-const BOTTLE = mk(['..oo..', '..cc..', '.oWao.', '.oaao.', 'oWaaao', 'oaabao', 'oaabao', '.oooo.'], 'o:azu2 c:hon4 W:cld7 a:sea6 b:lef6', 3, 7);
 function onMainButton() {
   if (growing) return;
   if (!towerDone()) {
@@ -645,16 +705,17 @@ function renderCard() {
   if (!id) return;
   const a = ANIMALS[id], c = UI.card, icons = ITEM_ICON();
   c.innerHTML = `<button class="x" aria-label="とじる">×</button>
-    <div class="head"><span class="ic"></span><div><b>${a.name}</b><div class="hearts">${hearts(GS.aff[id])}</div></div></div>
+    <div class="head"><span class="ic"></span><div><b>${a.name}</b><div class="hearts">${hearts(GS.aff[id])}</div><div class="hunger"><i></i></div></div></div>
     <div class="goods"></div>`;
   c.querySelector('.ic').appendChild(spriteCanvas(FACE()[id], 2));
   c.querySelector('.x').onclick = closeCard;
+  showHunger();
   const box = c.querySelector('.goods'), busy = !!WORLD.react[id] && WORLD.react[id].anim !== 'happy';
   for (const key of Object.keys(GOODS)) {
     const g = GOODS[key], b = document.createElement('button');
     b.className = 'good'; b.dataset.good = key;
     const afford = GS.glass >= g.price;
-    b.disabled = !afford || busy;
+    b.disabled = !afford || busy || canFeedOnly(id, key);
     b.innerHTML = `<span class="gi"></span><span class="gt">${g.name}</span><span class="gp ${afford ? '' : 'no'}">${g.price}</span>`;
     b.querySelector('.gi').appendChild(spriteCanvas(icons[key], 2));
     b.onclick = () => {
@@ -663,6 +724,14 @@ function renderCard() {
     };
     box.appendChild(b);
   }
+}
+/* no words: a bar under the hearts */
+function showHunger() {
+  const box = UI.card.querySelector('.hunger');
+  if (!box || !cardFor) return;
+  const h = GS.hunger[cardFor];
+  box.firstChild.style.width = h * 100 + '%';
+  box.classList.toggle('low', h <= HUNGER_LOW);
 }
 function renderShop() {
   const m = UI.shop;
@@ -675,17 +744,17 @@ function renderShop() {
     b.innerHTML = `<span class="gi"></span><span class="gc"><span class="gt">${name}</span><span class="gp ${GS.glass >= price ? '' : 'no'}">${price}</span></span>`;
     b.querySelector('.gi').appendChild(canvas);
   };
-  const bottlePrice = nextBottlePrice();
-  if (bottlePrice) {
-    const h = document.createElement('h3'); h.textContent = '小びん';
-    const box = document.createElement('div'); box.className = 'goods';
+  const roofHead = document.createElement('h3'); roofHead.textContent = '屋根の色';
+  const roofBox = document.createElement('div'); roofBox.className = 'goods';
+  for (const color in ROOF_NAMES) {
     const b = document.createElement('button');
-    picture(b, spriteCanvas(BOTTLE, 3), `${RULES.bottleCaps[GS.bottleLv + 1]}個入りの小びん`, bottlePrice);
-    b.dataset.bottle = '1';
-    b.onclick = () => { if (upgradeBottle()) { saveGame(); refreshUI(); } };
-    box.appendChild(b);
-    m.append(h, box);
+    picture(b, spriteCanvas(roofMini(color), 1), ROOF_NAMES[color], RULES.roofPrice);
+    b.dataset.roof = color;
+    if (color === GS.roof) { b.disabled = true; b.querySelector('.gp').textContent = '✓'; }
+    b.onclick = () => placeRoof(color);
+    roofBox.appendChild(b);
   }
+  m.append(roofHead, roofBox);
   const left = furnitureLeft();
   for (let n = 1; n <= GS.storeys; n++) {
     const keys = left.filter(k => FURNITURE[k].floor === n);
@@ -714,11 +783,13 @@ function placeFurniture(key) {
   saveGame(); refreshUI();
 }
 const HELP = [
-  '波打ち際に光るシーグラスをタップして集めます。閉じている間も、小びんに少したまります。',
+  '波打ち際に光るシーグラスをタップして集めます。',
   '集めたシーグラスで塔を建て増しします。階が増えると動物がやってきます。',
-  '「おみせ」で家具を買うと、部屋に置かれます。動物たちも使います。小びんを大きくすると、閉じている間にたくさんたまります。',
+  '「おみせ」で家具を買うと、部屋に置かれます。動物たちも使います。屋根の色も何度でも変えられます。',
   'プレゼント付きの風船が流れてきたら、タップしましょう。浜に落ちたプレゼントを開くと、シーグラスがたくさん出てきます。',
   '動物をタップすると、おやつやおもちゃをあげられます。なつくと新しいしぐさを見せてくれます。',
+  'おなかがすくと、動物はあまり動かなくなり、やがて眠ってしまいます。おやつをあげると元気になります。',
+  '船や海がめ、カニ、虫、かもめ、くらげ、魚もタップしてみましょう。',
   '動物たちは、はしごで屋根や浜辺にも出かけます。',
   '3階まで建ったら、窓辺におやつを置きましょう。次に開いたとき、新しい動物が来ているかもしれません。',
   '進み具合はこのブラウザの中に自動で保存されます。',
@@ -727,7 +798,7 @@ function renderHelp() {
   const m = UI.help;
   m.classList.toggle('on', helpOpen);
   if (!helpOpen) return;
-  m.innerHTML = `<button class="x" aria-label="とじる">×</button><h3>遊び方</h3><ul>${HELP.map(s => `<li>${s}</li>`).join('')}</ul>`;
+  m.innerHTML = `<button class="x" aria-label="とじる">×</button><h3>遊び方</h3><ul>${HELP.concat(analytics() ? ['同意していただいた場合だけ、訪問数を数えるために Google Analytics を使います。メニューから変更できます。'] : []).map(s => `<li>${s}</li>`).join('')}</ul>`;
   m.querySelector('.x').onclick = closeSheets;
 }
 function renderMenu() {
@@ -736,7 +807,10 @@ function renderMenu() {
   if (!menuOpen) return;
   m.innerHTML = `<button class="x" aria-label="とじる">×</button><h3>Little Island Tower</h3>
     <button id="hideBtn" class="wide">文字を隠して眺める</button>
+    ${analytics() ? `<button id="gaBtn" class="wide">訪問数の計測：${readConsent() === 'yes' ? 'オン' : 'オフ'}</button>` : ''}
     <button id="resetBtn" class="wide danger">最初からやり直す</button>`;
+  const ga = m.querySelector('#gaBtn');
+  if (ga) ga.onclick = () => setConsent(readConsent() !== 'yes');
   m.querySelector('.x').onclick = () => { menuOpen = false; renderMenu(); };
   m.querySelector('#hideBtn').onclick = () => { menuOpen = false; renderMenu(); UI.ui.classList.add('hide'); };
   const r = m.querySelector('#resetBtn');
@@ -748,16 +822,16 @@ function renderMenu() {
 function refreshUI() {
   if (!UI.ui) return;
   UI.glassN.textContent = GS.glass;
-  UI.bottleBtn.hidden = !GS.stash;
-  UI.bottleN.textContent = '+' + GS.stash;
-  UI.shopBtn.hidden = !furnitureLeft().length && !nextBottlePrice();
   if (shopOpen) renderShop();
   for (const b of UI.floors.children) {
     const v = b.dataset.view;
     b.hidden = v !== 'all' && +v > storeys;
     b.classList.toggle('sel', v === String(CAM.name));
   }
-  for (const id in UI.faceBtns) UI.faceBtns[id].classList.toggle('known', present(id));
+  for (const id in UI.faceBtns) {
+    UI.faceBtns[id].classList.toggle('known', present(id));
+    UI.faceBtns[id].classList.toggle('hungry', present(id) && GS.hunger[id] <= 0);
+  }
   let label = '', frac = 1, ready = true;
   if (!towerDone()) {
     const cost = nextFloorCost();
@@ -774,9 +848,10 @@ function refreshCardPrices() {
   const c = UI.card, id = cardFor, busy = !!WORLD.react[id] && WORLD.react[id].anim !== 'happy';
   c.querySelectorAll('.good').forEach(b => {
     const key = b.dataset.good, afford = GS.glass >= GOODS[key].price;
-    b.disabled = !afford || busy;
+    b.disabled = !afford || busy || canFeedOnly(id, key);
     b.querySelector('.gp').classList.toggle('no', !afford);
   });
+  showHunger();
 }
 function toInternal(e) {
   const r = display.getBoundingClientRect(), v = CAM.cur;
@@ -808,14 +883,43 @@ function hitTest(ix, iy) {
     const A = ACTOR[id], d = Math.hypot(A.sx - ix, A.sy - iy) - 3;
     if (d < bd) { bd = d; best = { kind: 'animal', id }; }
   }
+  return best || hitCritter(ix, iy, reach);
+}
+/* the things that give nothing: only if the finger found nothing else */
+function hitCritter(ix, iy, reach) {
+  let best = null, bd = reach;
+  for (const key in CRIT) {
+    const c = CRIT[key];
+    if (!c.r) continue;
+    const sx = Math.round(c.x), sy = Math.round(c.y);
+    if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+    const g = gId[sy * W + sx];
+    if ((c.gate === 1 && g) || (c.gate === 2 && !isExt[g])) continue;  // behind the tower or a roof
+    const d = Math.hypot(c.x - ix, c.y - iy) - c.r;
+    if (d < bd) { bd = d; best = { kind: 'critter', key }; }
+  }
   return best;
+}
+function tapCritter(key, ix, iy) {
+  if (WORLD.tap[key]) return;
+  const c = CRIT[key], t0 = WORLD.now;
+  if (!key.startsWith('fish')) { WORLD.tap[key] = { t0, dir: c.x >= ix ? 1 : -1 }; return; }
+  for (const k of FISH_KEYS) {        // everyone close by takes the hint
+    const f = CRIT[k];
+    if (!f || !f.r || WORLD.tap[k] || (k !== key && Math.hypot(f.x - c.x, f.y - c.y) > 46)) continue;
+    const a = Math.atan2(f.y - iy, f.x - ix);
+    WORLD.tap[k] = { t0, dx: Math.cos(a) * 64, dy: Math.sin(a) * 40 };
+  }
 }
 function onCanvasTap(e) {
   if (growing) return;
   if (menuOpen || shopOpen || helpOpen) { closeSheets(); return; }
   const [ix, iy] = toInternal(e), hit = hitTest(ix, iy);
   if (!hit) { closeCard(); return; }
-  if (hit.kind === 'balloon') {
+  if (hit.kind === 'critter') {
+    closeCard();
+    tapCritter(hit.key, ix, iy);
+  } else if (hit.kind === 'balloon') {
     if (catchBalloon()) { saveGame(); refreshUI(); }
   } else if (hit.kind === 'present') {
     const s = SLOTS[GS.presents[hit.n].slot], v = openPresent(hit.n);
@@ -839,7 +943,8 @@ function resetGame() {
   try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* the store is blocked: the new game just won't persist */ }
   GS = newState();
   FLOAT = null; HILITE = null;
-  FALLING.length = LOOSE.length = BURSTS.length = 0;
+  FALLING.length = LOOSE.length = BURSTS.length = SPLASHES.length = 0;
+  WORLD.tap = {}; WORLD.glow = -1; unpicked = 0;
   for (let i = 0; i < 3; i++) spawnGlass();
   GS.lastSeen = nowMs();
   storeys = 1;
@@ -847,6 +952,72 @@ function resetGame() {
   pushWorld(); rebake();
   closeSheets(); setView('all');
   saveGame(); refreshUI();
+}
+/* ── coming back from the background ──────────────────────────────────────
+   A phone's browser may throw away a canvas's pixels while the page is hidden.
+   What's redrawn every frame survives; what was baked once (sky, tower, island) doesn't. */
+const PICTURE = { bad: false, repaints: 0, timer: 0 };
+function pictureOk() {
+  if (PICTURE.bad) return false;
+  try {
+    const base = LAYER.base.getContext('2d').getImageData(0, 0, W, H).data, sky = LAYER.sky.getContext('2d').getImageData(0, 0, W, H).data;
+    for (let i = 0; i < N; i += 997) {
+      const j = i * 4;
+      if (sky[j + 3] !== 255) return false;
+      const v = baseIdx[i], p = PAL_RGB[v];
+      if (v && (base[j + 3] !== 255 || base[j] !== p[0] || base[j + 1] !== p[1] || base[j + 2] !== p[2])) return false;
+    }
+    for (const g of [dctx, fctx]) {
+      const c = g.getImageData(g === dctx ? DW >> 1 : W >> 1, 0, 1, 1).data;
+      if (c[0] + c[1] + c[2] === 0) return false;     // nothing here is ever pure black
+    }
+    return true;
+  } catch (e) { return false; }
+}
+function restorePicture() {
+  PICTURE.repaints++;
+  HILITE = null;
+  fctx.imageSmoothingEnabled = dctx.imageSmoothingEnabled = false;
+  buildSky();
+  rebake();
+  layout();
+  for (const [c, s] of UI.icons) paintSprite(c, s);
+  if (cardFor) renderCard();
+  if (shopOpen) renderShop();
+}
+function showReload(on) { UI.reloadBox.classList.toggle('on', on); }
+function settlePicture(tries) {
+  renderFrame(clock);
+  if (pictureOk()) { showReload(false); return; }
+  if (!tries) { showReload(true); return; }
+  // the browser may still be getting its canvases back
+  clearTimeout(PICTURE.timer);
+  PICTURE.timer = setTimeout(() => { restorePicture(); settlePicture(tries - 1); }, 1000);
+}
+function returnToPage(sec) {
+  if (sec >= RULES.repaintAfter || !pictureOk()) restorePicture();
+  settlePicture(1);
+}
+/* ── counting visits, only for those who agreed; only the public page has any of this ── */
+const CONSENT_KEY = 'summer-tower-analytics';
+const analytics = () => window.__analytics || null;
+function readConsent() { try { return localStorage.getItem(CONSENT_KEY); } catch (e) { return null; } }
+function setConsent(yes) {
+  try { localStorage.setItem(CONSENT_KEY, yes ? 'yes' : 'no'); } catch (e) { /* blocked: it asks again next time */ }
+  UI.consent.classList.remove('on');
+  try { if (yes) analytics().start(); else analytics().stop(); } catch (e) { /* the game doesn't depend on it */ }
+  renderMenu(); renderHelp();
+}
+function startAnalytics() {
+  if (!analytics()) return;
+  const said = readConsent();
+  if (said === 'yes') { try { analytics().start(); } catch (e) { /* the game doesn't depend on it */ } return; }
+  if (said) return;
+  UI.consent.innerHTML = `<p>訪問数を数えるために、Google Analytics（Cookie を使います）を使ってもよいですか？</p>
+    <div class="goods"><button class="wide" id="gaYes">いいよ</button><button class="wide" id="gaNo">使わない</button></div>`;
+  UI.consent.querySelector('#gaYes').onclick = () => setConsent(true);
+  UI.consent.querySelector('#gaNo').onclick = () => setConsent(false);
+  UI.consent.classList.add('on');
 }
 /* an absence, whether a closed page or a long-hidden tab */
 function comeBack() {
@@ -891,12 +1062,20 @@ function gameStart() {
   buildUI();
   if (fresh) saveGame();
   else comeBack();
+  startAnalytics();
+  $('reloadBtn').onclick = () => { saveGame(); location.reload(); };
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { hiddenAt = nowMs(); saveGame(); }
-    else if (hiddenAt && nowMs() - hiddenAt >= RULES.resumeAfter * 1000) comeBack();
+    if (document.hidden) { hiddenAt = nowMs(); saveGame(); return; }
+    const away = hiddenAt ? (nowMs() - hiddenAt) / 1000 : 0;
+    hiddenAt = 0;
+    returnToPage(away);
+    if (away >= RULES.resumeAfter) comeBack();
   });
   window.addEventListener('pagehide', saveGame);
+  window.addEventListener('pageshow', e => { if (e.persisted) returnToPage(RULES.repaintAfter); });
+  document.addEventListener('resume', () => returnToPage(RULES.repaintAfter));
+  for (const c of [display, frame, dynCanvas]) c.addEventListener('contextrestored', () => { if (!document.hidden) returnToPage(RULES.repaintAfter); });
 }
 const GAME = {
   state: () => JSON.parse(JSON.stringify(GS)),
@@ -910,9 +1089,15 @@ const GAME = {
   buy: (id, good) => { delete WORLD.react[id]; const ok = buyFor(id, good); delete WORLD.react[id]; if (UI.ui) refreshUI(); return ok; },
   grow: () => { const ok = growNow(); pushWorld(); if (UI.ui) refreshUI(); return ok; },
   sill: placeSill,
-  bottle: () => { const ok = upgradeBottle(); if (UI.ui) refreshUI(); return ok; },
-  bottleCap,
-  fillBottle: n => { GS.stash = n; },
+  roof: color => { const ok = changeRoof(color); if (UI.ui) refreshUI(); return ok; },
+  setHunger: (id, v) => { GS.hunger[id] = v; if (UI.ui) refreshUI(); },
+  feedAll: () => { for (const k in GS.hunger) GS.hunger[k] = 1; },
+  isAsleep, tier: id => BLOCK_TIER[id], setTiers: o => { Object.assign(BLOCK_TIER, o); },
+  crit: key => CRIT[key] && { ...CRIT[key] }, tapped: () => Object.keys(WORLD.tap), clearTaps: () => { WORLD.tap = {}; },
+  glow: () => WORLD.glow, splashes: () => SPLASHES.length,
+  breakPicture: () => { for (const c of [LAYER.base, LAYER.sky]) c.getContext('2d').clearRect(0, 0, W, H); fctx.fillStyle = '#000'; fctx.fillRect(0, 0, W, H); },
+  pictureOk, returnToPage, repaints: () => PICTURE.repaints, forceBadPicture: on => { PICTURE.bad = on; },
+  shiftClock: sec => { clockShift += sec * 1000; },
   balloon: () => { const b = balloonAt(); return b && [b[0], b[1] - 22]; },
   launch: launchBalloon,
   catchBalloon,

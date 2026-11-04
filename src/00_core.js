@@ -81,6 +81,7 @@ const RAMPS = {
   peb:  ['#4d5f78', '#66788f', '#8293a6', '#9fadbb', '#bbc6ce', '#d3dbde', '#e6ebec', '#f4f6f6'],
   sky:  ['#1a2346', '#24325e', '#314677', '#3f5a8a', '#5e82ad', '#8aaecb', '#b9d3e0', '#e2eef0'],
   gld:  ['#ffcf6e', '#ffe9a8', '#fff4c8', '#fffbe8'],
+  red:  ['#5c0f1c', '#8a1622', '#b81f2a', '#dc2f32', '#f0483f', '#fa6f5e', '#ff9a85', '#ffc6b6'],
 };
 const C = {};                    // C.wood4 is packed RGB
 const PAL_RGB = [[0, 0, 0]];     // index 0 means transparent

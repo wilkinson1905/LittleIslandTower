@@ -60,8 +60,21 @@ const entry = z => ({ x: 39, y: 95, z });        // the floor beside the ladder,
 const FOOT = atB(34, 104), FRONT = atB(86, 106), SAND = atB(146, 119), PIER = atB(154, 119, 5), TO_FOOT = atB(60, 118);
 /* the crab rests at its right end at 12-20 s and every 40 s after, at its left end at 32-40 s and every 40 s after */
 const CRAB_R = atB(116, 134), CRAB_L = atB(99, 151);
-/* two animals at the same time and place, if both are here */
-const both = (a, b) => present(a) && present(b);
+/* Hunger, read once per block so nobody jumps in the middle of a story: 0 fine, 1 stays home, 2 sleeps until fed. */
+const HUNGER_LOW = .3;
+const BLOCK_TIER = { cat: 0, pup: 0, rabbit: 0, sheep: 0, dragon: 0, penguin: 0 };
+const hungerTier = id => { const h = WORLD.hunger[id]; return h <= 0 ? 2 : h <= HUNGER_LOW ? 1 : 0; };
+const SLEEP_POSE = { cat: 'curl', pup: 'curl', rabbit: 'loaf', sheep: 'snooze', dragon: 'sleep', penguin: 'nap' };
+const AWAKE_POSE = { cat: 'sit', pup: 'sitWag', rabbit: 'sit', sheep: 'float', dragon: 'perch', penguin: 'stand' };
+/* someone to do things with: here, and not too hungry to come */
+const avail = id => present(id) && !BLOCK_TIER[id];
+/* two animals at the same time and place, if both can */
+const both = (a, b) => avail(a) && avail(b);
+function hungryRest(T, r, id, tier) {
+  if (tier === 2) { T.until(LOOP, SLEEP_POSE[id]); return; }
+  while (T.t < LOOP - 34) T.pose(18 + r() * 12, SLEEP_POSE[id]).pose(3 + r() * 3, AWAKE_POSE[id]);
+  T.until(LOOP, SLEEP_POSE[id]);
+}
 /* A shower: it starts, it ends, and at leave everyone heads home from the rainbow. */
 const RAIN_DAY = { start: 28, end: 68, leave: 94 }, RAIN_SHOW = { start: 42, end: 82, leave: 104 };
 const WET = { pet: .15, dragon: .8 };      // how likely each is to be out in it
@@ -116,7 +129,7 @@ const catFromJetty = T => { T.walk([PIER], CATV, 'walk').hop(SAND, .4, 'land').w
 const catToPup = T => { catToLadder(T); T.hop(lad(Z1), .4, 'land').walk([lad(Z2)], CLIMB, 'climb').hop(entry(Z2), .4, 'land').walk([at2(56, 88), at2(54, 82)], CATV, 'walk'); };
 /* out on the sand when it starts: runs for the door, or sits it out; afterwards the door or the jetty */
 function catCaught(T, r, ctx, day, always) {
-  const { start: S, end: E, leave } = day, stays = r() < WET.pet, pick = r() < .5, duo = present('pup') && ctx.duoOut, out = always || stays || duo || pick;
+  const { start: S, end: E, leave } = day, stays = r() < WET.pet, pick = r() < .5, duo = avail('pup') && ctx.duoOut, out = always || stays || duo || pick;
   T.until(S + 1, 'sit');
   if (stays) T.until(E - 1, 'sit');
   else {
@@ -150,12 +163,12 @@ const CAT = {
     T.pose(3, 'sit').pose(5, 'groom').pose(1, 'sit').walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   play(T, r) {
-    if (present('pup')) { CAT.chase(T, r); return; }
+    if (avail('pup')) { CAT.chase(T, r); return; }
     T.pose(6 + r() * 8, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
     T.pose(9, 'g2').pose(3, 'sit').pose(6, 'groom').pose(5, 'g4').pose(2, 'sit'); catFromRug(T); catOn(T);
   },
   perch(T, r, ctx) {
-    if (ctx.nap && present('pup')) { T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(84, 'curl').pose(1, 'sit').pose(6, 'groom').pose(2, 'sit'); return; }
+    if (ctx.nap && (present('rabbit') ? avail('rabbit') : avail('pup'))) { T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(84, 'curl').pose(1, 'sit').pose(6, 'groom').pose(2, 'sit'); return; }
     T.pose(14 + r() * 10, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
     if (own('catTree')) { catClimb(T); T.pose(26 + r() * 10, 'sit').pose(6, 'groom').pose(1, 'sit'); catDescend(T); }
     else T.pose(14, 'sit').pose(6, 'groom').pose(1, 'sit');
@@ -180,7 +193,7 @@ const CAT = {
     T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   crab(T, r) {
-    if (present('pup')) { CAT.invite(T); return; }
+    if (avail('pup')) { CAT.invite(T); return; }
     T.pose(1 + r() * 2, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
     T.walk([CRAB_R], CATV, 'walk').until(12, 'sit').until(20, 'tease').until(26, 'sit');
     T.walk([CRAB_L], CATV, 'walk').until(32, 'sit').until(40, 'tease');
@@ -190,7 +203,7 @@ const CAT = {
   boat(T, r) {
     T.pose(5 + r() * 5, 'curl').pose(1, 'sit'); catOff(T); catOut(T);
     catToJetty(T);
-    if (present('pup')) T.until(36, 'gaze').pose(3, 'gaze', { hearts: 1 }).until(56 + r() * 6, 'gaze');
+    if (avail('pup')) T.until(36, 'gaze').pose(3, 'gaze', { hearts: 1 }).until(56 + r() * 6, 'gaze');
     else T.pose(36 + r() * 6, 'gaze');
     T.pose(4, 'groom'); catFromJetty(T);
   },
@@ -208,8 +221,8 @@ const CAT = {
   },
   roof(T, r) {
     T.pose(3 + r() * 4, 'curl').pose(1, 'sit'); catOff(T); catToLadder(T);
-    toRoof(T, Z1, present('pup') ? rf(-14, 14, 30) : rf(-6, 14, 31), CATV, 'walk');
-    if (present('pup')) T.until(42, 'sit').pose(14, 'gaze').pose(4, 'groom').pose(1, 'sit');
+    toRoof(T, Z1, avail('pup') ? rf(-14, 14, 30) : rf(-6, 14, 31), CATV, 'walk');
+    if (avail('pup')) T.until(42, 'sit').pose(14, 'gaze').pose(4, 'groom').pose(1, 'sit');
     else T.pose(24 + r() * 8, 'sit').pose(6, 'groom').pose(12, 'gaze').pose(1, 'sit');
     fromRoof(T, Z1, CATV, 'walk'); catFromLadder(T); catOn(T);
   },
@@ -222,7 +235,7 @@ const CAT = {
     T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   lounge(T, r) {
-    if (present('pup')) { CAT.greet(T, r); return; }
+    if (avail('pup')) { CAT.greet(T, r); return; }
     T.pose(5 + r() * 6, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catOut(T);
     T.walk([atB(82, 136)], CATV, 'walk').hop(atB(70, 150, 5), .6, 'land').pose(1, 'sit');
     T.pose(36 + r() * 12, 'curl').pose(1, 'sit').pose(2.4, 'stretch').hop(atB(82, 136), .6, 'land');
@@ -259,8 +272,9 @@ const PUP = {
     T.walk([TO_FOOT, PUP_SAND], PUPR, 'walk');
     pupCaught(T, r, ctx, RAIN_SHOW);
   },
-  /* the cat is always here too: from the door of the loop, one length behind it */
+  /* the cat too, if it isn't too hungry: from the door of the loop, one length behind it */
   play(T, r) {
+    if (!avail('cat')) { PUP.bowls(T, r); return; }
     T.pose(2 + r() * 2, 'curl').pose(1.2, 'stand'); pupDown(T);
     T.walk([TO_FOOT, atB(96, 118), LAP[3]], PUPR, 'walk').until(20, 'sitWag');
     for (let n = 0; n < 3; n++) T.walk(lapFrom(3, 1), CHASEV, 'walk');
@@ -276,7 +290,8 @@ const PUP = {
     T.hop(lad(Z1), .4, 'land').walk([lad(Z2)], CLIMB, 'climb').hop(entry(Z2), .4, 'land'); pupFromLadder(T);
   },
   /* the cat comes up to say hello */
-  visited(T) {
+  visited(T, r) {
+    if (!avail('cat')) { PUP.beg(T, r); return; }
     T.until(38, 'curl').pose(1.2, 'stand').until(40, 'stand').pose(5, 'nose', { flip: true }).pose(4, 'sitWag');
     T.walk([at2(74, 42), at2(50, 42)], PUPV, 'walk').pose(3, 'sniff').pose(8, 'sitWag');
     T.walk([at2(74, 42), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
@@ -292,12 +307,13 @@ const PUP = {
     T.walk([at2(74, 58), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
   },
   rest(T, r) {
-    if (present('sheep')) T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(80, 'curl');   // the sheep comes to sleep beside it
+    if (avail('sheep')) T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(80, 'curl');   // the sheep comes to sleep beside it
     else T.pose(44 + r() * 20, 'curl');
     T.pose(1.2, 'stand').pose(2.4, 'stretch').pose(.6, 'stand').pose(10, 'sitWag');
   },
   /* the cat comes for it, and off they go to the crab */
-  crab(T) {
+  crab(T, r) {
+    if (!avail('cat')) { PUP.beg(T, r); return; }
     T.until(10.5, 'curl').pose(1.5, 'stand').pose(3, 'nose', { flip: true });
     pupToLadder(T); ladderDown(T, Z2);
     T.walk([TO_FOOT, atB(112, 140)], PUPR, 'walk').until(32, 'sitWag').until(40, 'tease').pose(1.5, 'stand');
@@ -317,6 +333,7 @@ const PUP = {
   },
   /* the cat is up the palm; it would like to climb as well, and can't */
   palm(T, r) {
+    if (!avail('cat')) { PUP.beg(T, r); return; }
     T.pose(8 + r() * 6, 'curl').pose(1.2, 'stand'); pupDown(T);
     T.walk([TO_FOOT, atB(46, 146)], PUPR, 'walk').pose(3, 'sniff').pose(7, 'bark').pose(4, 'sitWag');
     T.walk([atB(60, 138), atB(46, 146)], PUPR, 'walk').pose(6, 'bark').pose(3, 'sitWag');
@@ -325,7 +342,8 @@ const PUP = {
   /* meets the cat on the sand */
   beach(T, r) {
     T.pose(3 + r() * 4, 'curl').pose(1.2, 'stand'); pupDown(T);
-    T.walk([TO_FOOT, atB(92, 100), NOSE_PUP], PUPR, 'walk').until(26, 'sitWag').pose(5, 'nose', { flip: true }).pose(2, 'g4');
+    T.walk([TO_FOOT, atB(92, 100), NOSE_PUP], PUPR, 'walk').until(26, 'sitWag');
+    if (avail('cat')) T.pose(5, 'nose', { flip: true }).pose(2, 'g4'); else T.pose(5, 'sniff').pose(2, 'sitWag');
     T.walk([atB(122, 106)], PUPR, 'walk').pose(4, 'sniff').pose(3, 'sitWag');
     T.walk([atB(100, 150)], PUPR, 'walk').pose(10 + r() * 6, 'sitWag').walk([atB(58, 120)], PUPR, 'walk').pose(5, 'sniff');
     pupUp(T);
@@ -433,7 +451,7 @@ const SHEEP = {
   },
   rain(T, r) { T.pose(10 + r() * 10, 'float').pose(9, 'g2').pose(16, 'snooze').pose(2, 'float'); },
   rest(T, r) {
-    if (present('pup')) {   // up to the puppy's floor, for a sleep beside it
+    if (avail('pup')) {   // up to the puppy's floor, for a sleep beside it
       T.pose(6 + r() * 2, 'float'); shOut(T);
       T.walk([atB(100, 100, 118), at2(86, 68, 10)], SHR, 'drift').until(80, 'snooze').pose(1, 'float');
       T.walk([atB(100, 100, 118), atB(104, 118, 44)], SHR, 'drift'); shIn(T);
@@ -590,14 +608,14 @@ const SCRIPTS = {
   /* a nap against the cat, or the cat up its tree */
   perch: {
     cat: CAT.perch,
-    pup: (T, r, ctx) => (ctx.nap && !present('rabbit') ? PUP.nap(T, r) : PUP.bowls(T, r)),
-    rabbit: (T, r, ctx) => (ctx.nap ? RAB.nap(T, r) : RAB.bed(T, r)),
+    pup: (T, r, ctx) => (ctx.nap && !present('rabbit') && avail('cat') ? PUP.nap(T, r) : PUP.bowls(T, r)),
+    rabbit: (T, r, ctx) => (ctx.nap && avail('cat') ? RAB.nap(T, r) : RAB.bed(T, r)),
     sheep: SHEEP.rain, dragon: DRAGON.oven, penguin: PENGUIN.rest,
   },
   /* the dragon's flame and the sheep's rain; without them, the cat calls on the puppy */
   snack: {
-    cat: (T, r) => (present('pup') && !both('dragon', 'sheep') ? CAT.visit(T, r) : CAT.rest(T, r)),
-    pup: (T, r) => (both('dragon', 'sheep') ? PUP.beg(T, r) : PUP.visited(T)),
+    cat: (T, r) => (avail('pup') && !both('dragon', 'sheep') ? CAT.visit(T, r) : CAT.rest(T, r)),
+    pup: (T, r) => (both('dragon', 'sheep') ? PUP.beg(T, r) : PUP.visited(T, r)),
     rabbit: RAB.bed,
     sheep: (T, r) => (both('dragon', 'sheep') ? SHEEP.douse(T, r) : SHEEP.drift(T, r)),
     dragon: (T, r) => (both('dragon', 'sheep') ? DRAGON.fire(T, r) : DRAGON.oven(T, r)),
@@ -624,7 +642,8 @@ function compileBlock(name, seed) {
   const ctx = { duoOut: r() < .7, nap: r() < .5 || !own('catTree') };
   for (const id of ACTOR_IDS) {
     const T = new Track(HOME[id]);
-    def[id](T, r, ctx);
+    if (BLOCK_TIER[id]) hungryRest(T, r, id, BLOCK_TIER[id]);
+    else def[id](T, r, ctx);
     const home = HOME[id];
     if (T.t > LOOP) console.warn(`script ${name}: ${id} runs ${T.t.toFixed(1)}s`);
     if (T.p.x !== home.x || T.p.y !== home.y || T.p.z !== home.z) console.warn(`script ${name}: ${id} ends away from home`);
@@ -655,10 +674,15 @@ function storyAt(k) {
   return i < rest.length ? rest[i] : 'quiet';
 }
 const blockCache = new Map();
+let tierBlock = null;
 function blockFor(k) {
+  if (k !== tierBlock) {   // hunger only ever changes what an animal does from the next story on
+    tierBlock = k;
+    for (const id of ACTOR_IDS) BLOCK_TIER[id] = hungerTier(id);
+  }
   // furniture is left out on purpose: a purchase changes the next block, not the one playing.
   // who is here is in: it only changes when the tower grows or the page has been away.
-  const key = (CFG.loop ? 'L' : 'F') + CFG.seed + ':' + storeys + ':' + (WORLD.pets.dragon ? 1 : 0) + (WORLD.pets.sheep ? 1 : 0) + (WORLD.pets.penguin ? 1 : 0) + ':' + k;
+  const key = (CFG.loop ? 'L' : 'F') + CFG.seed + ':' + storeys + ':' + (WORLD.pets.dragon ? 1 : 0) + (WORLD.pets.sheep ? 1 : 0) + (WORLD.pets.penguin ? 1 : 0) + ':' + ACTOR_IDS.map(id => BLOCK_TIER[id]).join('') + ':' + k;
   let b = blockCache.get(key);
   if (b) return b;
   const name = CFG.loop ? SCRIPT_NAMES[((k % SCRIPT_NAMES.length) + SCRIPT_NAMES.length) % SCRIPT_NAMES.length] : storyAt(k);

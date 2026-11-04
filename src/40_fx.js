@@ -4,7 +4,7 @@
    ═══════════════════════════════════════════════════════════════════════ */
 const FX_INFO = [
   ['clouds', '雲'], ['swell', 'うねり'], ['sparkle', '海のきらめき'], ['foam', '波打ち際'], ['ripples', '杭の波紋'],
-  ['gulls', 'かもめ'], ['sail', '遠くの帆船'], ['boat', '桟橋の小舟'], ['fishJump', 'はねる魚'], ['turtle', '海がめの影'],
+  ['gulls', 'かもめ'], ['sail', '遠くの帆船'], ['boat', '桟橋の小舟'], ['fishJump', 'はねる魚'], ['shoal', '泳ぐ魚'], ['turtle', '海がめの影'],
   ['jelly', '空のくらげ'], ['shower', '天気雨'], ['rainbow', '虹'], ['palms', 'やしの葉'], ['sunflowers', 'ひまわり'],
   ['grass', '草'], ['butterflies', 'ちょう'], ['bee', 'はち'], ['crab', 'かに'], ['pool', '潮だまり'],
   ['paperBoat', '笹舟'], ['pennant', '尖塔の旗'], ['roofGlint', '屋根の照り'], ['winGlint', '窓の照り'], ['sunPatch', '床の日だまり'],
@@ -28,6 +28,10 @@ const WORLD = {
   beach: [],
   presents: [],
   sillTreat: false,
+  hunger: { cat: 1, pup: 1, rabbit: 1, sheep: 1, dragon: 1, penguin: 1 },
+  roof: 'blue',
+  glow: -1,                 // the slot of the piece of glass that has been waiting longest to be noticed
+  tap: {},                  // things tapped just now, and when; the picture is untouched while it's empty
   react: {},
   sparks: [],
   now: 0,
@@ -173,6 +177,28 @@ function fxZ(sx, sy, t, ph) {
   }
 }
 
+/* ── things that notice a finger: each records where it is as it's drawn ─ */
+const CRIT = {};
+function crit(key, x, y, r, gate = 0) {
+  const c = CRIT[key] || (CRIT[key] = { key, x: 0, y: 0, r: 0, gate: 0 });
+  c.x = x; c.y = y; c.r = r; c.gate = gate;
+}
+/* how long ago it was tapped, or -1; a reaction forgets itself when it's over */
+function tapAge(key, dur) {
+  const k = WORLD.tap[key];
+  if (!k) return -1;
+  const e = WORLD.now - k.t0;
+  if (e < 0 || e >= dur) { delete WORLD.tap[key]; return -1; }
+  return e;
+}
+const riseFall = u => (u < .35 ? smooth(u / .35) : 1 - smooth((u - .35) / .65));
+function rockBlit(s, sx, sy, tilt, gate) {
+  const x0 = sx - s.ax, y0 = sy - s.ay, mid = s.w / 2;
+  for (let j = 0; j < s.h; j++) for (let c = 0; c < s.w; c++) {
+    const v = s.d[j * s.w + c];
+    if (v) gate(x0 + c, y0 + j + Math.round((c - mid) * tilt), v);
+  }
+}
 /* ── the sea ──────────────────────────────────────────────────────────── */
 const FOAM = { idx: null, f: null, ph: null };
 function initFoam() {
@@ -229,17 +255,25 @@ const GULL = [
   mk(['.....', 'ooooo', '..o..'], 'o:cld7'),
   mk(['..o..', '.o.o.', 'o...o'], 'o:cld7'),
 ];
+const GULL_KEYS = ['gull0', 'gull1', 'gull2'];
 function fxGulls(t) {
   for (let n = 0; n < 3; n++) {
     const c = cyc(t, 2 + (n === 2 ? 1 : 0), n * .37), sx = Math.floor(c * 420) - 30;
-    const sy = 66 + n * 34 + Math.round(osc(t, 7 + n, n * .2) * 9);
-    sblit(GULL[fr(t, 4 + n, 3)], n === 1 ? W - sx : sx, sy, false, (x, y) => ppx(x, y, P.cld7));
+    const key = GULL_KEYS[n], e = tapAge(key, 4.5), X = n === 1 ? W - sx : sx;
+    const sy = 66 + n * 34 + Math.round(osc(t, 7 + n, n * .2) * 9) - (e < 0 ? 0 : Math.round(riseFall(e / 4.5) * 40));
+    sblit(GULL[fr(t, (4 + n) * (e < 0 ? 1 : 3), 3)], X, sy, false, (x, y) => ppx(x, y, P.cld7));
+    crit(key, X, sy - 1, 5, 2);
   }
 }
 const SAILBOAT = mk(['...o....', '...oW...', '...oWW..', '...oWWW.', '...oWWWW', '...o....', 'hhhhhhhh', '.hhhhhh.'], 'o:hon2 W:cld7 h:ter5');
 function fxSail(t) {
-  const sx = Math.floor(cyc(t, 1, .3) * 400) - 20;
-  sblit(SAILBOAT, sx, HORIZON + 4 + Math.round(osc(t, 8) * .6), false, seaVal);
+  const e = tapAge('sail', 10);                 // a burst of speed, then the wind drops until it's back on time
+  const dx = e < 0 ? 0 : e < 1.5 ? 28 * smooth(e / 1.5) : 28 * (1 - smooth((e - 1.5) / 8.5));
+  const fade = e < 0 ? 0 : Math.max(0, 1 - e / 4);
+  const sx = Math.floor(cyc(t, 1, .3) * 400) - 20 + Math.round(dx), sy = HORIZON + 4 + Math.round(osc(t, 8) * .6);
+  if (fade) rockBlit(SAILBOAT, sx, sy, Math.sin(e * 5) * .28 * fade, seaVal);
+  else sblit(SAILBOAT, sx, sy, false, seaVal);
+  crit('sail', sx, sy - 4, 8, 1);
 }
 function seaVal(x, y, v) {
   if (x < 0 || y < 0 || x >= W || y >= H) return;
@@ -250,8 +284,18 @@ const DINGHY = [
   mk(['......o.......', '...ooooooo....', '.oaaaaaaaaaoo.', 'obbbbbbbbbbbbo', '.occcccccccco.', '..oooooooooo..'], 'o:hon1 a:hon6 b:cld7 c:sea3'),
 ];
 function fxBoat(t) {
-  const sx = iX(186, 134), sy = iY(186, 134, 0) + Math.round(osc(t, 10) * 1);
-  sblit(DINGHY[0], sx, sy, osc(t, 2, .1) > .9);
+  const sx = iX(186, 134), sy = iY(186, 134, 0) + Math.round(osc(t, 10) * 1), e = tapAge('boat', 3.5);
+  if (e < 0) sblit(DINGHY[0], sx, sy, osc(t, 2, .1) > .9);
+  else {
+    const fade = 1 - e / 3.5;
+    for (let n = 0; n < 2; n++) {
+      const u = (e - n * .5) / 2;
+      if (u <= 0 || u >= 1) continue;
+      for (let a = 0; a < 28; a++) if (a % 2 || u < .6) seapx(Math.round(sx + Math.cos(a / 28 * TAU) * (9 + u * 16)), Math.round(sy - 2 + Math.sin(a / 28 * TAU) * (4 + u * 7)), P.cld7);
+    }
+    rockBlit(DINGHY[0], sx, sy + Math.round(Math.sin(e * 7) * 1.5 * fade), Math.sin(e * 6) * .3 * fade, spx);
+  }
+  crit('boat', sx, sy - 3, 9);
 }
 const FISHLET = mk(['.oo.o', 'oaaoo', '.oo.o'], 'o:peb3 a:cld7');
 function fxFishJump(t) {
@@ -264,20 +308,61 @@ function fxFishJump(t) {
   }
 }
 function fxTurtle(t) {
-  const sx = Math.floor(cyc(t, 1, .1) * 440) - 40, sy = 604 + Math.round(osc(t, 3) * 3), fl = fr(t, 2, 2);
-  for (let a = -8; a <= 8; a++) for (let b = -4; b <= 4; b++) if ((a * a) / 64 + (b * b) / 16 < 1) seapx(sx + a, sy + b, (a + b * 2) % 5 === 0 ? P.azu4 : P.azu3);
-  for (let k = 0; k < 4; k++) { seapx(sx + 6 + k, sy - 4 - k * (fl ? 1 : 0), P.azu3); seapx(sx + 6 + k, sy + 4 + k * (fl ? 0 : 1), P.azu3); seapx(sx - 6 - k, sy - 3, P.azu3); seapx(sx - 6 - k, sy + 3, P.azu3); }
-  for (let a = 9; a < 12; a++) for (let b = -1; b <= 1; b++) seapx(sx + a, sy + b, P.azu3);
+  const e = tapAge('turtle', 12);        // dives in a hurry, and comes back up a good while later
+  const vis = e < 0 ? 1 : e < 1 ? 1 - e : e < 10 ? 0 : (e - 10) / 2;
+  const sx = Math.floor(cyc(t, 1, .1) * 440) - 40 + (e >= 0 && e < 1 ? Math.round(smooth(e) * 22) : 0), sy = 574 + Math.round(osc(t, 3) * 3), fl = e >= 0 && e < 1 ? fr(t, 8, 2) : fr(t, 2, 2);
+  crit('turtle', sx, sy, vis > .3 ? 12 : 0, 1);
+  if (e >= 0 && e < 1.6) for (let i = 0; i < 8; i++) {
+    const c = e * 1.1 - hsh(i, 75) * .5;
+    if (c > 0 && c < 1) seapx(sx - 6 + Math.round(hsh(i, 76) * 14), sy + 2 - Math.round(c * 16), P.cld7);
+  }
+  if (vis <= 0) return;
+  const px = (x, y, col) => { if (vis >= 1 || hsh(x - sx, y - sy, 77) < vis) seapx(x, y, col); };
+  for (let a = -8; a <= 8; a++) for (let b = -4; b <= 4; b++) if ((a * a) / 64 + (b * b) / 16 < 1) px(sx + a, sy + b, (a + b * 2) % 5 === 0 ? P.azu4 : P.azu3);
+  for (let k = 0; k < 4; k++) { px(sx + 6 + k, sy - 4 - k * (fl ? 1 : 0), P.azu3); px(sx + 6 + k, sy + 4 + k * (fl ? 0 : 1), P.azu3); px(sx - 6 - k, sy - 3, P.azu3); px(sx - 6 - k, sy + 3, P.azu3); }
+  for (let a = 9; a < 12; a++) for (let b = -1; b <= 1; b++) px(sx + a, sy + b, P.azu3);
 }
+/* shadows in the shallows, following the shore: centre of its beat, distance from the shore, beats per block, phase */
+const SHOAL = [[1.57, 1.34, 3, .1], [2.2, 1.46, 2, .4], [.95, 1.4, 3, .7], [1.2, 1.24, 2, .2], [1.95, 1.26, 3, .55]];
+const FISH_KEYS = SHOAL.map((f, n) => 'fish' + n);
+const fishX = [0, 0], fishAt = (n, t) => {
+  const [a0, f, c, ph] = SHOAL[n], a = a0 + osc(t, c, ph) * .34;
+  const r = Math.sqrt(Math.max(.1, f - (Math.sin(a * 3 + 1) * .07 + Math.sin(a * 7 + 2) * .04 + Math.sin(a * 13) * .02)));
+  fishX[0] = 180 + SHORE.ru * r * Math.cos(a); fishX[1] = OY + SHORE.cy + SHORE.rv * r * Math.sin(a);
+  return fishX;
+};
+function fxShoal(t) {
+  for (let n = 0; n < SHOAL.length; n++) {
+    const key = FISH_KEYS[n], e = tapAge(key, 7.5);
+    const ahead = fishAt(n, t + .2)[0], at = fishAt(n, t);
+    let x = at[0], y = at[1], vis = 1, dir = ahead > x ? 1 : -1, wag = fr(t, 5, 2);
+    if (e >= 0) {          // gone in a flash, and back when the coast is clear
+      const k = WORLD.tap[key];
+      if (e < .8) { const u = e / .8, off = 1 - (1 - u) ** 3; x += k.dx * off; y += k.dy * off; vis = 1 - u * u; dir = k.dx > 0 ? 1 : -1; wag = fr(t, 24, 2); }
+      else if (e < 6.5) vis = 0;
+      else vis = e - 6.5;
+    }
+    x = Math.round(x); y = Math.round(y);
+    crit(key, x, y, vis > .4 ? 5 : 0, 1);
+    if (vis <= 0) continue;
+    const px = (a, b, col) => { if (vis >= 1 || hsh(a, b, n, 79) < vis) seapx(x + a * dir, y + b, col); };
+    for (let a = -3; a <= 4; a++) { const w = a < -1 || a > 3 ? 0 : 1; for (let b = -w; b <= w; b++) px(a, b, b ? P.azu2 : P.azu1); }
+    px(-4, wag ? -1 : 1, P.azu2); px(-5, wag ? -2 : 2, P.azu2); px(-5, wag ? -1 : 1, P.azu2); px(-4, 0, P.azu2);
+  }
+}
+const JELLY_KEYS = ['jelly0', 'jelly1'];
 const JELLY = [
   mk(['...ppp...', '.ppWWWpp.', 'pWWWWWWWp', 'pWWWWWWWp', 'ppppppppp', '.p.p.p.p.', '.p.p.p.p.', 'p.p.p.p..', '.p.p.p.p.'], 'p:pin6 W:cld7'),
   mk(['.........', '...ppp...', '.pWWWWWp.', 'pWWWWWWWp', 'ppppppppp', 'p.p.p.p.p', '.p.p.p.p.', '.p.p.p.p.', 'p.p.p.p..'], 'p:pin6 W:cld7'),
 ];
 function fxJelly(t) {
   for (let n = 0; n < 2; n++) {
-    const c = cyc(t, 1, n * .55), sy = 210 - Math.floor(c * 230), sx = 40 + n * 250 + Math.round(osc(t, 3, n * .3) * 16);
-    const s = JELLY[fr(t, 1 + n, 2)];
-    sblit(s, sx, sy, n === 1, (x, y, v) => { if (y >= 0 && y < HORIZON && (x + y) % 2 === 0) ppx(x, y, v); });
+    const key = JELLY_KEYS[n], e = tapAge(key, 4.5), c = cyc(t, 1, n * .55), sx = 40 + n * 250 + Math.round(osc(t, 3, n * .3) * 16);
+    const sy = 210 - Math.floor(c * 230) - (e < 0 ? 0 : Math.round(riseFall(e / 4.5) * 34));
+    const s = JELLY[e < 0 ? fr(t, 1 + n, 2) : fr(t, 4, 2)], glows = e >= 0 && e < 1.4;
+    sblit(s, sx, sy, n === 1, (x, y, v) => { if (y >= 0 && y < HORIZON && (e >= 0 || (x + y) % 2 === 0)) ppx(x, y, glows ? UPP[v] : v); });
+    if (glows) for (let a = 0; a < 10; a++) ppx(sx + Math.round(Math.cos(a / 10 * TAU) * (7 + e * 5)), sy - 4 + Math.round(Math.sin(a / 10 * TAU) * (7 + e * 5)), P.pin5);
+    crit(key, sx, sy - 4, sy > 0 && sy < HORIZON + 4 ? 7 : 0, 2);
   }
 }
 /* ── weather: a sun shower, then a rainbow, on stories that ask for one ─ */
@@ -289,7 +374,7 @@ function showerAmount(b, local) {
 function rainbowAmount(b, local) {
   if (!b.shower) return 0;
   const z = b.shower[1];
-  return smooth((local - z + 2) / 5) * (1 - smooth((local - z - 18) / 6));
+  return smooth((local - z + 2) / 5) * (1 - smooth((local - z - 18) / 8));
 }
 function fxShower(t, b, local) {
   const amt = showerAmount(b, local);
@@ -313,8 +398,16 @@ function fxRainbow(t, b, local) {
     for (let a = 0; a < 480; a++) {
       const ang = Math.PI * a / 480, sx = Math.round(cx + Math.cos(ang) * r), sy = Math.round(cy - Math.sin(ang) * r * .8);
       if (sy >= HORIZON || sx < 0 || sx >= W) continue;
-      const q = sy < 0 ? 1 : Math.min(amt, (HORIZON - sy) / 26);
-      if (hsh(sx, sy, 7) < q * .62) { seapx(sx, sy, pi); seapx(sx, sy + 1, pi); }
+      // really see-through: the sky shows more and more, and it thins out towards the horizon
+      const a8 = Math.round(amt * Math.min(1, (HORIZON - sy) / 26) * 158);
+      if (a8 <= 0) continue;
+      const v = (PAL32[pi] & 0xffffff | a8 << 24) >>> 0;
+      for (let k = 0; k < 2; k++) {
+        const y = sy + k;
+        if (y < 0 || y >= H) continue;
+        const i = y * W + sx;
+        if (!gId[i] && !dyn[i]) dyn[i] = v;
+      }
     }
   }
 }
@@ -390,15 +483,21 @@ const FLUT = [
   mk(['aa.aa', 'abobA'.replace('A', 'a'), '.aoa.', '..o..'], 'a:sea4 b:cld7 o:wood1'),
   mk(['.....', '.aoa.', '.aoa.', '..o..'], 'a:sea3 o:wood1'),
 ];
+const BUTTER_KEYS = ['butter0', 'butter1'];
 function fxButter(t) {
   for (let n = 0; n < 2; n++) {
-    const sx = 290 + Math.round(osc(t, 3 + n, n * .4) * 22 + osc(t, 11, n * .1) * 5);
-    const sy = 448 + Math.round(osc(t, 4, n * .3) * 16 + osc(t, 17, n * .2) * 3);
-    sblit(FLUT[n * 2 + fr(t, 8, 2)], sx, sy);
+    const key = BUTTER_KEYS[n], e = tapAge(key, 3.6), h = e < 0 ? 0 : riseFall(e / 3.6);
+    const sx = 290 + Math.round(osc(t, 3 + n, n * .4) * 22 + osc(t, 11, n * .1) * 5 + (e < 0 ? 0 : h * Math.sin(e * 4) * 9));
+    const sy = 448 + Math.round(osc(t, 4, n * .3) * 16 + osc(t, 17, n * .2) * 3 - h * 44);
+    sblit(FLUT[n * 2 + fr(t, e < 0 ? 8 : 20, 2)], sx, sy);
+    crit(key, sx, sy - 2, 4);
   }
 }
 function fxBee(t) {
-  const sx = 282 + Math.round(osc(t, 5) * 16 + osc(t, 37, .2) * 3), sy = 438 + Math.round(osc(t, 7, .4) * 10 + osc(t, 41) * 2);
+  const e = tapAge('bee', 2.6), turn = e < 0 ? 0 : Math.sin(e / 2.6 * Math.PI) * 10;
+  const sx = 282 + Math.round(osc(t, 5) * 16 + osc(t, 37, .2) * 3 + (e < 0 ? 0 : Math.cos(e * 14) * turn));
+  const sy = 438 + Math.round(osc(t, 7, .4) * 10 + osc(t, 41) * 2 + (e < 0 ? 0 : Math.sin(e * 14) * turn * .7));
+  crit('bee', sx, sy, 4);
   spx(sx, sy, P.amb7); spx(sx + 1, sy, P.mid1); if (fr(t, 12, 2)) spx(sx, sy - 1, P.cld7);
 }
 const CRAB = [
@@ -413,7 +512,15 @@ function crabTeased(b, local) {
 }
 function fxCrab(t, b, local) {
   const c = cyc(t, 3), walk = c < .3 ? c / .3 : c < .5 ? 1 : c < .8 ? 1 - (c - .5) / .3 : 0;
-  const moving = (c < .3 || (c >= .5 && c < .8)), x = 112 + Math.round(walk * 34);
+  const moving = (c < .3 || (c >= .5 && c < .8)), x = 112 + Math.round(walk * 34), e = tapAge('crab', 4.5);
+  if (e >= 0) {          // claws up, off it scuttles, and back it comes when nothing happens
+    const run = e < .6 ? 0 : e < 2 ? smooth((e - .6) / 1.4) : 1 - smooth((e - 2) / 2.5), X = x + Math.round(run * WORLD.tap.crab.dir * 30);
+    if (e < .6) sblit(CRAB[2], X, 528 - fr(t, 8, 2) * 2);
+    else sblit(fr(t, 16, 2) ? CRAB[2] : CRAB[1], X, 528);
+    crit('crab', X, 526, 5);
+    return;
+  }
+  crit('crab', x, 526, 5);
   if (!moving && crabTeased(b, local)) sblit(CRAB[fr(t, 5, 2) ? 2 : 0], x, 528 - fr(t, 5, 2));
   else sblit(CRAB[moving ? fr(t, 6, 2) : 0], x, 528);
 }
@@ -801,6 +908,11 @@ const POSE = {
     }
   },
 };
+const HUNGRY = mk([
+  '...ooooooo...', '..oWWWWWWWo..', '.oWWWWWWWWWo.',
+  'oWWWWWWWWWWWo', 'oWWWWWWWWWWWo', 'oWWWWWWWWWWWo', 'oWWWWWWWWWWWo', 'oWWWWWWWWWWWo',
+  '.oWWWWWWWWWo.', '..oWWWWWWWo..', '...ooWWWooo..', '.....oWo.....', '......o......',
+], 'o:peb2 W:cld7', 6, 12);
 const HEART = mk(['.o.o.', 'oPoPo', 'oPPPo', '.oPo.', '..o..'], 'o:rose2 P:pin6');
 function drawHearts(sx, sy, e) {
   for (let i = 0; i < 3; i++) {
@@ -868,6 +980,8 @@ function drawActors(t, b, local) {
     if (!present(id)) continue;
     const A = ACTOR[id];
     sampleActor(A, b[id], local);
+    // fed: awake, and waiting at home for the next story
+    if (BLOCK_TIER[id] && WORLD.hunger[id] > HUNGER_LOW && A.anim === SLEEP_POSE[id]) A.anim = AWAKE_POSE[id];
     A.react = applyReact(A, WORLD.now);
     drawOrder.push(A);
   }
@@ -894,6 +1008,10 @@ function drawActors(t, b, local) {
     const sx = iX(A.x, A.y) + SHOT.ox, sy = iY(A.x, A.y, z);
     A.sx = sx; A.sy = sy - Math.round(SHOT.s.h / 2); A.h = SHOT.s.h;
     if (SHOT.sleep && FX.zzz) fxZ(sx + 3, sy - SHOT.s.h, t, ACTOR_IDS.indexOf(A.id) * .17);
+    if (!Rx && BLOCK_TIER[A.id] === 2 && WORLD.hunger[A.id] <= 0) {
+      const bx = sx - 6, by = sy - SHOT.s.h - 1 + Math.round(osc(t, 40, ACTOR_IDS.indexOf(A.id) * .17));
+      sblit(HUNGRY, bx, by); sblit(ITEM.cookie, bx, by - 4);
+    }
     if (SHOT.effect === 'rain') for (let i = 0; i < 9; i++) {
       const c = cyc(t, 60 + i * 3, hsh(i, 141)), yy = sy + 1 + Math.round(c * 14);
       lpx(sx - 7 + Math.round(hsh(i, 142) * 14), yy, lut, P.sea6);
@@ -938,6 +1056,7 @@ function drawDynamic(t, st) {
   if (FX.swell) fxSwell(t);
   if (FX.sparkle) fxSparkle(t);
   if (FX.turtle) fxTurtle(t);
+  if (FX.shoal) fxShoal(t);
   if (FX.sail) fxSail(t);
   if (FX.fishJump) fxFishJump(t);
   if (FX.ripples) fxRipples(t);

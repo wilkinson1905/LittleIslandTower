@@ -1,13 +1,16 @@
 // Builds the game and puts it on the gh-pages branch as index.html: node tools/publish.mjs ["commit message"]
 // Works on git objects directly, so the working tree and the current branch are left alone.
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { withAnalytics } from './analytics.mjs';
 
 const git = (args, input) => execFileSync('git', args, { encoding: 'utf8', input, stdio: ['pipe', 'pipe', 'inherit'] }).trim();
 const message = process.argv[2] || `Publish ${git(['rev-parse', '--short', 'HEAD'])}`;
 
 execFileSync('node', ['build.mjs'], { stdio: 'inherit' });
 
-const page = git(['hash-object', '-w', '--no-filters', 'dollhouse.html']);
+// only the public page can count visits; the development build stays free of outside references
+const page = git(['hash-object', '-w', '--stdin'], withAnalytics(readFileSync('dollhouse.html', 'utf8')));
 const empty = git(['hash-object', '-w', '--stdin'], '');
 const tree = git(['mktree'], `100644 blob ${empty}\t.nojekyll\n100644 blob ${page}\tindex.html\n`);
 

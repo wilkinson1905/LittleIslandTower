@@ -9,9 +9,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const chrome = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const port = 9300 + (process.pid % 400);
+let nextPort = 9300 + (process.pid % 400);   // one per open(): two pages on one port would share a browser
 
 export async function open(query = '') {
+  const port = nextPort++;
   const profile = mkdtempSync(join(tmpdir(), 'dh-'));
   const proc = spawn(chrome, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1',
     '--window-size=1920,1080', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--no-first-run', 'about:blank'], { stdio: 'ignore' });
