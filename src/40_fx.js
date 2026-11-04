@@ -991,6 +991,7 @@ function drawActors(t, b, local) {
     SHOT.s = null; SHOT.flip = false; SHOT.h = 14; SHOT.ox = 0; SHOT.oy = 0; SHOT.oz = 0;
     SHOT.tail = null; SHOT.sleep = false; SHOT.floats = false; SHOT.effect = null;
     POSE[A.id](A, t);
+    if (catArtOn && A.id === 'cat') catArtPose(t);
     const lut = actorLut(A.x, A.y, A.z, isOutdoors(A) ? 'E' : null);
     const Rx = A.react, e = Rx ? WORLD.now - Rx.t0 : 0;
     if (Rx) drawItem(Rx, A, t, e);

@@ -339,6 +339,24 @@ await ev('dollhouse.game.forceBadPicture(false); dollhouse.game.returnToPage(60)
 check('and it goes away once fixed', !(await ev(`document.getElementById('reloadBox').classList.contains('on')`)), 'hidden');
 await ev('dollhouse.play(); 1');
 
+/* ── comparing the two cats (?cat=1) ─────────────────────────────────── */
+check('no cat switch on the plain URL', await ev(`document.getElementById('catArtBtn').hidden`), 'hidden');
+{
+  const cp = await open('cat=1');
+  await sleep(300);
+  const hashAt = () => cp.evaluate('dollhouse.frameHash(33.3)');
+  const shown = () => cp.evaluate(`document.getElementById('catArtBtn').textContent`);
+  check('the debug URL shows the switch, on the new cat', !(await cp.evaluate(`document.getElementById('catArtBtn').hidden`)) && await shown() === 'ねこ：新しい絵', await shown());
+  const fresh = await hashAt();
+  await cp.evaluate(`document.getElementById('catArtBtn').click(); 1`);
+  const hand = await hashAt();
+  check('pressing it changes the cat', hand !== fresh && await shown() === 'ねこ：今の絵', await shown());
+  await cp.evaluate(`document.getElementById('catArtBtn').click(); 1`);
+  check('pressing it again brings the new one back exactly', await hashAt() === fresh, 'same picture');
+  check('no errors from the switch', !cp.logs.some(l => /^(EXCEPTION|error)/.test(l)), cp.logs.length ? cp.logs[0] : 'none');
+  cp.close();
+}
+
 /* ── a balloon with a present ─────────────────────────────────────────── */
 check('no balloon at first', await ev('dollhouse.game.balloon()') === null, 'none');
 await ev('dollhouse.game.advance(181); 1');

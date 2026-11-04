@@ -4,3 +4,6 @@ dollhouse.html
 preview/
 *.mp4
 video/
+
+# work files from the art runs
+art/runs/
