@@ -1,0 +1,6 @@
+[
+  { "name": "1_lightning", "seed": 28597, "block": 0, "t": 17.63, "dur": 3, "zoom": [] },
+  { "name": "2_pet", "seed": 1905, "block": 1, "t": 73.8, "dur": 3, "zoom": [155, 205, 160, 90] },
+  { "name": "3_cat_window", "seed": 1905, "block": 5, "t": 41.9, "dur": 3, "zoom": [64, 215, 160, 90] },
+  { "name": "4_bedroom_window", "seed": 1905, "block": 1, "t": 31.8, "dur": 3, "zoom": [278, 90, 160, 90] }
+]

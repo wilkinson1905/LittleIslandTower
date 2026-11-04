@@ -1,0 +1,6 @@
+# build output: the public copy lives on the gh-pages branch
+dollhouse.html
+# review screenshots
+preview/
+*.mp4
+video/
