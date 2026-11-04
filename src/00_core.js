@@ -278,14 +278,14 @@ function O(name, aabb, paint, o = {}) {
   const ob = { name, id: OBJ.length, x0: aabb[0], y0: aabb[1], z0: aabb[2], x1: aabb[3], y1: aabb[4], z1: aabb[5], paint, o };
   OBJ.push(ob);
   NAMED[name] = ob;
-  if (o.shadow) SHADOWS.push({ x0: aabb[0], y0: aabb[1], x1: aabb[3], y1: aabb[4], z: aabb[2], level: o.level, only: o.only });
+  if (o.shadow) SHADOWS.push({ x0: aabb[0], y0: aabb[1], x1: aabb[3], y1: aabb[4], z: aabb[2], level: o.level, only: o.only, furn: o.furn });
   return ob;
 }
 const SHADOWS = [];
 const LIGHTS = [];
 function light(x, y, z, hexc, i, rad, zone, o = {}) {
   const v = hex(hexc);
-  LIGHTS.push({ x, y, z, r: (v >> 16 & 255) / 255, g: (v >> 8 & 255) / 255, b: (v & 255) / 255, i, rad, zone, fire: !!o.fire, flat: !!o.flat, level: o.level, only: o.only });
+  LIGHTS.push({ x, y, z, r: (v >> 16 & 255) / 255, g: (v >> 8 & 255) / 255, b: (v & 255) / 255, i, rad, zone, fire: !!o.fire, flat: !!o.flat, level: o.level, only: o.only, furn: o.furn });
 }
 
 /* AABB ordering: returns -1 if a is behind b, 1 if b is behind a, 0 if unknown. */
@@ -340,9 +340,12 @@ function zoneOf(ob, z) {
 const makeCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
 
 /* How many storeys the tower has now. Objects with o.level appear from that storey on;
-   objects with o.only exist at exactly that storey, like the roof. */
+   objects with o.only exist at exactly that storey, like the roof; objects with o.furn
+   appear once that piece of furniture has been bought. */
 let storeys = 1;
-const onNow = o => (o.level === undefined || storeys >= o.level) && (o.only === undefined || storeys === o.only);
+const OWNED = { all: true, set: new Set() };
+const own = key => OWNED.all || OWNED.set.has(key);
+const onNow = o => (o.level === undefined || storeys >= o.level) && (o.only === undefined || storeys === o.only) && (o.furn === undefined || own(o.furn));
 function paintAll() {
   gCol.fill(-1); gId.fill(0); gN.fill(0);
   // painted storey by storey: the plan isn't axis-aligned, so boxes alone can't order the walls

@@ -30,12 +30,12 @@ O('doorF1', [-100, -100, Z1, -99, -99, Z1 + 42], () => {
 }, { outline: 0, level: 1, layer: L_WALL(1) + .5 });
 O('doorMat', [62, 20, Z1, 76, 32, Z1 + 1], () => {
   top(62, 20, Z1 + 1, 14, 12, (i, j) => (i === 0 || j === 0 || i === 13 || j === 11) ? C.crm7 : (i + j) % 6 < 3 ? C.sea4 : C.sea5);
-}, { outline: 0, level: 1 });
+}, { outline: 0, level: 1, furn: 'doorMat' });
 
 /* the low shelf of picture books along the back wall */
 O('toyShelf', [-100, -100, Z1, -99, -99, Z1 + 20], () => {
   frontBox(-32, 34, -29, Z1, 20, 6, bookFace(34, 20, 11, ['sea4', 'pin4', 'amb6', 'lef4', 'crm7', 'ter5', 'pin5', 'sea5']), (u, e) => e === 0 ? C.hon7 : C.hon6);
-}, { level: 1, layer: L_BACK(1), outline: .85 });
+}, { level: 1, layer: L_BACK(1), outline: .85, furn: 'shelf1' });
 
 /* the big round rug with a sun in its centre */
 const RUG1 = { x: 56, y: 58, r: 19 };
@@ -52,24 +52,24 @@ O('rugF1', [RUG1.x - RUG1.r, RUG1.y - RUG1.r, Z1, RUG1.x + RUG1.r, RUG1.y + RUG1
     if (d > 5.5) return C.crm7;
     return d < 3 ? C.amb7 : C.amb6;
   });
-}, { outline: 0, level: 1 });
+}, { outline: 0, level: 1, furn: 'rug1' });
 
 /* a carpeted cat tree by the left pillar */
 const CATTREE = { x: 43, y: 85, shelfZ: Z1 + 21, topZ: Z1 + 41 };
 O('catTreeBase', [36, 78, Z1, 50, 92, Z1 + 3], () => {
   soft(36, 78, Z1, 14, 14, 3, 'pin', 4);
-}, { shadow: 1, level: 1 });
+}, { shadow: 1, level: 1, furn: 'catTree' });
 O('catTreePost', [41, 83, Z1 + 3, 46, 88, Z1 + 38], () => {
   fy(41, 87, Z1 + 3, 5, 35, (i, k) => k % 3 === 0 ? C.hon3 : (k + i) % 6 < 3 ? C.hon6 : C.hon5);
   fx(45, 83, Z1 + 3, 4, 35, (j, k) => k % 3 === 0 ? C.hon2 : (k + j) % 6 < 3 ? C.hon5 : C.hon4);
-}, { outline: .85, level: 1 });
+}, { outline: .85, level: 1, furn: 'catTree' });
 O('catTreeShelfLow', [34, 80, Z1 + 18, 46, 92, Z1 + 21], () => {
   soft(34, 80, Z1 + 18, 12, 12, 3, 'pin', 5);
-}, { level: 1 });
+}, { level: 1, furn: 'catTree' });
 O('catTreeTop', [36, 78, Z1 + 38, 50, 92, Z1 + 42], () => {
   soft(36, 78, Z1 + 38, 14, 14, 4, 'pin', 4);
   top(39, 81, Z1 + 42, 8, 8, (i, j) => (i - 3.5) ** 2 + (j - 3.5) ** 2 < 14 ? (i + j) % 5 === 0 ? C.pin4 : C.pin6 : -1);
-}, { level: 1 });
+}, { level: 1, furn: 'catTree' });
 
 /* the padded nest the cat naps in */
 const CATBED = { x: 67, y: 91, z: Z1 + 4 };
@@ -98,7 +98,7 @@ O('tent', [72, 44, Z1, 93, 65, Z1 + 26], () => {
     return Math.floor((i + 40) / 4) % 2 ? C.sea5 : C.crm7;
   });
   spr(x + 10, y1, Z1 + h, 'p:pin3 q:pin5 s:hon2', ['pq...', 'ppq..', 'pq...', 's....', 's....']);
-}, { level: 1 });
+}, { level: 1, furn: 'tent' });
 
 /* the wicker toy basket, full of balls */
 const BASKET = { x: 86, y: 80 };
@@ -113,14 +113,14 @@ O('ballBasket', [BASKET.x - 7, BASKET.y - 7, Z1, BASKET.x + 7, BASKET.y + 7, Z1 
       put(sx0 + s, Math.round(sy0 + arc - k - 2), k === 9 ? C.hon6 : co, x, y, Z1 + k, s > 0 ? NX : NY);
     }
   }
-}, { outline: .8, shadow: 1, level: 1 });
+}, { outline: .8, shadow: 1, level: 1, furn: 'basket' });
 
 /* the wooden blocks, stacked and tumbled */
 O('blocksF1', [38, 22, Z1, 54, 36, Z1 + 14], () => {
   box(42, 26, Z1, 7, 7, 7, { t: C.pin5, l: C.pin3, r: C.pin2 });
   box(48, 23, Z1, 6, 6, 6, { t: C.amb7, l: C.amb5, r: C.amb4 });
   box(43, 27, Z1 + 7, 5, 5, 5, { t: C.sea6, l: C.sea4, r: C.sea3 });
-}, { level: 1 });
+}, { level: 1, furn: 'blocks' });
 
 light(70, 88, Z1 + 40, '#fff4d8', .3, 80, 'G');
 light(30, 80, Z1 + 42, '#d8f0ff', .35, 60, 'G');

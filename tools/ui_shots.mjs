@@ -24,6 +24,12 @@ await ev(`document.querySelector('#card .x').click(); document.querySelector('[d
 await ev(`(() => { const G = dollhouse.game; for (let i = 0; i < 12; i++) { G.advance(500); G.collectAll(); } G.grow(); G.grow(); return 1; })()`);
 await sleep(900);
 await page.shot(join(dir, '4_tower.png'));
+await ev(`document.getElementById('shopBtn').click(); 1`);
+await sleep(200);
+await page.shot(join(dir, '4b_shop.png'));
+await ev(`document.getElementById('helpBtn').click(); 1`);
+await sleep(200);
+await page.shot(join(dir, '4c_help.png'));
 await ev(`document.getElementById('menuBtn').click(); 1`);
 await sleep(200);
 await page.shot(join(dir, '5_menu.png'));

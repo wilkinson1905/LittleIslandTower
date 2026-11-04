@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>夏の塔の箱庭</title>
+<title>Little Island Tower</title>
 <style>
   html, body { margin: 0; height: 100%; background: #0f5c9c; overflow: hidden; overscroll-behavior: none; }
   body { display: flex; align-items: center; justify-content: center; }
@@ -16,12 +16,12 @@
   #ui[hidden] { display: none; }
   #ui button { font: inherit; color: inherit; border: 0; cursor: pointer; pointer-events: auto; }
   #ui button[hidden] { display: none; }
-  #ui small { display: block; font-size: calc(var(--u) * 10); font-weight: 400; opacity: .8; }
 
   #topbar { position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); top: calc(var(--u) * 8); display: flex; gap: calc(var(--u) * 6); align-items: center; }
   .pill { display: flex; align-items: center; gap: calc(var(--u) * 5); height: calc(var(--u) * 30); padding: 0 calc(var(--u) * 10); background: #fff8e7; border-radius: calc(var(--u) * 15); box-shadow: 0 calc(var(--u) * 2) 0 #d9c49a; font-weight: 700; font-size: calc(var(--u) * 14); }
   #bottleBtn { background: #e2f6fb; box-shadow: 0 calc(var(--u) * 2) 0 #9fd3e2; }
-  #menuBtn { margin-left: auto; width: calc(var(--u) * 30); padding: 0; justify-content: center; }
+  #shopBtn { margin-left: auto; font-size: calc(var(--u) * 12); }
+  #helpBtn, #menuBtn { width: calc(var(--u) * 30); padding: 0; justify-content: center; }
 
   #floors { position: absolute; right: calc(var(--u) * 8); top: calc(var(--u) * 46); display: flex; flex-direction: column; gap: calc(var(--u) * 5); }
   #floors button { width: calc(var(--u) * 40); height: calc(var(--u) * 30); padding: 0; background: #fff8e7cc; border-radius: calc(var(--u) * 9); font-size: calc(var(--u) * 11); }
@@ -42,11 +42,13 @@
   #toast { position: absolute; left: calc(var(--u) * 24); right: calc(var(--u) * 24); top: calc(var(--u) * 46); padding: calc(var(--u) * 8) calc(var(--u) * 12); margin-right: calc(var(--u) * 26); background: #fff8e7f2; border-radius: calc(var(--u) * 12); box-shadow: 0 calc(var(--u) * 2) 0 #d9c49a; text-align: center; opacity: 0; transform: translateY(calc(var(--u) * -6)); transition: opacity .25s, transform .25s; }
   #toast.on { opacity: 1; transform: none; }
 
-  .sheet { position: absolute; left: calc(var(--u) * 6); right: calc(var(--u) * 6); bottom: calc(var(--u) * 62); padding: calc(var(--u) * 12); background: #fff8e7; border-radius: calc(var(--u) * 16); box-shadow: 0 calc(var(--u) * 3) 0 #d9c49a; pointer-events: auto; display: none; }
+  .sheet { position: absolute; left: calc(var(--u) * 6); right: calc(var(--u) * 6); bottom: calc(var(--u) * 62); max-height: calc(var(--u) * 520); overflow-y: auto; padding: calc(var(--u) * 12); background: #fff8e7; border-radius: calc(var(--u) * 16); box-shadow: 0 calc(var(--u) * 3) 0 #d9c49a; pointer-events: auto; display: none; }
   .sheet.on { display: block; }
   .sheet.top { top: calc(var(--u) * 44); bottom: auto; }
   .sheet h3 { margin: 0 0 calc(var(--u) * 6); font-size: calc(var(--u) * 15); }
-  .sheet .note { margin: calc(var(--u) * 6) 0; font-size: calc(var(--u) * 11); }
+  .sheet .goods + h3 { margin-top: calc(var(--u) * 12); }
+  .sheet ul { margin: 0; padding: 0 0 0 calc(var(--u) * 16); }
+  .sheet li { margin: calc(var(--u) * 6) 0; font-size: calc(var(--u) * 12); }
   .sheet .x { position: absolute; right: calc(var(--u) * 6); top: calc(var(--u) * 6); width: calc(var(--u) * 32); height: calc(var(--u) * 32); padding: 0; background: transparent; font-size: calc(var(--u) * 18); }
   .head { display: flex; align-items: center; gap: calc(var(--u) * 10); }
   .head b { font-size: calc(var(--u) * 15); }
@@ -57,13 +59,13 @@
   .hearts i.full { color: #ec7f9d; }
   .hearts i.half { color: #f5bccb; }
   .goods { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 6); }
+  .head + .goods { margin-top: calc(var(--u) * 8); }
   .good { display: flex; align-items: center; gap: calc(var(--u) * 6); min-height: calc(var(--u) * 46); padding: calc(var(--u) * 4) calc(var(--u) * 7); text-align: left; background: #ffefc8; border-radius: calc(var(--u) * 10); }
   .good:disabled { opacity: .55; cursor: default; }
   .good .gi { flex: none; display: flex; width: calc(var(--u) * 22); justify-content: center; }
   .good .gt { flex: 1 1 auto; min-width: 0; font-size: calc(var(--u) * 11); line-height: 1.25; font-weight: 700; }
   .good .gp { flex: none; font-weight: 700; font-size: calc(var(--u) * 13); color: #2b7fae; }
   .good .gp.no { color: #b98a8a; }
-  #ui .good .gp small { display: inline; font-size: calc(var(--u) * 9); margin-left: 1px; }
   .wide { display: block; width: 100%; min-height: calc(var(--u) * 42); margin-top: calc(var(--u) * 6); background: #e2f6fb; border-radius: calc(var(--u) * 10); font-weight: 700; }
   .wide.danger { background: #fbe3df; color: #9c4a3f; }
 
@@ -94,6 +96,8 @@
     <div id="topbar">
       <div class="pill"><span id="glassIcon"></span><span id="glassN">0</span></div>
       <button class="pill" id="bottleBtn" hidden aria-label="小びんを開ける"><span id="bottleIcon"></span><span id="bottleN"></span></button>
+      <button class="pill" id="shopBtn">家具</button>
+      <button class="pill" id="helpBtn" aria-label="遊び方">？</button>
       <button class="pill" id="menuBtn" aria-label="メニュー">≡</button>
     </div>
     <div id="toast"></div>
@@ -103,6 +107,8 @@
       <div id="faces"></div>
     </div>
     <div id="card" class="sheet"></div>
+    <div id="shop" class="sheet"></div>
+    <div id="help" class="sheet"></div>
     <div id="menu" class="sheet"></div>
     <div id="puff"></div>
     <button id="unhide" aria-label="文字を表示する"></button>

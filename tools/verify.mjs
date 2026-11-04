@@ -18,6 +18,9 @@ check('120 s loop', !bad.length, bad.length ? `differs in ${bad}` : `pixel-ident
 const seeds = await page.evaluate(`(() => { let m = 0; for (let s = 1; s <= 300; s++) for (const r of dollhouse.scripts(s)) m = Math.max(m, ...r.slice(1)); return m; })()`);
 check('stories fit the block', seeds <= 120, `longest timeline ${seeds.toFixed(1)} s over 300 seeds`);
 
+const combos = await page.evaluate(`(() => { let m = 0, who = ''; for (const n of [1, 2, 3]) for (const f of [false, true]) for (let s = 1; s <= 60; s++) for (const r of dollhouse.scriptsAt(n, f, s)) { const v = Math.max(...r.slice(1)); if (v > m) { m = v; who = r[0] + ' at ' + n + ' floors'; } } return { m, who }; })()`);
+check('stories fit at every height', combos.m <= 120, `longest ${combos.m.toFixed(1)} s (${combos.who}), 3 heights, with and without furniture`);
+
 const boundary = await page.evaluate('dollhouse.boundaryCheck(40)');
 check('endless boundaries', !boundary.bad.length, boundary.bad.length ? `blocks ${boundary.bad}` : `${boundary.blocks} boundaries identical`);
 

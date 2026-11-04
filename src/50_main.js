@@ -93,6 +93,14 @@ const dollhouse = {
   game: GAME,
   scripts: (seed = 1) => SCRIPT_NAMES.map(n => { const b = compileBlock(n, seed); return [n, ...ACTOR_IDS.map(id => b[id].at(-1).t0)]; }),
   story: storyAt,
+  /* every script at a given height and with or without the furniture, for checking lengths and endings */
+  scriptsAt: (n, furnished, seed = 1) => {
+    const s = storeys, a = OWNED.all;
+    storeys = n; OWNED.all = furnished;
+    const out = SCRIPT_NAMES.map(name => { const b = compileBlock(name, seed); return [name, ...ACTOR_IDS.map(id => b[id].at(-1).t0)]; });
+    storeys = s; OWNED.all = a;
+    return out;
+  },
   timeline: k => { const b = blockFor(k); return ACTOR_IDS.map(w => w + ': ' + b[w].map(s => `${s.t0.toFixed(1)} ${s.anim}`).join(', ')); },
 };
 window.dollhouse = dollhouse;

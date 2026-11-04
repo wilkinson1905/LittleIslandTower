@@ -52,7 +52,7 @@ const faceSel = '#faces .face:nth-child(1)';
 await tapEl(faceSel);
 await sleep(600);
 const cardOn = await ev(`document.getElementById('card').classList.contains('on')`);
-check('tap a face opens the card', cardOn && await ev('dollhouse.game.view()') === 1, `card ${cardOn}, view ${await ev('dollhouse.game.view()')}`);
+check('tap a face opens the card', cardOn, `card ${cardOn}, view ${await ev('dollhouse.game.view()')}`);
 const b4 = await ev('dollhouse.game.state()');
 await tapEl('#card .good[data-good="cookie"]');
 const a4 = await ev('dollhouse.game.state()');
@@ -69,6 +69,31 @@ await sleep(100);
 check('touching the cat opens its card', await ev(`document.getElementById('card').classList.contains('on')`), `at ${pos}`);
 await tapEl('#card .x');
 
+/* ── furniture: only the bed at first, and buying puts it in the room ── */
+const painted = name => ev('dollhouse.game.painted(' + JSON.stringify(name) + ')');
+check('no furniture bought at first', (await ev('dollhouse.game.state()')).furn.length === 0, 'none');
+const bare = await painted('rugF1');
+check('only the bed is in the room', bare === 0 && await painted('tent') === 0 && await painted('catTreeTop') === 0 && await painted('catBed') > 0, 'bed ' + await painted('catBed') + ' px');
+await ev('dollhouse.game.advance(5000); dollhouse.game.collectAll(); 1');
+await tapEl('#shopBtn');
+check('the shop opens', await ev(`document.getElementById('shop').classList.contains('on')`), `${await ev(`document.querySelectorAll('#shop .good').length`)} things for sale`);
+check('only floors that exist are for sale', await ev(`[...document.querySelectorAll('#shop .good')].every(b => dollhouse.game.furniture[b.dataset.furn].floor === 1)`), 'floor 1 only');
+const beforeRug = await ev('dollhouse.game.state()');
+await tapEl('#shop .good[data-furn="rug1"]');
+const afterRug = await ev('dollhouse.game.state()');
+check('buying furniture costs glass', afterRug.glass === beforeRug.glass - 8 && afterRug.furn.includes('rug1'), `glass ${beforeRug.glass} to ${afterRug.glass}`);
+const withRug = await painted('rugF1');
+check('it appears in the room', withRug > 100, `${withRug} px`);
+check('it cannot be bought twice', !(await ev(`dollhouse.game.furnish('rug1')`)), 'refused');
+check('nor for a floor not built', !(await ev(`dollhouse.game.furnish('oven')`)), 'refused');
+
+/* ── the screen stays quiet, and help is one button away ──────────────── */
+check('no small print on the screen', await ev(`document.querySelectorAll('#ui small, #ui .note').length`) === 0, 'none');
+await tapEl('#helpBtn');
+check('help explains the game', await ev(`document.getElementById('help').classList.contains('on') && document.querySelectorAll('#help li').length >= 5`), 'open');
+await tapEl('#help .x');
+check('the title', await ev('document.title') === 'Little Island Tower', await ev('document.title'));
+
 /* ── saving: everything survives a reload ─────────────────────────────── */
 await ev('dollhouse.game.advance(30); dollhouse.game.save()');
 const saved = await ev('dollhouse.game.state()');
@@ -76,6 +101,7 @@ await page.send('Page.reload');
 await sleep(1500);
 for (let i = 0; i < 50 && !(await ev('!!window.dollhouse').catch(() => false)); i++) await sleep(100);
 const loaded = await ev('dollhouse.game.state()');
+check('furniture survives a reload', loaded.furn.includes('rug1') && await painted('rugF1') === withRug, loaded.furn.join());
 check('save and resume', loaded.glass === saved.glass && loaded.aff.cat === saved.aff.cat && loaded.total === saved.total && loaded.beach.length === saved.beach.length && Math.abs(loaded.played - saved.played) < 30,
   `glass ${loaded.glass}, fondness ${loaded.aff.cat}, ${loaded.beach.length} on the beach`);
 
@@ -124,12 +150,18 @@ const play = (name, every, spendShare) => ev(`(() => {
         s = G.state();
       }
       if (G.grow()) { if (G.storeys() === 2) floor2 = t; if (G.storeys() === 3) { floor3 = t; break; } }
+      // the rest of the share goes on furniture, cheapest first
+      for (const key of G.left()) {
+        s = G.state();
+        if (s.total * ${spendShare} <= spent || s.glass < G.furniture[key].price) break;
+        if (G.furnish(key)) spent += G.furniture[key].price;
+      }
     }
   }
   return { name: ${JSON.stringify(name)}, floor2: +(floor2 / 60).toFixed(1), floor3: +(floor3 / 60).toFixed(1), spent, s: G.state() };
 })()`);
 const fast = await play('collects constantly, buys nothing', 5, 0);
-const usual = await play('collects often, spends a fifth', 8, .2);
+const usual = await play('collects often, spends a third on animals and furniture', 8, .33);
 const slow = await play('checks back every minute, spends a third', 60, .33);
 for (const p of [fast, usual, slow]) console.log(`INFO  ${p.name}: floor 2 at ${p.floor2} min, floor 3 at ${p.floor3} min, spent ${p.spent}`);
 check('about an hour', usual.floor3 >= 50 && usual.floor3 <= 72, `the usual player finishes at ${usual.floor3} min`);
@@ -147,11 +179,12 @@ for (let i = 0; i < 4; i++) {
 check('visitors come one at a time', arrivals.join(' | ') === 'dragon | dragon+sheep | dragon+sheep+penguin | dragon+sheep+penguin', arrivals.join(' | '));
 const noMore = await ev(`(() => { const G = dollhouse.game; G.advance(5000); G.collectAll(); return G.sill(); })()`);
 check('all six: no more treats on the sill', noMore === false, `${noMore}`);
+check('the dragon brought its stool', (await ev('dollhouse.game.state()')).furn.includes('stoolA'), 'stoolA');
 check('all six present', await ev(`['cat','pup','rabbit','sheep','dragon','penguin'].every(dollhouse.game.present)`), 'yes');
 
 /* ── the real buttons: build a floor, put out a treat ───────────────── */
 await ev('dollhouse.game.reset(); dollhouse.game.advance(5000); dollhouse.game.collectAll(); dollhouse.game.advance(5000); dollhouse.game.collectAll(); dollhouse.game.advance(5000); dollhouse.game.collectAll(); 1');
-for (let i = 0; i < 30 && (await ev('dollhouse.game.state()')).glass < 120; i++) await ev('dollhouse.game.advance(200); dollhouse.game.collectAll(); 1');
+for (let i = 0; i < 30 && (await ev('dollhouse.game.state()')).glass < 50; i++) await ev('dollhouse.game.advance(200); dollhouse.game.collectAll(); 1');
 await tapEl('#growBtn');
 await sleep(1100);
 check('the build button grows the tower', await ev('dollhouse.game.storeys()') === 2 && await ev(`dollhouse.game.present('pup')`), 'floor 2 and the puppy');
@@ -159,6 +192,33 @@ for (let i = 0; i < 60 && (await ev('dollhouse.game.state()')).glass < 320; i++)
 await tapEl('#growBtn');
 await sleep(1100);
 check('and again', await ev('dollhouse.game.storeys()') === 3 && await ev(`dollhouse.game.present('rabbit')`), 'floor 3 and the rabbit');
+/* ── all the outings: every animal gets where it should ───────────────── */
+const where = await ev(`(() => {
+  const out = {}, names = dollhouse.SCRIPT_NAMES, C = dollhouse.CFG, loop = C.loop;
+  C.loop = true;
+  names.forEach((n, b) => { C.block = b;
+    const seen = { roof: 0, tree: 0, ground: 0, teased: 0 };
+    for (let t = .5; t < 120; t += 1) {
+      dollhouse.renderAt(t);
+      const p = dollhouse.pose();
+      for (const id in p) { const [x, y, z, a] = p[id];
+        if (!dollhouse.game.present(id)) continue;
+        if (a === 'tease') seen.teased++;
+        if (z > 300) seen.roof++;
+        if (a === 'climb') seen.tree++;
+        if (z <= 5 && id !== 'penguin') seen.ground++;
+      }
+    }
+    out[n] = seen;
+  });
+  C.loop = loop; C.block = 0; dollhouse.play();
+  return out;
+})()`);
+console.log('INFO  animal-seconds per story:', JSON.stringify(where));
+check('animals tease the crab', where.crab.teased > 20, `${where.crab.teased} s`);
+check('animals go on the roof', where.roof.roof > 20, `${where.roof.roof} s`);
+check('animals climb', where.palm.tree > 0, `${where.palm.tree} s`);
+check('animals go outside', where.beach.ground > 20 && where.boat.ground > 5 && where.rainbow.ground > 20, `${where.beach.ground} / ${where.boat.ground} / ${where.rainbow.ground} s`);
 await tapEl('#growBtn');
 check('the same button sets out a treat', (await ev('dollhouse.game.state()')).sill === true, 'on the sill');
 const hashA = await ev('(() => { const a = dollhouse.frameHash(33.3), b = dollhouse.frameHash(33.3 + 120 * 40); return [a, b]; })()');

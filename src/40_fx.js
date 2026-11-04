@@ -394,11 +394,18 @@ function fxBee(t) {
 const CRAB = [
   mk(['o.....o', 'oo.w.oo', '.orrrro', 'o.rrr.o', '.o...o.'], 'o:ter3 r:ter5 w:cld7'),
   mk(['o.....o', 'oo.w.oo', 'orrrro.', '.orrr.o', 'o...o..'], 'o:ter3 r:ter5 w:cld7'),
+  mk(['oo...oo', 'oo.w.oo', '.orrro.', 'o.rrr.o', '.o...o.'], 'o:ter3 r:ter5 w:cld7'),
 ];
-function fxCrab(t) {
+/* some animal is pestering the crab: read from the timelines, so the loop stays pure */
+function crabTeased(b, local) {
+  for (const id of ACTOR_IDS) if (present(id) && findSeg(b[id], local).anim === 'tease') return true;
+  return false;
+}
+function fxCrab(t, b, local) {
   const c = cyc(t, 3), walk = c < .3 ? c / .3 : c < .5 ? 1 : c < .8 ? 1 - (c - .5) / .3 : 0;
-  const moving = (c < .3 || (c >= .5 && c < .8));
-  sblit(CRAB[moving ? fr(t, 6, 2) : 0], 112 + Math.round(walk * 34), 528);
+  const moving = (c < .3 || (c >= .5 && c < .8)), x = 112 + Math.round(walk * 34);
+  if (!moving && crabTeased(b, local)) sblit(CRAB[fr(t, 5, 2) ? 2 : 0], x, 528 - fr(t, 5, 2));
+  else sblit(CRAB[moving ? fr(t, 6, 2) : 0], x, 528);
 }
 function fxPool(t) {
   const sx = iX(POOL.x, POOL.y), sy = iY(POOL.x, POOL.y, 0), id = NAMED.tidePool.id;
@@ -522,7 +529,7 @@ function fxMobile(t) {
 const OVENPX = { xs: null, bottom: 0, x0: 0, x1: 0 };
 function initOven() {
   OVENPX.xs = null;
-  if (storeys < 2) return;
+  if (storeys < 2 || !own('oven')) return;
   const id = NAMED.ovenF2.id, list = [];
   let bottom = 0, x0 = W, x1 = 0;
   for (let i = 0; i < N; i++) if (gId[i] === id && RAMP_OF[baseIdx[i]] === RAMP_OF[P.ink1]) {
@@ -655,6 +662,9 @@ const POSE = {
       case 'walk': SHOT.s = (face >= 2 ? K.walkNE : K.walkSE)[fr(t, 10, 4)]; SHOT.flip = side; break;
       case 'leap': case 'land': SHOT.s = K.leap[face >= 2 ? 1 : 0]; SHOT.flip = side; break;
       case 'crouch': SHOT.s = K.leap[0]; SHOT.flip = side; break;
+      case 'climb': SHOT.s = K.walkNE[fr(t, 10, 4)]; break;
+      case 'gaze': SHOT.s = K.back[earS]; SHOT.tail = 'window'; break;
+      case 'tease': SHOT.s = A.local % 1 < .25 ? K.bat[0] : A.local % 1 < .5 ? K.bat[1] : K.sitWide; SHOT.flip = true; SHOT.tail = 'sit'; break;
       case 'stretch': SHOT.s = K.stretch[A.local > .6 && A.local < 1.8 ? 1 : 0]; SHOT.flip = true; break;
       case 'groom': SHOT.s = K.groom[A.local % 2.4 < 1.8 ? fr(t, 5, 2) : 2]; SHOT.tail = 'sit'; break;
       case 'window': SHOT.s = K.back[earS]; SHOT.tail = 'window'; break;
@@ -683,6 +693,9 @@ const POSE = {
       case 'stand': SHOT.s = D.standSE[fr(t, 7, 4)]; SHOT.flip = true; break;
       case 'stretch': SHOT.s = D.stretch[A.local > .7 && A.local < 1.9 ? 1 : 0]; SHOT.flip = true; break;
       case 'sniff': case 'eat': SHOT.s = D.sniff[fr(t, 5, 2)]; break;
+      case 'climb': SHOT.s = D.walkNE[fr(t, 13, 4)]; break;
+      case 'gaze': SHOT.s = D.walkNE[0]; break;
+      case 'tease': case 'bark': SHOT.s = D.stretch[fr(t, 4, 2)]; SHOT.flip = true; SHOT.oz = fr(t, 4, 2) * 2; break;
       case 'g2': SHOT.s = D.sitTilt[tail]; SHOT.flip = A.local % 3 > 1.5; break;
       case 'g4': {
         const q = fr(t, 6, 4);
@@ -703,6 +716,9 @@ const POSE = {
         SHOT.s = (face >= 2 ? R.hopNE : R.hopSE)[j > .35 ? 1 : 0]; SHOT.flip = side; SHOT.oz = A.moving ? Math.round(j * 4) : 0;
         break;
       }
+      case 'climb': SHOT.s = R.hopNE[fr(t, 5, 2)]; break;
+      case 'gaze': SHOT.s = R.hopNE[0]; break;
+      case 'nibble': SHOT.s = R.eat[fr(t, 5, 2)]; break;
       case 'look': SHOT.s = cyc(t, 12, .1) < .2 ? R.earsDown : blinkAt(t, 20) ? R.blink : R.sit; SHOT.flip = A.local % 4 > 2; break;
       case 'g2': { // a binky: straight up and a kick
         const u = A.local % 1.25 / 1.25, j = Math.sin(u * Math.PI);
@@ -722,7 +738,8 @@ const POSE = {
     switch (an) {
       case 'drift': SHOT.s = (A.face >= 2 ? S.back : S.front)[f]; break;
       case 'snooze': SHOT.s = S.blink; SHOT.oz = Math.round(osc(t, 20, .15) * 1); SHOT.sleep = true; break;
-      case 'g2': SHOT.s = S.blink; SHOT.effect = 'rain'; break;
+      case 'g2': case 'rainy': SHOT.s = S.blink; SHOT.effect = 'rain'; break;
+      case 'arc': SHOT.s = S.happy[f]; SHOT.effect = 'bow'; break;
       case 'g4': SHOT.s = S.happy[f]; SHOT.effect = 'bow'; break;
       case 'eat': SHOT.s = S.eat[fr(t, 4, 2)]; break;
       case 'happy': case 'play': SHOT.s = S.happy[fr(t, 4, 2)]; SHOT.oz = Math.round(Math.abs(Math.sin(t * 5)) * 4); break;
@@ -735,6 +752,8 @@ const POSE = {
     switch (an) {
       case 'fly': case 'land': SHOT.s = (A.face >= 2 ? Y.back : Y.fly)[fr(t, 8, 4)]; SHOT.floats = true; SHOT.oz = Math.round(osc(t, 60) * 1); break;
       case 'hover': SHOT.s = Y.fly[fr(t, 8, 4)]; SHOT.floats = true; SHOT.oz = Math.round(osc(t, 40) * 2); break;
+      case 'gaze': SHOT.s = Y.back[fr(t, 8, 4)]; SHOT.flip = false; SHOT.floats = hexAt(A.x, A.y) >= 1.1; break;
+      case 'tease': SHOT.s = Y.puff; SHOT.floats = true; SHOT.effect = 'ring'; SHOT.flip = true; break;
       case 'light': SHOT.s = Y.back[fr(t, 8, 4)]; SHOT.floats = true; SHOT.flip = false; SHOT.effect = 'breath'; break;
       case 'sleep': SHOT.s = Y.sleep[Math.sin(TAU * 26 * t / LOOP) > 0 ? 1 : 0]; SHOT.h = 8; SHOT.sleep = true; break;
       case 'g2': SHOT.s = Y.puff; SHOT.effect = 'ring'; break;
@@ -755,7 +774,9 @@ const POSE = {
     SHOT.h = 14;
     switch (an) {
       case 'waddle': SHOT.s = (A.o && A.o.to ? Q.walk : face >= 2 ? Q.back : Q.walk)[fr(t, 6, 4)]; SHOT.flip = A.o && A.o.to ? true : side; break;
-      case 'flap': case 'land': SHOT.s = Q.flap[fr(t, 6, 2)]; break;
+      case 'flap': case 'land': case 'tease': SHOT.s = Q.flap[fr(t, 6, 2)]; break;
+      case 'gaze': SHOT.s = Q.back[1]; break;
+      case 'peck': SHOT.s = Q.eat[fr(t, 4, 2)]; break;
       case 'g2': SHOT.s = Q.slide[0]; SHOT.flip = true; SHOT.h = 7; break;
       case 'g4': SHOT.s = Q.happy[fr(t, 5, 2)]; SHOT.flip = fr(t, 2, 2) === 1; SHOT.oz = fr(t, 5, 2); break;
       case 'nap': SHOT.s = Q.nap[Math.sin(TAU * 24 * t / LOOP) > 0 ? 1 : 0]; SHOT.sleep = true; break;
@@ -777,10 +798,16 @@ function applyReact(A, time) {
   const R_ = WORLD.react[A.id];
   if (!R_) return null;
   const e = time - R_.t0;
-  if (R_.fx === undefined) { R_.fx = A.x; R_.fy = A.y; R_.fz = A.z; }
-  const end = R_.dur + (R_.stay ? .35 : .6), sp = R_.stay ? { x: R_.fx, y: R_.fy, z: R_.fz } : SPOT[A.id];
+  if (R_.fx === undefined) {
+    R_.fx = A.x; R_.fy = A.y; R_.fz = A.z;
+    const home = inOwnRoom(A);
+    R_.sp = !R_.stay && home ? SPOT[A.id] : { x: A.x, y: A.y, z: A.z };
+    R_.moves = !R_.stay && home;
+    R_.flat = home || A.z <= 5;                  // somewhere a dish can stand: not a ladder, a roof or a palm
+  }
+  const end = R_.dur + (R_.stay ? .35 : .6), sp = R_.sp;
   if (e >= end || e < 0) { delete WORLD.react[A.id]; return null; }
-  const lead = R_.stay ? 0 : .5;
+  const lead = R_.moves ? .5 : 0;
   if (e < lead) {
     const u = e / lead;
     A.x = lerp(R_.fx, sp.x, u); A.y = lerp(R_.fy, sp.y, u); A.z = lerp(R_.fz, sp.z, u) + Math.sin(u * Math.PI) * 7;
@@ -795,8 +822,8 @@ function applyReact(A, time) {
   return R_;
 }
 function drawItem(R_, A, t, e) {
-  if (e < .45 || !R_.item) return;
-  const sp = SPOT[A.id], floorZ = FLOOR_OF[A.id];
+  if (e < .45 || !R_.item || !R_.flat) return;
+  const sp = R_.sp, floorZ = R_.moves ? FLOOR_OF[A.id] : sp.z;
   const x0 = sp.x + 9, y0 = sp.y + 3;
   if (e > R_.dur - .1) { // put away: a little puff where it stood
     const u = (e - R_.dur + .1) / .6;
@@ -817,6 +844,8 @@ function drawItem(R_, A, t, e) {
   } else blit(ITEM.wheel[fr(t, 6, 2)], x0, y0, floorZ, false, lut);
 }
 const FLOOR_OF = { cat: Z1, pup: Z2, rabbit: Z3, sheep: Z1, dragon: Z2, penguin: 0 };
+const isOutdoors = A => hexAt(A.x, A.y) >= 1 || A.z >= TOP_Z(storeys);
+const inOwnRoom = A => A.id !== 'penguin' && !isOutdoors(A) && roomZone(A.z) === roomZone(FLOOR_OF[A.id] + 1);
 const drawOrder = [];
 function drawActors(t, b, local) {
   drawOrder.length = 0;
@@ -833,12 +862,15 @@ function drawActors(t, b, local) {
     SHOT.s = null; SHOT.flip = false; SHOT.h = 14; SHOT.ox = 0; SHOT.oy = 0; SHOT.oz = 0;
     SHOT.tail = null; SHOT.sleep = false; SHOT.floats = false; SHOT.effect = null;
     POSE[A.id](A, t);
-    const lut = actorLut(A.x, A.y, A.z, A.id === 'penguin' ? 'E' : null);
+    const lut = actorLut(A.x, A.y, A.z, isOutdoors(A) ? 'E' : null);
     const Rx = A.react, e = Rx ? WORLD.now - Rx.t0 : 0;
     if (Rx) drawItem(Rx, A, t, e);
     if (SHOT.floats || A.id === 'sheep') { // a soft shadow says how far off the floor it is
-      const fz = FLOOR_OF[A.id], sx = iX(A.x, A.y), sy = iY(A.x, A.y, fz);
-      for (let a = -7; a <= 7; a++) for (let c = -2; c <= 2; c++) if ((a * a) / 49 + (c * c) / 6 < 1) shiftAt(sx + a, sy + c, DOWNP);
+      const outside = hexAt(A.x, A.y) >= 1.1, onRoof = !outside && A.z >= TOP_Z(storeys);
+      if (!onRoof) {
+        const fz = outside ? 0 : FLOOR_OF[A.id], sx = iX(A.x, A.y), sy = iY(A.x, A.y, fz);
+        for (let a = -7; a <= 7; a++) for (let c = -2; c <= 2; c++) if ((a * a) / 49 + (c * c) / 6 < 1) shiftAt(sx + a, sy + c, DOWNP);
+      }
     }
     const z = A.z + SHOT.oz;
     markFront(A.x - 3, A.y - 3, z, A.x + 3, A.y + 3, z + SHOT.h);
@@ -895,25 +927,25 @@ function drawDynamic(t, st) {
   if (FX.grass) fxGrass(t);
   if (FX.pool) fxPool(t);
   if (FX.paperBoat) fxPaperBoat(t);
-  if (FX.prism && storeys >= 3) fxPrism(t);
+  if (FX.prism && storeys >= 3 && own('lantern')) fxPrism(t);
   // standing things
   drawGameGround(t);
   drawPalms(t, FX.palms);
   drawSunflowers(t, FX.sunflowers);
-  if (FX.crab) fxCrab(t);
+  if (FX.crab) fxCrab(t, b, local);
   if (FX.pennant) fxPennant(t);
   if (FX.flames && storeys >= 2) fxFlames(t);
-  if (storeys >= 2) fxBowl(t, FX.fish);
-  if (FX.candle && storeys >= 2) fxCandle(t);
-  if (FX.lamp && storeys >= 3) fxLamp(t);
-  if (FX.ball) fxBall(t);
+  if (storeys >= 2 && own('stoolB')) fxBowl(t, FX.fish);
+  if (FX.candle && storeys >= 2 && own('table')) fxCandle(t);
+  if (FX.lamp && storeys >= 3 && own('lamp')) fxLamp(t);
+  if (FX.ball && own('basket')) fxBall(t);
   if (FX.actors) drawActors(t, b, local);
   // hanging and flying things pass in front of the animals
-  if (FX.chime) fxChime(t);
-  if (FX.mobile) fxMobile(t);
-  if (FX.lantern && storeys >= 3) fxLantern(t);
-  if (FX.book && storeys >= 3) fxBook(t);
-  if (FX.potSteam && storeys >= 2) fxPotSteam(t);
+  if (FX.chime && own('chime')) fxChime(t);
+  if (FX.mobile && own('mobile')) fxMobile(t);
+  if (FX.lantern && storeys >= 3 && own('lantern')) fxLantern(t);
+  if (FX.book && storeys >= 3 && own('bookcase')) fxBook(t);
+  if (FX.potSteam && storeys >= 2 && own('counter')) fxPotSteam(t);
   if (FX.dust) fxDust(t);
   if (FX.butterflies) fxButter(t);
   if (FX.bee) fxBee(t);
@@ -947,7 +979,7 @@ let panelEl = null, panelStats = null, panelTick = 0, scrubEl = null;
 function buildPanel() {
   panelEl = document.getElementById('panel');
   panelEl.innerHTML = '';
-  const h = document.createElement('h1'); h.textContent = '夏の塔の箱庭'; panelEl.appendChild(h);
+  const h = document.createElement('h1'); h.textContent = 'Little Island Tower'; panelEl.appendChild(h);
   panelStats = document.createElement('div'); panelEl.appendChild(panelStats);
   const addRow = (label, el) => { const r = document.createElement('div'); r.className = 'row'; const s = document.createElement('span'); s.textContent = label; r.appendChild(s); r.appendChild(el); panelEl.appendChild(r); return r; };
   const speed = document.createElement('input'); speed.type = 'range'; speed.min = 0; speed.max = 8; speed.step = .05; speed.value = CFG.speed;

@@ -177,4 +177,18 @@ O('sign', [120, 96, 0, 132, 102, 18], () => {
   spr(126, 99, 10, 'o:hon1 a:hon6 b:hon5 c:hon2', ['oooooooooo', 'oaaaaaaaao', 'oaccaacaao', 'oaaaaaaabo', 'oooooooooo'], { ax: 5 });
 }, { ext: 1, outline: 0, fg: 1 });
 
+/* the long ladder up the left pillar: how the animals get between the floors, the ground and the roof */
+const LAD = { x: 25, y: 94 };
+for (let n = 1; n <= 3; n++) {
+  const z0 = n === 1 ? 0 : FLOOR_Z[n - 1] - SLAB, z1 = TOP_Z(n) + 10;
+  O('ladder' + n, [LAD.x - 3, LAD.y - 3, z0, LAD.x + 3, LAD.y + 3, z1], () => {
+    const sx0 = OX + LAD.x - LAD.y, base = OY + ((LAD.x + LAD.y) >> 1);
+    for (let k = z0; k <= z1; k++) {
+      put(sx0 - 3, base - k, C.hon3, LAD.x, LAD.y, k, NBILL);
+      put(sx0 + 3, base - k, C.hon2, LAD.x, LAD.y, k, NBILL);
+      if (k % 6 === 2) for (let a = -2; a <= 2; a++) put(sx0 + a, base - k, a < 0 ? C.hon6 : C.hon5, LAD.x, LAD.y, k, NBILL);
+    }
+  }, { ext: 1, outline: .9, level: n, layer: 96 });
+}
+
 light(120, 40, 60, '#fff2c0', .06, 200, 'E', { flat: 1 });
