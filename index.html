@@ -1712,11 +1712,18 @@ D.tilt = [0, 1, 2, 3].map(i => dogFrame(4, i, 'tilt', { hy: -1 }));
 D.sniff = [0, 1].map(i => dogFrame(4, i, 'sniff', { hy: 3, hx: 1, bow: 1 }));
 D.stretch = [dogFrame(4, 1, 'blink', { bow: 2, hy: 2 }), dogFrame(4, 3, 'blink', { bow: 3, hy: 3 })];
 /* seen from behind: at a window, or on the ladder */
-D.back = [0, 1].map(n => mk([
+const dogBack = (n, legs) => mk([
   '...oooo....', '.ooBBBBoo..', 'oEEBBBBEEo.', 'oEFEBcEFEo.', 'oEFEBBEFEo.', 'oEfFBBFfEo.', 'oEFoBBoEFo.', '.oEoBBoEo..',
-  '..oBBcBBo..', '.oBBBBBBBo.', n ? '.oBcBBBBBooo' : '.oBcBBBBBo.o', n ? '.oBBBBBcBoGGo' : '.oBBBBBcBooGo', '.oBBBBBBBoFGo', '.oUUoooUUoFo.', '..oo...oo.o..',
-], DM, 5, 14));
-const dogSit = (head, tail) => {
+  '..oBBcBBo..', '.oBBBBBBBo.', n ? '.oBcBBBBBooo' : '.oBcBBBBBo.o', n ? '.oBBBBBcBoGGo' : '.oBBBBBcBooGo', '.oBBBBBBBoFGo', ...legs,
+], DM, 5, 11 + legs.length);
+D.back = [0, 1].map(n => dogBack(n, ['.oUUoooUUoFo.', '..oo...oo.o..']));
+D.walkBack = [
+  dogBack(0, ['.oUUoBoBBoFo.', '.oUUo.ooo.o..', '..oo.........']),
+  dogBack(1, ['.oUUoooUUoFo.', '..oo...oo.o..', '.............']),
+  dogBack(0, ['.oBBoBoUUoFo.', '..ooo.oUUoo..', '.......oo....']),
+  dogBack(1, ['.oUUoooUUoFo.', '..oo...oo.o..', '.............']),
+];
+const dogSit = (head, tail, legs = ['..oBBBTBBBBo.', '..oUUoBBoUUo.', '..oooo..oooo.']) => {
   const headRows = {
     open:  ['....ooooo....', '..ooBBDBBoo..', '.oEBTBBBTBEo.', 'oEFBwBBBwBFEo', 'oEFBeBTBeBFEo', 'oEfBTTTTTBfEo', 'oEFoTTNTToFEo', '.oEooTTTooEo.', '..oo.ooo.oo..'],
     blink: ['....ooooo....', '..ooBBDBBoo..', '.oEBTBBBTBEo.', 'oEFBBBBBBBFEo', 'oEFBxBTBxBFEo', 'oEfBTTTTTBfEo', 'oEFoTTNTToFEo', '.oEooTTTooEo.', '..oo.ooo.oo..'],
@@ -1728,13 +1735,20 @@ const dogSit = (head, tail) => {
     ['..............oo', '...........ooGGo', '..........oFFGGo', '..........oFFFo.'],
     ['................', '................', '..........oFFGGo', '..........oFFGGo'],
   ][tail];
-  const body = ['...oBBDBBBo..', '..oBBTTTBBBo.', '..oBDBTBBdBo.', '..oBBBTBBBBo.', '..oUUoBBoUUo.', '..oooo..oooo.'];
-  const s = blank(16, 17, 6, 15);
+  const body = ['...oBBDBBBo..', '..oBBTTTBBBo.', '..oBDBTBBdBo.', ...legs];
+  const s = blank(16, 14 + legs.length, 6, 15);
   stamp(s, mk(tailRows, DM, 0, 0), 0, 8);
   stamp(s, mk(body, DM, 0, 0), 0, 9);
   stamp(s, mk(headRows, DM, 0, 0), 0, 1);
   return s;
 };
+/* trotting toward you: one front paw reaches down, then the other */
+D.walkFront = [
+  dogSit('open', 0, ['..oBBBTBBBBo.', '..oUUoBBobbo.', '..oUUo.oooo..', '..oooo.......']),
+  dogSit('open', 1),
+  dogSit('open', 2, ['..oBBBTBBBBo.', '..obboBBoUUo.', '...oooo.oUUo.', '........oooo.']),
+  dogSit('open', 1),
+];
 D.sit = [dogSit('open', 0), dogSit('open', 1), dogSit('open', 2), dogSit('open', 1)];
 D.sitBlink = dogSit('blink', 0);
 D.sitTilt = [dogSit('tilt', 0), dogSit('tilt', 1), dogSit('tilt', 2), dogSit('tilt', 1)];
@@ -1845,6 +1859,20 @@ function catWalk(phase, stance = 0) {
   return trim(out);
 }
 K.walk = [0, 1, 2, 3].map(i => catWalk(i));
+const catFrontLegs = [
+  ['.oWWodoGgo.', '.oWWo.ooo..', '..oo.......'],
+  ['.oWWodoWWo.', '..oo.o.oo..', '...........'],
+  ['.ogGodoWWo.', '..ooo.oWWo.', '.......oo..'],
+  ['.oWWodoWWo.', '..oo.o.oo..', '...........'],
+];
+K.walkFront = catFrontLegs.map(legs => catAt([...catHead('open'), '..oGWWWGo..', '.oGdWWWdGo.', '.oGdGWGdGo.', ...legs]));
+const catBackLegs = [
+  ['.oggoGoGgo.', '.oggo.ooo..', '..oo.......'],
+  ['.oggoooggo.', '..oo...oo..', '...........'],
+  ['.oGgoGoggo.', '..ooo.oggo.', '.......oo..'],
+  ['.oggoooggo.', '..oo...oo..', '...........'],
+];
+K.walkBack = catBackLegs.map(legs => catAt(['.o.......o.', 'oGo.....oGo', 'oGGoooooGGo', 'oGGGGGGGGGo', 'oGGGGGGGGGo', 'oGGGGGGGGgo', 'dgGGGGGGggd', '.odGGGGgdo.', '..oGGGGgo..', '.oGGGGGGgo.', '.oGGGGGggo.', ...legs]));
 K.leap = catWalk(0, 2);
 K.stretch = [
   mk(['...........o...o.', '..........oGo.oGo', 'ooo.......oGGGGGo', 'oGGoo.....oGxGxGo', '.ogGGooooooGGnGGo', '..oGGGdGGGGGWWGo.', '...oGGdGGdGGWWo..', '...oWooWooWWWWo..', '...oo.oo..oooo...'], CM, 8, 8),
@@ -2041,8 +2069,8 @@ const ITEM = {
 /* ── sprite sheet for review ──────────────────────────────────────────── */
 function drawSheet() {
   const items = [
-    K.sit, K.sitBlink, K.sitHappy, ...K.bat, ...K.groom, K.back[0], ...K.walk, K.leap, K.stretch[0], ...K.curl.slice(0, 2), ...K.eat, ...K.roll,
-    ...D.walk, ...D.back, D.stand[0], D.tilt[0], D.sniff[0], D.stretch[0], ...D.flop, D.sit[0], D.sitBlink, D.sitTilt[0], D.sitHappy[0], ...D.curl,
+    K.sit, K.sitBlink, K.sitHappy, ...K.bat, ...K.groom, K.back[0], ...K.walk, ...K.walkFront, ...K.walkBack, K.leap, K.stretch[0], ...K.curl.slice(0, 2), ...K.eat, ...K.roll,
+    ...D.walk, ...D.walkFront, ...D.walkBack, ...D.back, D.stand[0], D.tilt[0], D.sniff[0], D.stretch[0], ...D.flop, D.sit[0], D.sitBlink, D.sitTilt[0], D.sitHappy[0], ...D.curl,
     R.sit, R.blink, R.happy, R.earsDown, ...R.eat, ...R.wash, ...R.hopSE, ...R.hopNE, ...R.loaf,
     ...S.front, S.blink, S.happy[0], S.back[0],
     Y.fly[0], Y.fly[1], Y.fly[2], Y.flyBlink, Y.sit, Y.happy[0], Y.puff, Y.back[0], ...Y.sleep,
@@ -2693,13 +2721,15 @@ const SCRIPTS = {
 const SCRIPT_NAMES = Object.keys(SCRIPTS);
 const SCRIPT_WEIGHTS = [['showcase', 1], ['crab', 2], ['boat', 2], ['rainbow', 2], ['palm', 2], ['roof', 2], ['beach', 2], ['play', 1], ['perch', 1], ['snack', 1], ['quiet', 1]];
 
-/* face: 0 SE, 1 SW, 2 NE, 3 NW. Poses keep the facing of the walk before them. */
+/* face: 0 SE, 1 SW, 2 NE, 3 NW. Poses keep the facing of the walk before them.
+   head: 1 toward the viewer, -1 away, 0 across. A walk along a floor axis stays "across". */
 function assignFaces(segs) {
   let face = 0;
   for (const s of segs) {
-    const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y;
+    const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y, across = dx - dy, down = (dx + dy) / 2;
     if (dx || dy) face = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 0 : 3) : (dy >= 0 ? 1 : 2);
     s.face = face;
+    s.head = Math.abs(down) > Math.abs(across) * .75 ? Math.sign(down) : 0;
   }
 }
 function compileBlock(name, seed) {
@@ -2763,11 +2793,11 @@ function findSeg(segs, t) {
   return segs[lo];
 }
 const ACTOR = {};
-ACTOR_IDS.forEach(id => { ACTOR[id] = { id, x: 0, y: 0, z: 0, anim: '', face: 0, u: 0, local: 0, moving: false, o: null, sx: 0, sy: 0, h: 14 }; });
+ACTOR_IDS.forEach(id => { ACTOR[id] = { id, x: 0, y: 0, z: 0, anim: '', face: 0, head: 0, u: 0, local: 0, moving: false, o: null, sx: 0, sy: 0, h: 14 }; });
 function sampleActor(A, segs, t) {
   const s = findSeg(segs, t);
   const u = clamp((t - s.t0) / Math.max(1e-6, s.t1 - s.t0), 0, 1);
-  A.anim = s.anim; A.o = s.o; A.u = u; A.local = t - s.t0; A.face = s.face;
+  A.anim = s.anim; A.o = s.o; A.u = u; A.local = t - s.t0; A.face = s.face; A.head = s.head;
   if (s.kind === 0) {
     A.x = s.a.x; A.y = s.a.y; A.z = s.a.z; A.moving = false;
     if (s.o && s.o.to) { // a belly slide: a pose with somewhere to get to
@@ -3559,9 +3589,11 @@ const POSE = {
     SHOT.h = 14; SHOT.tail = null;
     const ear = cyc(t, 15, .2), earS = ear < .012 ? 1 : ear > .5 && ear < .512 ? 2 : 0;
     switch (an) {
-      case 'walk': SHOT.s = K.walk[fr(t, 10, 4)]; SHOT.flip = side; break;
+      case 'walk':
+        if (A.head) { SHOT.s = (A.head > 0 ? K.walkFront : K.walkBack)[fr(t, 10, 4)]; SHOT.tail = 'sit'; break; }
+        SHOT.s = K.walk[fr(t, 10, 4)]; SHOT.flip = side; break;
       case 'leap': case 'land': case 'crouch': SHOT.s = K.leap; SHOT.flip = side; break;
-      case 'climb': SHOT.s = K.back[0]; SHOT.ox = fr(t, 10, 2); break;
+      case 'climb': SHOT.s = K.walkBack[fr(t, 10, 4)]; break;
       case 'gaze': SHOT.s = K.back[earS]; SHOT.tail = 'window'; break;
       case 'nose': SHOT.s = K.walk[0]; SHOT.flip = !!(A.o && A.o.flip); break;
       case 'tease': SHOT.s = A.local % 1 < .25 ? K.bat[0] : A.local % 1 < .5 ? K.bat[1] : K.sitWide; SHOT.flip = true; SHOT.tail = 'sit'; break;
@@ -3589,11 +3621,13 @@ const POSE = {
     const tail = fr(t, 9, 4);
     SHOT.h = 16;
     switch (an) {
-      case 'walk': case 'land': SHOT.s = D.walk[fr(t, 13, 4)]; SHOT.flip = side; break;
+      case 'walk': case 'land':
+        if (an === 'walk' && A.head) { SHOT.s = (A.head > 0 ? D.walkFront : D.walkBack)[fr(t, 13, 4)]; break; }
+        SHOT.s = D.walk[fr(t, 13, 4)]; SHOT.flip = side; break;
       case 'stand': SHOT.s = D.stand[fr(t, 7, 4)]; SHOT.flip = true; break;
       case 'stretch': SHOT.s = D.stretch[A.local > .7 && A.local < 1.9 ? 1 : 0]; SHOT.flip = true; break;
       case 'sniff': case 'eat': SHOT.s = D.sniff[fr(t, 5, 2)]; break;
-      case 'climb': SHOT.s = D.back[fr(t, 13, 2)]; SHOT.ox = fr(t, 13, 2); break;
+      case 'climb': SHOT.s = D.walkBack[fr(t, 13, 4)]; break;
       case 'gaze': SHOT.s = D.back[fr(t, 7, 2)]; break;
       case 'nose': SHOT.s = D.stand[fr(t, 7, 4)]; SHOT.flip = !!(A.o && A.o.flip); break;
       case 'tease': case 'bark': SHOT.s = D.stretch[fr(t, 4, 2)]; SHOT.flip = true; SHOT.oz = fr(t, 4, 2) * 2; break;
@@ -4127,17 +4161,22 @@ const BALLOON_SPR = (() => {
   rows.push('.........ooo.........', '........oPPPo........', '.........ooo.........');
   return mk(rows, 'o:ter3 P:ter6 p:ter5 W:cld7', rx, rows.length - 1);
 })();
+/* a box seen from the corner, like everything else on the island */
 const PRESENT_SPR = mk([
   '....rr.rr....',
   '.....rrr.....',
-  'ooooooroooooo',
-  'oBBBBBrBBBBBo',
-  'oBBBBBrBBBBbo',
-  'oBBBBBrBBBbbo',
-  'oBBBBBrBBbbbo',
-  'oBBBBBrBbbbbo',
-  'ooooooooooooo',
-], 'o:rose2 r:amb7 B:pin6 b:pin5', 6, 8);
+  '......r......',
+  '....ooToo....',
+  '..oorrTrroo..',
+  'ooTTTrrrTTToo',
+  'oBTrrTTTrrTbo',
+  'oBBRTTTTTRbbo',
+  'oBBRBBTbbRbbo',
+  'oBBRBBBbbRbbo',
+  '.ooRBBBbbRoo.',
+  '...ooBBboo...',
+  '.....ooo.....',
+], 'o:rose2 r:amb7 R:amb5 T:pin6 B:pin5 b:pin3', 6, 11);
 function drawGameGround(t) {
   for (const p of WORLD.presents) {
     if (FALLING.some(f => f.slot === p.slot)) continue;
@@ -4377,8 +4416,7 @@ function changeRoof(color) {
 function placeRoof(color) {
   if (!changeRoof(color)) return;
   closeSheets();
-  setView('all');
-  startHighlight('roof');
+  showBought('roof', 'all');
   const top = OY + 56 - TOP_Z(storeys);
   for (let i = 0; i < 12; i++) spark(180 + hsh(i, 175) * 110 - 55, top - hsh(i, 176) * 90, 'amb7', 13, 1);
   saveGame(); refreshUI();
@@ -4446,7 +4484,7 @@ function artCanvas(a, box = 46) {
   return c;
 }
 
-/* ── a new piece of furniture glows, once ─────────────────────────────── */
+/* ── a new piece of furniture glows, once, then the camera goes back ───── */
 let HILITE = null;
 const hiMask = new Uint8Array(N);
 function ringOf(list) {
@@ -4466,31 +4504,23 @@ function movingPixels(key, t) {
   for (let i = 0; i < N; i++) if (dyn[i]) list.push(i);
   return list;
 }
-function startHighlight(key) {
-  const list = [], roofId = key === 'roof' ? NAMED['roof' + storeys].id : -1;
+function showBought(key, view) {
+  const back = HILITE ? HILITE.back : CAM.name, roofId = key === 'roof' ? NAMED['roof' + storeys].id : -1, list = [];
+  setView(view);
   for (let i = 0; i < N; i++) { const id = gId[i]; if (id && (id === roofId || OBJ[id].o.furn === key)) list.push(i); }
   const moving = MOVING_ART[key] ? movingPixels(key, 0) : [];
-  let x0 = W, y0 = H, x1 = 0, y1 = 0;
-  for (const l of [list, moving]) for (const i of l) { const sx = i % W, sy = i / W | 0; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
-  const pad = SWAYS.has(key) ? 6 : 1;
-  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(W - 1, x1 + pad); y1 = Math.min(H - 1, y1 + pad);
-  const w = x1 - x0 + 1, h = y1 - y0 + 1, cut = makeCanvas(w, h), g = cut.getContext('2d'), im = g.createImageData(w, h), d = new Uint32Array(im.data.buffer);
-  for (const i of list) d[((i / W | 0) - y0) * w + i % W - x0] = PAL32[baseIdx[i]];
-  g.putImageData(im, 0, 0);
-  HILITE = { key, t0: WORLD.now, cut, x: x0, y: y0, w, h, list, ...(SWAYS.has(key) ? {} : ringOf(list.concat(moving))) };
+  HILITE = { key, t0: WORLD.now, list, back, view, ...(SWAYS.has(key) ? {} : ringOf(list.concat(moving))) };
 }
 function drawHighlight(t) {
   const L = HILITE;
   if (!L) return;
   const e = WORLD.now - L.t0, on = RULES.highlightFor;
-  if (e < 0 || e >= on + .4) { HILITE = null; return; }
+  if (e < 0 || e >= on + .4) {
+    HILITE = null;
+    if (CAM.name === L.view) setView(L.back);     // unless the player has already looked elsewhere
+    return;
+  }
   const a = Math.min(1, e / .3) * (1 - smooth((e - on) / .4));
-  fctx.fillStyle = '#16204a';
-  fctx.globalAlpha = .42 * a;
-  fctx.fillRect(0, 0, W, H);
-  fctx.globalAlpha = a;
-  fctx.drawImage(L.cut, L.x, L.y);
-  fctx.drawImage(dynCanvas, L.x, L.y, L.w, L.h, L.x, L.y, L.w, L.h);   // whatever's in front stays in front
   const { ring, ring2 } = SWAYS.has(L.key) ? ringOf(movingPixels(L.key, t)) : L;
   const pulse = .68 + .32 * Math.sin(e * 6);
   fctx.fillStyle = '#ffe27a';
@@ -4730,8 +4760,7 @@ function placeFurniture(key) {
   if (!furnish(key)) return;
   const f = FURNITURE[key], sx = iX(f.at[0], f.at[1]), sy = iY(f.at[0], f.at[1], f.at[2]);
   closeSheets();
-  setView(f.floor);
-  startHighlight(key);
+  showBought(key, f.floor);
   for (let i = 0; i < 7; i++) spark(sx + hsh(i, 173) * 24 - 12, sy + hsh(i, 174) * 18 - 9, 'amb7', 11, .9);
   // whoever lives on this floor comes over to see
   for (const id of ACTOR_IDS) if (present(id) && inOwnRoom(ACTOR[id]) && FLOOR_OF[id] === FLOOR_Z[f.floor - 1]) petAnimal(id);
@@ -4931,7 +4960,6 @@ function pictureOk() {
 }
 function restorePicture() {
   PICTURE.repaints++;
-  HILITE = null;
   fctx.imageSmoothingEnabled = dctx.imageSmoothingEnabled = false;
   buildSky();
   rebake();
