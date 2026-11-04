@@ -21,7 +21,6 @@ const CFG = {
   loop: QS.get('loop') === '1',
   block: qNum('block', 0) | 0,
   debug: QS.get('debug') === '1',
-  catArt: QS.get('cat') === '1',
   speed: qNum('speed', 1),
   freeze: QS.has('t') ? qNum('t', 0) : null,
   zoom: (QS.get('zoom') || '').split(',').map(Number),

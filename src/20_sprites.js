@@ -24,6 +24,16 @@ function stamp(dst, src, dx, dy) {
   return dst;
 }
 const stack = (parts, mapStr, ax, ay) => mk(parts.flat(), mapStr, ax, ay);
+/* cut the empty edges, so a bubble above the sprite sits right on its head */
+function trim(s) {
+  let x0 = s.w, x1 = -1, y0 = s.h, y1 = -1;
+  for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) if (s.d[y * s.w + x]) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  const out = blank(x1 - x0 + 1, y1 - y0 + 1, s.ax - x0, s.ay - y0);
+  stamp(out, s, -x0, -y0);
+  return out;
+}
 function shear(src, dir) { // dir 1: right side falls along the iso axis; -1: right side rises
   const ex = src.w >> 1;
   const out = blank(src.w, src.h + ex, src.ax, 0);
@@ -53,7 +63,7 @@ const dappleAt = (x, y) => {
   if (v < .12) return 'b';
   return w < .22 ? 'c' : w > .9 ? 'b' : 'B';
 };
-const DOG = { LEN: 15, H0: 5, X0: 7, Y0: 6, cw: 28, ch: 17, legH: 2 };
+const DOG = { LEN: 15, H0: 5, X0: 7, Y0: 6, cw: 28, ch: 18, legH: 3 };
 const dogLegPhases = [
   [[0, 2], [3, 1], [2, 2], [0, 1]],
   [[1, 2], [2, 2], [1, 2], [1, 2]],
@@ -77,9 +87,9 @@ function dogBody(legPhase, tailPhase, bow = 0) {
   for (const [x, y] of plume) for (const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) set(x + a, y + b, 'o');
   for (const [x, y, c] of plume) set(x, y, c);
   // legs, set behind the fringe
-  const LP = dogLegPhases[legPhase], lx = [X0 + 1, X0 + 3, X0 + LEN - 5, X0 + LEN - 3];
-  LP.forEach(([dx, h], i) => {
-    const far = i % 2 === 0, x = lx[i] + dx - 1, y = yb(x) + H0;
+  const LP = dogLegPhases[legPhase], lx = [X0 + 1, X0 + 4, X0 + LEN - 6, X0 + LEN - 3];
+  LP.forEach(([dx, h0], i) => {
+    const h = h0 + 1, far = i % 2 === 0, x = lx[i] + dx - 1, y = yb(x) + H0;
     for (let k = 0; k <= h; k++) { set(x - 1, y + k, 'o'); set(x + 2, y + k, 'o'); set(x, y + k, far ? 'T' : 't'); set(x + 1, y + k, far ? 'T' : 't'); }
     set(x - 1, y + h + 1, 'o'); set(x, y + h + 1, 'o'); set(x + 1, y + h + 1, 'o'); set(x + 2, y + h + 1, 'o');
     set(x, y + h, 'U'); set(x + 1, y + h, far ? 't' : 'U');
@@ -99,25 +109,26 @@ function dogBody(legPhase, tailPhase, bow = 0) {
   for (let y = 1; y < H0 - 1; y++) set(X0 - 1, Y0 + y, 'o');
   return mk(g.map(r => r.join('')), DM, X0 + 7, Y0 + H0 + DOG.legH);
 }
-function dogFrame(dir, leg, tail, head = 'front', o = {}) {
-  const sh = shear(dogBody(leg, tail, o.bow || 0), dir === 'SE' ? 1 : -1);
-  const out = blank(sh.w + 10, sh.h + 8, sh.ax + 2, sh.ay + 6);
-  stamp(out, sh, 2, 6);
-  const endX = DOG.X0 + DOG.LEN - 1;
-  const off = dir === 'SE' ? endX >> 1 : (DOG.cw - 1 - endX) >> 1;
-  const jx = 2 + endX, jy = 6 + DOG.Y0 + off + (o.bow || 0);
-  const hx = jx + (dir === 'SE' ? -4 : -5) + (o.hx || 0), hy = jy + (dir === 'SE' ? -4 : -5) + (o.hy || 0);
-  stamp(out, dogHeads[head], hx, hy);
-  return out;
+function dogFrame(leg, tail, head = 'front', o = {}) {
+  const body = dogBody(leg, tail, o.bow || 0);
+  const out = blank(body.w + 10, body.h + 8, body.ax + 2, body.ay + 6);
+  stamp(out, body, 2, 6);
+  const jx = 2 + DOG.X0 + DOG.LEN - 1, jy = 6 + DOG.Y0 + (o.bow || 0);
+  stamp(out, dogHeads[head], jx - 4 + (o.hx || 0), jy - 5 + (o.hy || 0));
+  return trim(out);
 }
 const D = {};
-D.walkSE = [0, 1, 2, 3].map(i => dogFrame('SE', i, i, 'front'));
-D.walkNE = [0, 1, 2, 3].map(i => dogFrame('NE', i, i, 'back'));
-D.standSE = [0, 1, 2, 3].map(i => dogFrame('SE', 4, i, 'front'));
-D.standBlink = dogFrame('SE', 4, 0, 'blink');
-D.tilt = [0, 1, 2, 3].map(i => dogFrame('SE', 4, i, 'tilt', { hy: -1 }));
-D.sniff = [0, 1].map(i => dogFrame('SE', 4, i, 'sniff', { hy: 3, hx: 1, bow: 1 }));
-D.stretch = [dogFrame('SE', 4, 1, 'blink', { bow: 2, hy: 2 }), dogFrame('SE', 4, 3, 'blink', { bow: 3, hy: 3 })];
+D.walk = [0, 1, 2, 3].map(i => dogFrame(i, i, 'front'));
+D.stand = [0, 1, 2, 3].map(i => dogFrame(4, i, 'front'));
+D.standBlink = dogFrame(4, 0, 'blink');
+D.tilt = [0, 1, 2, 3].map(i => dogFrame(4, i, 'tilt', { hy: -1 }));
+D.sniff = [0, 1].map(i => dogFrame(4, i, 'sniff', { hy: 3, hx: 1, bow: 1 }));
+D.stretch = [dogFrame(4, 1, 'blink', { bow: 2, hy: 2 }), dogFrame(4, 3, 'blink', { bow: 3, hy: 3 })];
+/* seen from behind: at a window, or on the ladder */
+D.back = [0, 1].map(n => mk([
+  '...oooo....', '.ooBBBBoo..', 'oEEBBBBEEo.', 'oEFEBcEFEo.', 'oEFEBBEFEo.', 'oEfFBBFfEo.', 'oEFoBBoEFo.', '.oEoBBoEo..',
+  '..oBBcBBo..', '.oBBBBBBBo.', n ? '.oBcBBBBBooo' : '.oBcBBBBBo.o', n ? '.oBBBBBcBoGGo' : '.oBBBBBcBooGo', '.oBBBBBBBoFGo', '.oUUoooUUoFo.', '..oo...oo.o..',
+], DM, 5, 14));
 const dogSit = (head, tail) => {
   const headRows = {
     open:  ['....ooooo....', '..ooBBDBBoo..', '.oEBTBBBTBEo.', 'oEFBwBBBwBFEo', 'oEFBeBTBeBFEo', 'oEfBTTTTTBfEo', 'oEFoTTNTToFEo', '.oEooTTTooEo.', '..oo.ooo.oo..'],
@@ -153,7 +164,7 @@ const dogCurl = rise => mk([
   '..oo.oooooUUoo.ooo..',
 ], DM, 9, 8);
 D.curl = [dogCurl(0), dogCurl(1)];
-D.flop = [0, 1].map(n => shear(mk([
+const dogFlop = n => { const s = blank(30, 12, 12, 11); stamp(s, mk([
   n ? '.....oooooooooooo..' : '...................',
   n ? '...ooBBcBDBBBdBBo..' : '....oooooooooooo...',
   'oFoBBBDBBBcBBDBBBo.',
@@ -161,7 +172,8 @@ D.flop = [0, 1].map(n => shear(mk([
   '.oBBdBBBBBBBcBBBBBo',
   '..oFFfFFFfFFFFFfFFo',
   '...oooooooooooooUUo',
-], DM, 9, 6), 1));
+], DM), 0, 5); stamp(s, dogHeads.blink, 17, 2); return trim(s); };
+D.flop = [dogFlop(0), dogFlop(1)];
 
 /* ── the cat: smoky fluff, white bib, amber eyes that see everything ───── */
 const CM = 'o:vio1 G:cha7 g:cha6 d:cha5 x:cha4 W:crm7 w:crm5 P:rose6 e:amb6 E:ink1 n:rose5 m:rose3 t:rose5 L:crm3';
@@ -202,19 +214,28 @@ K.back = [0, 1, 2].map(e => catAt([
   ...(e === 1 ? ['o........o.', 'oGo.....oGo', 'oGGoooooGGo'] : e === 2 ? ['.o........o', 'oGo.....oGo', 'oGGoooooGGo'] : ['.o.......o.', 'oGo.....oGo', 'oGGoooooGGo']),
   'oGGGGGGGGGo', 'oGGGGGGGGGo', 'oGGGGGGGGgo', 'dgGGGGGGggd', '.odGGGGgdo.', '..oGGGGgo..', '.oGGGGGGgo.', '.oGGGGGggo.', '.oggoooggo.', '..oo...oo..',
 ]));
-const catHeadSE = e => mk(['.o.....o.', 'oGo...oGo', 'oPGoooGPo', 'oGGdGdGGo', e ? 'oGxxGxxGo' : 'oGeEGeEGo', 'dGGGnGGGd', '.odWWWdo.', '..ooooo..'], CM);
-const catHeadNE = mk(['.o.....o.', 'oGo...oGo', 'oGGoooGGo', 'oGGdGdGGo', 'oGGGGGGGo', 'dGdGGGdGd', '.odGGGdo.', '..ooooo..'], CM);
-const CATB = { X0: 2, LEN: 11, Y0: 2, H0: 5, cw: 16, ch: 11 };
+const catHeadSide = mk(['..o....o..', '.oGo..oGo.', '.oPGooGPo.', 'oGGdGdGGGo.', 'oGGGGGGeEo.', 'dGGGGGGeeGo', '.oGGGGWWWno', '..odWWWWWo.', '...ooooo...'], CM);
+const CATB = { X0: 7, LEN: 11, Y0: 7, H0: 5, cw: 22, ch: 17 };
+const catLegs = [[0, 1, 2, 1], [1, 2, 1, 0], [2, 1, 0, 1], [1, 0, 1, 2]];
 function catBody(phase, stance = 0) {
   const { X0, LEN, Y0, H0, cw, ch } = CATB;
   const g = Array.from({ length: ch }, () => new Array(cw).fill('.'));
   const set = (x, y, c) => { if (x >= 0 && y >= 0 && x < cw && y < ch) g[y][x] = c; };
-  const pp = [[0, 1, 2, 1], [1, 2, 1, 0], [2, 1, 0, 1], [1, 0, 1, 2]][phase];
-  const lx = [X0 + 1, X0 + 3, X0 + LEN - 5, X0 + LEN - 3], h = stance === 2 ? 1 : 2;
+  // the tail goes up from the rump and sways; on a jump it streams out behind
+  const sway = [0, 1, 0, -1][phase];
+  const tail = stance === 2
+    ? [[-1, 1], [-2, 1], [-3, 1], [-4, 0], [-5, 0], [-6, 0], [-7, -1]]
+    : [[-1, 1], [-2, 0], [-3, -1], [-4, -2], [-4 + sway, -3], [-4 + sway, -4], [-3 + sway * 2, -5]];
+  for (const [a, b] of tail) for (const [c, e] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) set(X0 + a + c, Y0 + b + e, 'o');
+  tail.forEach(([a, b], i) => set(X0 + a, Y0 + b, i % 3 === 1 ? 'd' : 'g'));
+  // legs: the near pair is lighter, and a leg swinging forward lifts off the ground
+  const pp = catLegs[phase], next = catLegs[(phase + 1) % 4];
+  const lx = [X0 + 1, X0 + 4, X0 + LEN - 6, X0 + LEN - 2], h = stance === 2 ? 1 : 3;
   lx.forEach((x0, i) => {
     const x = x0 + (stance === 0 ? pp[i] - 1 : i < 2 ? -1 : 1), far = i % 2 === 0;
-    for (let k = 0; k <= h; k++) { set(x - 1, Y0 + H0 + k - 1, 'o'); set(x + 1, Y0 + H0 + k - 1, 'o'); set(x, Y0 + H0 + k - 1, k >= h ? 'W' : far ? 'd' : 'g'); }
-    set(x, Y0 + H0 + h, 'o');
+    const hi = stance === 0 && pp[i] === 1 && next[i] === 2 ? h - 1 : h;
+    for (let k = 0; k <= hi; k++) { set(x - 1, Y0 + H0 + k - 1, 'o'); set(x + 1, Y0 + H0 + k - 1, 'o'); set(x, Y0 + H0 + k - 1, k >= hi ? 'W' : far ? 'd' : 'g'); }
+    set(x, Y0 + H0 + hi, 'o');
   });
   for (let x = X0; x < X0 + LEN; x++) {
     const rd = x === X0 || x === X0 + LEN - 1 ? 1 : 0;
@@ -227,20 +248,17 @@ function catBody(phase, stance = 0) {
     }
   }
   for (let y = 1; y < H0 - 1; y++) set(X0 - 1, Y0 + y, 'o');
-  return mk(g.map(r => r.join('')), CM, X0 + 5, Y0 + H0 + 2);
+  return mk(g.map(r => r.join('')), CM, X0 + 5, Y0 + H0 + 3);
 }
-function catWalk(dir, phase, stance = 0) {
-  const sh = shear(catBody(phase, stance), dir === 'SE' ? 1 : -1);
-  const out = blank(sh.w + 8, sh.h + 6, sh.ax, sh.ay + 6);
-  stamp(out, sh, 0, 6);
-  const endX = CATB.X0 + CATB.LEN - 1, off = dir === 'SE' ? endX >> 1 : (CATB.cw - 1 - endX) >> 1;
-  const hy = 6 + CATB.Y0 + off + (dir === 'SE' ? -3 : -5), hx = endX - 3;
-  stamp(out, dir === 'SE' ? catHeadSE(0) : catHeadNE, hx, hy);
-  return out;
+function catWalk(phase, stance = 0) {
+  const body = catBody(phase, stance);
+  const out = blank(body.w + 6, body.h + 4, body.ax, body.ay + 4);
+  stamp(out, body, 0, 4);
+  stamp(out, catHeadSide, CATB.X0 + CATB.LEN - 5, 4 + CATB.Y0 - 6);
+  return trim(out);
 }
-K.walkSE = [0, 1, 2, 3].map(i => catWalk('SE', i));
-K.walkNE = [0, 1, 2, 3].map(i => catWalk('NE', i));
-K.leap = [catWalk('SE', 0, 2), catWalk('NE', 0, 2)];
+K.walk = [0, 1, 2, 3].map(i => catWalk(i));
+K.leap = catWalk(0, 2);
 K.stretch = [
   mk(['...........o...o.', '..........oGo.oGo', 'ooo.......oGGGGGo', 'oGGoo.....oGxGxGo', '.ogGGooooooGGnGGo', '..oGGGdGGGGGWWGo.', '...oGGdGGdGGWWo..', '...oWooWooWWWWo..', '...oo.oo..oooo...'], CM, 8, 8),
   mk(['o..........o...o.', 'oGo.......oGo.oGo', '.oGo......oGGGGGo', '.oGGooo...oGxGxGo', '..ogGGGoooGGGnGGo', '..oGGGdGGGGGWWGo.', '...oGGGdGGdGWWo..', '...oWooWooWWWWWo.', '...oo.oo..ooooo..'], CM, 8, 8),
@@ -436,8 +454,8 @@ const ITEM = {
 /* ── sprite sheet for review ──────────────────────────────────────────── */
 function drawSheet() {
   const items = [
-    K.sit, K.sitBlink, K.sitHappy, ...K.bat, ...K.groom, K.back[0], ...K.walkSE.slice(0, 2), ...K.walkNE.slice(0, 2), K.leap[0], K.stretch[0], ...K.curl.slice(0, 2), ...K.eat, ...K.roll,
-    ...D.walkSE.slice(0, 2), ...D.walkNE.slice(0, 2), D.standSE[0], D.tilt[0], D.sniff[0], D.stretch[0], D.sit[0], D.sitBlink, D.sitTilt[0], D.sitHappy[0], ...D.curl,
+    K.sit, K.sitBlink, K.sitHappy, ...K.bat, ...K.groom, K.back[0], ...K.walk, K.leap, K.stretch[0], ...K.curl.slice(0, 2), ...K.eat, ...K.roll,
+    ...D.walk, ...D.back, D.stand[0], D.tilt[0], D.sniff[0], D.stretch[0], ...D.flop, D.sit[0], D.sitBlink, D.sitTilt[0], D.sitHappy[0], ...D.curl,
     R.sit, R.blink, R.happy, R.earsDown, ...R.eat, ...R.wash, ...R.hopSE, ...R.hopNE, ...R.loaf,
     ...S.front, S.blink, S.happy[0], S.back[0],
     Y.fly[0], Y.fly[1], Y.fly[2], Y.flyBlink, Y.sit, Y.happy[0], Y.puff, Y.back[0], ...Y.sleep,

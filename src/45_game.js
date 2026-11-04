@@ -619,19 +619,6 @@ function floatNumber(ix, iy, text) {
   UI.ui.appendChild(e);
   setTimeout(() => e.remove(), 900);
 }
-/* ?cat=1 only: compare the two cats */
-function setCatArt(on) {
-  const before = K.sit;
-  useCatArt(on);
-  const icon = UI.icons.find(e => e[1] === before);
-  if (icon) {
-    const [c] = icon, s = K.sit, scale = on ? 1 : 1.5;
-    icon[1] = s; c.width = s.w; c.height = s.h;
-    c.style.width = `calc(var(--u) * ${s.w * scale})`; c.style.height = `calc(var(--u) * ${s.h * scale})`;
-    paintSprite(c, s);
-  }
-  $('catArtBtn').textContent = on ? 'ねこ：新しい絵' : 'ねこ：今の絵';
-}
 function buildUI() {
   UI.ui = $('ui'); UI.ui.hidden = false;
   for (const k of ['glassN', 'reloadBox', 'consent', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
@@ -720,7 +707,7 @@ function renderCard() {
   c.innerHTML = `<button class="x" aria-label="とじる">×</button>
     <div class="head"><span class="ic"></span><div><b>${a.name}</b><div class="hearts">${hearts(GS.aff[id])}</div><div class="hunger"><i></i></div></div></div>
     <div class="goods"></div>`;
-  c.querySelector('.ic').appendChild(spriteCanvas(FACE()[id], catArtOn && id === 'cat' ? 1.25 : 2));
+  c.querySelector('.ic').appendChild(spriteCanvas(FACE()[id], 2));
   c.querySelector('.x').onclick = closeCard;
   showHunger();
   const box = c.querySelector('.goods'), busy = !!WORLD.react[id] && WORLD.react[id].anim !== 'happy';
@@ -1076,11 +1063,6 @@ function gameStart() {
   if (fresh) saveGame();
   else comeBack();
   startAnalytics();
-  if (CFG.catArt) {
-    $('catArtBtn').hidden = false;
-    $('catArtBtn').onclick = () => setCatArt(!catArtOn);
-    setCatArt(true);
-  }
   $('reloadBtn').onclick = () => { saveGame(); location.reload(); };
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
@@ -1096,7 +1078,6 @@ function gameStart() {
   for (const c of [display, frame, dynCanvas]) c.addEventListener('contextrestored', () => { if (!document.hidden) returnToPage(RULES.repaintAfter); });
 }
 const GAME = {
-  catArt: on => setCatArt(on),
   state: () => JSON.parse(JSON.stringify(GS)),
   rules: RULES, goods: GOODS, furniture: FURNITURE,
   furnish: key => { const ok = furnish(key); if (UI.ui) refreshUI(); return ok; },
