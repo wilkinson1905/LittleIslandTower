@@ -14,7 +14,7 @@ const HOME = {
   dragon: { x: 32, y: 66, z: Z2 + 13 },
   penguin: { x: 170, y: 119, z: 5 },
 };
-const HOME_ANIM = { cat: 'curl', pup: 'curl', rabbit: 'loaf', sheep: 'float', dragon: 'perch', penguin: 'stand' };
+const HOME_ANIM = { cat: 'sit', pup: 'sitWag', rabbit: 'sit', sheep: 'float', dragon: 'perch', penguin: 'stand' };
 /* where each animal goes to eat or play in its own room: clear floor, away from the furniture */
 const SPOT = {
   cat: { x: 56, y: 64, z: Z1 },
@@ -25,7 +25,7 @@ const SPOT = {
 };
 
 class Track {
-  constructor(home) { this.t = 0; this.segs = []; this.p = home; }
+  constructor(home, id, ctx) { this.t = 0; this.segs = []; this.p = home; this.id = id; this.ctx = ctx; }
   pose(dur, anim, o) {
     this.segs.push({ t0: this.t, t1: this.t + dur, kind: 0, anim, a: this.p, b: this.p, o });
     this.t += dur;
@@ -72,8 +72,8 @@ const avail = id => present(id) && !BLOCK_TIER[id];
 const both = (a, b) => avail(a) && avail(b);
 function hungryRest(T, r, id, tier) {
   if (tier === 2) { T.until(LOOP, SLEEP_POSE[id]); return; }
-  while (T.t < LOOP - 34) T.pose(18 + r() * 12, SLEEP_POSE[id]).pose(3 + r() * 3, AWAKE_POSE[id]);
-  T.until(LOOP, SLEEP_POSE[id]);
+  while (T.t < LOOP - 26) T.pose(10 + r() * 6, SLEEP_POSE[id]).pose(6 + r() * 4, AWAKE_POSE[id]);
+  T.until(LOOP, AWAKE_POSE[id]);
 }
 /* A shower: it starts, it ends, and at leave everyone heads home from the rainbow. */
 const RAIN_DAY = { start: 28, end: 68, leave: 94 }, RAIN_SHOW = { start: 42, end: 82, leave: 104 };
@@ -148,14 +148,14 @@ function catCaught(T, r, ctx, day, always) {
 const CAT = {
   /* the first thing anyone sees: the crab, then a shower, then the rainbow */
   show(T, r, ctx) {
-    T.pose(2, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
+    T.pose(2.8, 'sit'); catOff(T); catOut(T);
     T.walk([CRAB_R], CATV, 'walk').until(12, 'sit').until(20, 'tease').until(26, 'sit');
     T.walk([CRAB_L], CATV, 'walk').until(32, 'sit').until(40, 'tease');
     catCaught(T, r, ctx, RAIN_SHOW, true);
   },
   /* after the puppy, or the other way round */
   chase(T, r) {
-    T.pose(2 + r() * 3, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
+    T.pose(2.8 + r() * 3, 'sit'); catOff(T); catOut(T);
     T.walk([LAP[0]], CATV, 'walk').until(20, 'sit');
     for (let n = 0; n < 3; n++) T.walk(lapFrom(0, 1), CHASEV, 'walk');
     T.pose(2, 'sit');
@@ -164,27 +164,27 @@ const CAT = {
   },
   play(T, r) {
     if (avail('pup')) { CAT.chase(T, r); return; }
-    T.pose(6 + r() * 8, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
+    idle(T, r, 6 + r() * 8); T.pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
     T.pose(9, 'g2').pose(3, 'sit').pose(6, 'groom').pose(5, 'g4').pose(2, 'sit'); catFromRug(T); catOn(T);
   },
   perch(T, r, ctx) {
-    if (ctx.nap && (present('rabbit') ? avail('rabbit') : avail('pup'))) { T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(84, 'curl').pose(1, 'sit').pose(6, 'groom').pose(2, 'sit'); return; }
-    T.pose(14 + r() * 10, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
+    if (ctx.nap && (present('rabbit') ? avail('rabbit') : avail('pup'))) { idle(T, r, 18); T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(54, 'curl').pose(1, 'sit').pose(6, 'groom').pose(2, 'sit'); return; }
+    idle(T, r, 14 + r() * 10); T.pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
     if (own('catTree')) { catClimb(T); T.pose(26 + r() * 10, 'sit').pose(6, 'groom').pose(1, 'sit'); catDescend(T); }
     else T.pose(14, 'sit').pose(6, 'groom').pose(1, 'sit');
     catFromRug(T); catOn(T);
   },
-  rest(T, r) { T.pose(40 + r() * 20, 'curl').pose(1, 'sit').pose(7, 'groom').pose(2, 'sit'); },
+  rest(T, r) { idle(T, r, 18 + r() * 14); T.pose(1, 'sit').pose(12 + r() * 10, 'curl').pose(1, 'sit').pose(7, 'groom').pose(2, 'sit'); },
   /* up to the puppy's floor to say hello */
   visit(T, r) {
-    T.pose(16 + r() * 6, 'curl').pose(1, 'sit'); catOff(T); catToPup(T);
+    idle(T, r, 16 + r() * 6); T.pose(1, 'sit'); catOff(T); catToPup(T);
     T.until(40, 'sit').pose(5, 'nose', { hearts: 1 }).pose(2, 'sit');
     T.walk([at2(56, 88), entry(Z2)], CATV, 'walk').hop(lad(Z2), .4, 'land').walk([lad(Z1)], CLIMB, 'climb').hop(entry(Z1), .4, 'land');
     catFromLadder(T); catOn(T);
   },
   /* fetches the puppy, and they go and bother the crab together */
   invite(T) {
-    T.pose(.6, 'curl').pose(.6, 'sit'); catOff(T); catToPup(T);
+    T.pose(1.2, 'sit'); catOff(T); catToPup(T);
     T.until(12, 'sit').pose(3, 'nose', { hearts: 1 });
     T.walk([at2(56, 88), entry(Z2)], CATV + 6, 'walk'); ladderDown(T, Z2);
     T.walk([TO_FOOT, CRAB_L], CATV + 6, 'walk').until(32, 'sit').until(40, 'tease');
@@ -194,14 +194,14 @@ const CAT = {
   },
   crab(T, r) {
     if (avail('pup')) { CAT.invite(T); return; }
-    T.pose(1 + r() * 2, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
+    T.pose(1.8 + r() * 2, 'sit'); catOff(T); catOut(T);
     T.walk([CRAB_R], CATV, 'walk').until(12, 'sit').until(20, 'tease').until(26, 'sit');
     T.walk([CRAB_L], CATV, 'walk').until(32, 'sit').until(40, 'tease');
     T.hop(atB(108, 142), .45, 'land').pose(2, 'sit').pose(5, 'groom').pose(1, 'sit');
     T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   boat(T, r) {
-    T.pose(5 + r() * 5, 'curl').pose(1, 'sit'); catOff(T); catOut(T);
+    idle(T, r, 5 + r() * 5); T.pose(1, 'sit'); catOff(T); catOut(T);
     catToJetty(T);
     if (avail('pup')) T.until(36, 'gaze').pose(3, 'gaze', { hearts: 1 }).until(56 + r() * 6, 'gaze');
     else T.pose(36 + r() * 6, 'gaze');
@@ -209,18 +209,18 @@ const CAT = {
   },
   /* out on the sand, and the first drops catch it there */
   rainbow(T, r, ctx) {
-    T.pose(3 + r() * 3, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
+    T.pose(3.8 + r() * 3, 'sit'); catOff(T); catOut(T);
     T.walk([atB(118, 116)], CATV, 'walk').pose(3, 'sit').pose(4, 'groom');
     catCaught(T, r, ctx, RAIN_DAY);
   },
   palm(T, r) {
-    T.pose(6 + r() * 6, 'curl').pose(1, 'sit'); catOff(T); catOut(T);
+    idle(T, r, 6 + r() * 6); T.pose(1, 'sit'); catOff(T); catOut(T);
     T.walk(CAT_PALM_ROUTE, CATV, 'walk').pose(.5, 'crouch').walk(trunkUp(CAT_PALM), 22, 'climb');
     T.pose(20 + r() * 8, 'sit').pose(5, 'groom').pose(14, 'gaze').pose(1, 'sit');
     T.walk(trunkDown(CAT_PALM), 26, 'climb').walk([atB(46, 146), atB(66, 124), FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   roof(T, r) {
-    T.pose(3 + r() * 4, 'curl').pose(1, 'sit'); catOff(T); catToLadder(T);
+    T.pose(4 + r() * 4, 'sit'); catOff(T); catToLadder(T);
     toRoof(T, Z1, avail('pup') ? rf(-14, 14, 30) : rf(-6, 14, 31), CATV, 'walk');
     if (avail('pup')) T.until(42, 'sit').pose(14, 'gaze').pose(4, 'groom').pose(1, 'sit');
     else T.pose(24 + r() * 8, 'sit').pose(6, 'groom').pose(12, 'gaze').pose(1, 'sit');
@@ -228,17 +228,17 @@ const CAT = {
   },
   /* meets the puppy on the sand: noses, then a lie down */
   greet(T, r) {
-    T.pose(3 + r() * 3, 'curl').pose(1, 'sit'); catOff(T); catOut(T);
+    T.pose(4 + r() * 3, 'sit'); catOff(T); catOut(T);
     T.walk([NOSE_CAT], CATV, 'walk').until(26, 'sit').pose(5, 'nose', { hearts: 1 }).pose(2, 'sit');
     T.walk([atB(82, 136)], CATV, 'walk').hop(atB(70, 150, 5), .6, 'land').pose(1, 'sit');
-    T.pose(30 + r() * 10, 'curl').pose(1, 'sit').pose(2.4, 'stretch').hop(atB(82, 136), .6, 'land');
+    T.pose(5, 'groom').pose(12 + r() * 8, 'curl').pose(1, 'sit').pose(2.4, 'stretch').hop(atB(82, 136), .6, 'land');
     T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   lounge(T, r) {
     if (avail('pup')) { CAT.greet(T, r); return; }
-    T.pose(5 + r() * 6, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catOut(T);
+    idle(T, r, 5 + r() * 6); T.pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catOut(T);
     T.walk([atB(82, 136)], CATV, 'walk').hop(atB(70, 150, 5), .6, 'land').pose(1, 'sit');
-    T.pose(36 + r() * 12, 'curl').pose(1, 'sit').pose(2.4, 'stretch').hop(atB(82, 136), .6, 'land');
+    T.pose(5, 'groom').pose(14 + r() * 8, 'curl').pose(1, 'sit').pose(2.4, 'stretch').hop(atB(82, 136), .6, 'land');
     T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
 };
@@ -266,7 +266,7 @@ function pupCaught(T, r, ctx, day) {
 }
 const PUP = {
   show(T, r, ctx) {
-    T.pose(5, 'curl').pose(1.2, 'stand').pose(2.4, 'stretch').pose(.6, 'stand');
+    T.pose(5, 'sitWag').pose(1.2, 'stand').pose(2.4, 'stretch').pose(.6, 'stand');
     T.walk([at2(74, 42), at2(50, 42)], PUPV, 'walk').pose(4, 'sniff').pose(3, 'sitWag');
     T.walk([at2(74, 42), at2(74, 70)], PUPV, 'walk'); pupDown(T);
     T.walk([TO_FOOT, PUP_SAND], PUPR, 'walk');
@@ -275,7 +275,7 @@ const PUP = {
   /* the cat too, if it isn't too hungry: from the door of the loop, one length behind it */
   play(T, r) {
     if (!avail('cat')) { PUP.bowls(T, r); return; }
-    T.pose(2 + r() * 2, 'curl').pose(1.2, 'stand'); pupDown(T);
+    T.pose(2 + r() * 2, 'sitWag').pose(1.2, 'stand'); pupDown(T);
     T.walk([TO_FOOT, atB(96, 118), LAP[3]], PUPR, 'walk').until(20, 'sitWag');
     for (let n = 0; n < 3; n++) T.walk(lapFrom(3, 1), CHASEV, 'walk');
     T.pose(2, 'bark');
@@ -284,64 +284,64 @@ const PUP = {
   },
   /* down to the cat's bed, for a nap against it */
   nap(T, r) {
-    T.pose(4 + r() * 4, 'curl').pose(1.2, 'stand'); pupToLadder(T);
+    idle(T, r, 12 + r() * 4); T.pose(1.2, 'stand'); pupToLadder(T);
     T.hop(lad(Z2), .4, 'land').walk([lad(Z1)], CLIMB, 'climb').hop(entry(Z1), .4, 'land').walk([at1(54, 95), at1(55, 90)], PUPR, 'walk');
-    T.until(84, 'curl').pose(1.2, 'stand').walk([at1(54, 95), entry(Z1)], PUPR, 'walk');
+    T.until(54, 'curl').pose(1.2, 'stand').walk([at1(54, 95), entry(Z1)], PUPR, 'walk');
     T.hop(lad(Z1), .4, 'land').walk([lad(Z2)], CLIMB, 'climb').hop(entry(Z2), .4, 'land'); pupFromLadder(T);
   },
   /* the cat comes up to say hello */
   visited(T, r) {
     if (!avail('cat')) { PUP.beg(T, r); return; }
-    T.until(38, 'curl').pose(1.2, 'stand').until(40, 'stand').pose(5, 'nose', { flip: true }).pose(4, 'sitWag');
+    idle(T, r, 38); T.pose(1.2, 'stand').until(40, 'stand').pose(5, 'nose', { flip: true }).pose(4, 'sitWag');
     T.walk([at2(74, 42), at2(50, 42)], PUPV, 'walk').pose(3, 'sniff').pose(8, 'sitWag');
     T.walk([at2(74, 42), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
   },
   beg(T, r) {
-    T.pose(16 + r() * 8, 'curl').pose(1.2, 'stand');
+    idle(T, r, 16 + r() * 8); T.pose(1.2, 'stand');
     T.walk([at2(74, 42), at2(50, 42)], PUPV, 'walk').pose(3, 'sniff').pose(12, 'sitWag').pose(3, 'g2').pose(6, 'sitWag');
     T.walk([at2(74, 42), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
   },
   bowls(T, r) {
-    T.pose(8 + r() * 8, 'curl').pose(1.2, 'stand');
+    idle(T, r, 8 + r() * 8); T.pose(1.2, 'stand');
     T.walk([at2(74, 58), at2(84, 58)], PUPV, 'walk').pose(own('bowls') ? 8 : 3, 'sniff').pose(8, 'sitWag');
     T.walk([at2(74, 58), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
   },
   rest(T, r) {
-    if (avail('sheep')) T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(80, 'curl');   // the sheep comes to sleep beside it
-    else T.pose(44 + r() * 20, 'curl');
+    if (avail('sheep')) { idle(T, r, 20); T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(56, 'curl'); }   // the sheep comes to sleep beside it
+    else { idle(T, r, 18 + r() * 10); T.pose(8 + r() * 6, 'curl'); }
     T.pose(1.2, 'stand').pose(2.4, 'stretch').pose(.6, 'stand').pose(10, 'sitWag');
   },
   /* the cat comes for it, and off they go to the crab */
   crab(T, r) {
     if (!avail('cat')) { PUP.beg(T, r); return; }
-    T.until(10.5, 'curl').pose(1.5, 'stand').pose(3, 'nose', { flip: true });
+    idle(T, r, 10.5); T.pose(1.5, 'stand').pose(3, 'nose', { flip: true });
     pupToLadder(T); ladderDown(T, Z2);
     T.walk([TO_FOOT, atB(112, 140)], PUPR, 'walk').until(32, 'sitWag').until(40, 'tease').pose(1.5, 'stand');
     T.walk([atB(128, 118)], PUPR, 'walk').until(52, 'sitWag').until(60, 'tease').pose(1.5, 'stand').pose(3, 'sitWag');
     T.walk([TO_FOOT], PUPR, 'walk'); pupUp(T);
   },
   boat(T, r) {
-    T.pose(6 + r() * 6, 'curl').pose(1.2, 'stand'); pupDown(T);
+    idle(T, r, 6 + r() * 6); T.pose(1.2, 'stand'); pupDown(T);
     pupToJetty(T);
     T.until(36, 'gaze').pose(16 + r() * 8, 'gaze').pose(5, 'sitWag');
     pupFromJetty(T);
   },
   rainbow(T, r, ctx) {
-    T.pose(2 + r() * 3, 'curl').pose(1.2, 'stand'); pupDown(T);
+    T.pose(2 + r() * 3, 'sitWag').pose(1.2, 'stand'); pupDown(T);
     T.walk([TO_FOOT, PUP_SAND], PUPR, 'walk').pose(3, 'sniff');
     pupCaught(T, r, ctx, RAIN_DAY);
   },
   /* the cat is up the palm; it would like to climb as well, and can't */
   palm(T, r) {
     if (!avail('cat')) { PUP.beg(T, r); return; }
-    T.pose(8 + r() * 6, 'curl').pose(1.2, 'stand'); pupDown(T);
+    idle(T, r, 8 + r() * 6); T.pose(1.2, 'stand'); pupDown(T);
     T.walk([TO_FOOT, atB(46, 146)], PUPR, 'walk').pose(3, 'sniff').pose(7, 'bark').pose(4, 'sitWag');
     T.walk([atB(60, 138), atB(46, 146)], PUPR, 'walk').pose(6, 'bark').pose(3, 'sitWag');
     T.walk([TO_FOOT], PUPR, 'walk'); pupUp(T);
   },
   /* meets the cat on the sand */
   beach(T, r) {
-    T.pose(3 + r() * 4, 'curl').pose(1.2, 'stand'); pupDown(T);
+    T.pose(3 + r() * 4, 'sitWag').pose(1.2, 'stand'); pupDown(T);
     T.walk([TO_FOOT, atB(92, 100), NOSE_PUP], PUPR, 'walk').until(26, 'sitWag');
     if (avail('cat')) T.pose(5, 'nose', { flip: true }).pose(2, 'g4'); else T.pose(5, 'sniff').pose(2, 'sitWag');
     T.walk([atB(122, 106)], PUPR, 'walk').pose(4, 'sniff').pose(3, 'sitWag');
@@ -349,7 +349,7 @@ const PUP = {
     pupUp(T);
   },
   roof(T, r) {
-    T.pose(14 + r() * 8, 'curl').pose(1.2, 'stand'); pupToLadder(T);
+    idle(T, r, 14 + r() * 8); T.pose(1.2, 'stand'); pupToLadder(T);
     toRoof(T, Z2, rf(12, 18, 27), PUPV, 'walk');
     T.until(42, 'sitWag').pose(3, 'gaze', { hearts: 1 }).pose(11, 'gaze').pose(4, 'sitWag');
     fromRoof(T, Z2, PUPV, 'walk'); pupFromLadder(T);
@@ -385,41 +385,41 @@ function rabCaught(T, r, day) {
 }
 const RAB = {
   show(T, r) {
-    T.pose(5, 'loaf').pose(1.4, 'sit'); rabToFlowers(T);
+    T.pose(6.4, 'sit'); rabToFlowers(T);
     rabCaught(T, r, RAIN_SHOW);
   },
   /* down the ladder to sleep against the cat */
   nap(T, r) {
-    T.pose(3 + r() * 3, 'loaf').pose(1.4, 'sit'); rabToLadder(T);
+    T.pose(4.4 + r() * 3, 'sit'); rabToLadder(T);
     T.hop(lad(Z3), .4, 'land').walk([lad(Z1)], CLIMB, 'climb').hop(entry(Z1), .4, 'land').walk([at1(54, 95), at1(56, 92)], RABR, 'hop');
-    T.until(84, 'loaf').pose(1.4, 'sit').walk([at1(54, 95), entry(Z1)], RABR, 'hop');
+    T.until(54, 'loaf').pose(1.4, 'sit').walk([at1(54, 95), entry(Z1)], RABR, 'hop');
     T.hop(lad(Z1), .4, 'land').walk([lad(Z3)], CLIMB, 'climb').hop(entry(Z3), .4, 'land'); rabFromLadder(T);
   },
   bed(T, r) {
-    T.pose(12 + r() * 10, 'loaf').pose(1.4, 'sit'); rabOff(T);
-    if (own('bed3')) { rabToBed(T); T.pose(2, 'sit').pose(40 + r() * 10, 'loaf').pose(5, 'g4').pose(1, 'sit'); rabFromBed(T); }
+    idle(T, r, 12 + r() * 10); T.pose(1.4, 'sit'); rabOff(T);
+    if (own('bed3')) { rabToBed(T); T.pose(2, 'sit').pose(14 + r() * 8, 'loaf').pose(5, 'g4').pose(1, 'sit'); rabFromBed(T); }
     else T.walk([at3(75, 62)], RABV, 'hop').pose(8, 'look').pose(5, 'g4').walk([rabDoor], RABV, 'hop');
     rabOn(T);
   },
   rug(T, r) {
-    T.pose(6 + r() * 10, 'loaf').pose(1.4, 'sit'); rabOff(T);
+    idle(T, r, 6 + r() * 10); T.pose(1.4, 'sit'); rabOff(T);
     T.walk([at3(75, 62)], RABV, 'hop');
     for (let n = 0; n < 3; n++) T.pose(5, 'sit').pose(4, 'g2').pose(3, 'g4');
     T.walk([rabDoor], RABV, 'hop'); rabOn(T);
   },
-  rest(T, r) { T.pose(36 + r() * 20, 'loaf').pose(2, 'sit').pose(5, 'g4').pose(2, 'sit'); },
+  rest(T, r) { idle(T, r, 14 + r() * 12); T.pose(1, 'sit').pose(14 + r() * 10, 'loaf').pose(2, 'sit').pose(5, 'g4').pose(2, 'sit'); },
   roof(T, r) {
-    T.pose(6 + r() * 6, 'loaf').pose(1.4, 'sit'); rabToLadder(T); toRoof(T, Z3, RAB_SEAT(), RABR, 'hop');
+    idle(T, r, 6 + r() * 6); T.pose(1.4, 'sit'); rabToLadder(T); toRoof(T, Z3, RAB_SEAT(), RABR, 'hop');
     T.pose(34 + r() * 8, 'gaze').pose(4, 'g4').pose(1, 'sit');
     fromRoof(T, Z3, RABR, 'hop'); rabFromLadder(T);
   },
   rainbow(T, r) {
-    T.pose(2 + r() * 2, 'loaf').pose(1.4, 'sit'); rabToFlowers(T);
+    T.pose(3.4 + r() * 2, 'sit'); rabToFlowers(T);
     rabCaught(T, r, RAIN_DAY);
   },
   /* all the way down, to nibble among the sunflowers */
   flowers(T, r) {
-    T.pose(4 + r() * 6, 'loaf').pose(1.4, 'sit'); rabToLadder(T); ladderDown(T, Z3);
+    idle(T, r, 4 + r() * 6); T.pose(1.4, 'sit'); rabToLadder(T); ladderDown(T, Z3);
     const v = RABV + 7;
     T.walk([TO_FOOT, atB(108, 108), atB(126, 60)], v, 'hop').pose(2, 'sit').pose(7, 'nibble').pose(3, 'look');
     T.walk([atB(124, 40)], v, 'hop').pose(6, 'nibble').pose(3, 'sit');
@@ -449,15 +449,15 @@ const SHEEP = {
     T.pose(5 + r() * 8, 'float');
     for (let n = 0; n < 2; n++) T.walk([at1(68, 60, 18 + r() * 8), at1(68, 75, 16), at1(40, 75, 18 + r() * 8), at1(40, 60, 16)], SHV, 'drift').pose(2 + r() * 3, 'float');
   },
-  rain(T, r) { T.pose(10 + r() * 10, 'float').pose(9, 'g2').pose(16, 'snooze').pose(2, 'float'); },
+  rain(T, r) { idle(T, r, 10 + r() * 10); T.pose(9, 'g2').pose(8, 'snooze').pose(2, 'float'); },
   rest(T, r) {
     if (avail('pup')) {   // up to the puppy's floor, for a sleep beside it
       T.pose(6 + r() * 2, 'float'); shOut(T);
-      T.walk([atB(100, 100, 118), at2(86, 68, 10)], SHR, 'drift').until(80, 'snooze').pose(1, 'float');
+      T.walk([atB(100, 100, 118), at2(86, 68, 10)], SHR, 'drift').until(56, 'snooze').pose(1, 'float');
       T.walk([atB(100, 100, 118), atB(104, 118, 44)], SHR, 'drift'); shIn(T);
       return;
     }
-    T.pose(14 + r() * 10, 'float').pose(30 + r() * 20, 'snooze').pose(2, 'float');
+    idle(T, r, 14 + r() * 10); T.pose(16 + r() * 8, 'snooze').pose(2, 'float');
   },
   /* puts out the dragon's flame */
   douse(T, r) {
@@ -474,7 +474,7 @@ const SHEEP = {
   /* goes up to be a cloud for a while */
   sky(T, r) {
     T.pose(4 + r() * 6, 'float'); shOut(T);
-    T.walk([atB(118, 140, Math.min(300, roofBase() + 30))], SHR, 'drift').pose(14 + r() * 6, 'snooze').pose(4, 'float');
+    T.walk([atB(118, 140, Math.min(300, roofBase() + 30))], SHR, 'drift').pose(8 + r() * 4, 'snooze').pose(4, 'float');
     T.walk([atB(104, 118, 44)], SHR, 'drift'); shIn(T);
   },
   /* over the flowers when it starts; maybe a small rainbow of its own under the big one */
@@ -511,38 +511,38 @@ const DRAGON = {
   show(T, r) { dragonRain(T, r, RAIN_SHOW); },
   /* a small flame on the sand, until the sheep comes over */
   fire(T, r) {
-    T.pose(14 + r() * 4, 'perch'); drOut(T);
+    idle(T, r, 14 + r() * 4); drOut(T);
     T.walk([atB(160, 110, 14)], DRR, 'fly').until(40, 'hover').pose(10, 'blow').pose(5, 'happy', { hearts: 1 }).pose(1, 'hover');
     T.walk([DR_GATE], DRR, 'fly'); drIn(T);
   },
   oven(T, r) {
-    T.pose(12 + r() * 12, 'perch');
+    idle(T, r, 12 + r() * 12);
     if (own('oven')) { dragonToOven(T); T.pose(5, 'light').pose(3, 'hover'); dragonHome(T); }
-    T.pose(5, 'perch').pose(5, 'g2').pose(14, 'sleep').pose(2, 'perch');
+    T.pose(5, 'perch').pose(5, 'g2').pose(8, 'sleep').pose(2, 'perch');
   },
   loop(T, r) {
     T.pose(8 + r() * 12, 'perch').walk([at2(32, 66, 24), at2(34, 84, 18)], DRV, 'fly').pose(5, 'g4');
     T.walk([at2(74, 84, 18), at2(74, 42, 18), at2(34, 42, 18)], DRV, 'fly').pose(5, 'g2').walk([at2(32, 58, 18), HOME.dragon], DRV, 'fly').pose(2, 'perch');
   },
-  rest(T, r) { T.pose(10 + r() * 8, 'perch').pose(44 + r() * 20, 'sleep').pose(2, 'perch'); },
+  rest(T, r) { idle(T, r, 10 + r() * 8); T.pose(16 + r() * 8, 'sleep').pose(2, 'perch'); },
   crab(T, r) {
-    T.pose(36 + r() * 10, 'perch'); drOut(T);
+    idle(T, r, 36 + r() * 10); drOut(T);
     T.walk([atB(150, 130, 70), atB(120, 136, 18)], DRR, 'fly').until(92, 'hover').until(100, 'tease').pose(1, 'hover');
     T.walk([DR_GATE], DRR, 'fly'); drIn(T);
   },
   /* sits in the crown of the tall palm */
   palm(T, r) {
-    T.pose(10 + r() * 10, 'perch'); drOut(T);
+    idle(T, r, 10 + r() * 10); drOut(T);
     T.walk([atCrown(PALMS[0])], DRR, 'fly').pose(30 + r() * 8, 'perch').pose(5, 'g2').pose(1, 'hover');
     T.walk([DR_GATE], DRR, 'fly'); drIn(T);
   },
   roof(T, r) {
-    T.pose(8 + r() * 10, 'perch'); drOut(T);
+    idle(T, r, 8 + r() * 10); drOut(T);
     T.walk([atB(100, 110, roofBase() + 30), rf(6, 10, 37)], DRR, 'fly').pose(30 + r() * 8, 'perch').pose(8, 'sleep').pose(3, 'perch');
     T.walk([atB(100, 110, roofBase() + 30), DR_GATE], DRR, 'fly'); drIn(T);
   },
   boat(T, r) {
-    T.pose(8 + r() * 8, 'perch'); drOut(T);
+    idle(T, r, 8 + r() * 8); drOut(T);
     T.walk([atB(190, 104, 34)], DRR, 'fly').pose(32 + r() * 8, 'gaze').pose(5, 'g4');
     T.walk([DR_GATE], DRR, 'fly'); drIn(T);
   },
@@ -564,7 +564,7 @@ function penguinRain(T, day) {
 const PENGUIN = {
   show(T) { penguinRain(T, RAIN_SHOW); },
   beach(T, r) {
-    T.pose(10 + r() * 10, 'stand'); pgOff(T);
+    idle(T, r, 10 + r() * 10); pgOff(T);
     T.walk([atB(146, 100), atB(132, 100)], PGV, 'waddle').pose(10 + r() * 10, 'stand').pose(4, 'flap');
     T.walk([atB(146, 100), sand], PGV, 'waddle'); pgOn(T);
   },
@@ -574,14 +574,14 @@ const PENGUIN = {
     T.walk([atB(146, 92)], PGV, 'waddle').pose(1, 'flap').pose(3.5, 'g2', { to: sand });
     T.p = sand; T.pose(3, 'stand'); pgOn(T);
   },
-  rest(T, r) { T.pose(24 + r() * 16, 'stand').pose(30 + r() * 10, 'nap').pose(3, 'flap'); },
+  rest(T, r) { idle(T, r, 24 + r() * 16); T.pose(8 + r() * 4, 'nap').pose(3, 'flap'); },
   crab(T, r) {
-    T.pose(36 + r() * 8, 'stand'); pgOff(T);
+    idle(T, r, 36 + r() * 8); pgOff(T);
     T.walk([atB(120, 135), CRAB_L], PGV + 2, 'waddle').until(72, 'stand').until(80, 'tease').pose(1.5, 'flap');
     T.walk([atB(120, 135), sand], PGV + 2, 'waddle'); pgOn(T);
   },
   jetty(T, r) {
-    T.pose(8 + r() * 8, 'stand').walk([atB(172, 124, 5)], PGV, 'waddle');
+    idle(T, r, 8 + r() * 8); T.walk([atB(172, 124, 5)], PGV, 'waddle');
     T.pose(34 + r() * 8, 'gaze').pose(3, 'flap').pose(4, 'g4').walk([HOME.penguin], PGV, 'waddle');
   },
   pool(T, r) {
@@ -591,6 +591,152 @@ const PENGUIN = {
   },
   rainbow(T) { penguinRain(T, RAIN_DAY); },
 };
+
+/* ── spare time: off to the furniture or about the room, and home by the deadline ─ */
+const ROOMS = {
+  1: { door: catFront, hub: at1(66, 58), way: [at1(54, 76), at1(54, 95), entry(Z1)], free: [[66, 58], [58, 42], [52, 66]] },
+  2: { door: HOME.pup, hub: at2(74, 42), way: [at2(66, 80), at2(56, 88), at2(42, 88), entry(Z2)], free: [[74, 42], [50, 42], [84, 58]] },
+  3: { door: rabDoor, hub: at3(75, 62), way: [at3(60, 80), at3(42, 90), entry(Z3)], free: [[75, 62], [60, 40], [88, 60]] },
+};
+/* look: where to stand and gaze up at it, on the screen below it. on: where to sit on it, [x, y, height].
+   far: by way of the middle of the room. not: who has no business here. */
+const FURN_SPOT = {
+  doorMat: { f: 1, far: 1, on: [69, 26, 1] },
+  blocks: { f: 1, far: 1, look: [56, 38], on: [46, 30, 12] },
+  chime: { f: 1, via: [[66, 58], [68, 38]], look: [81, 29] },
+  rug1: { f: 1, on: [56, 58, 1] },
+  basket: { f: 1, via: [[77, 84]], look: [86, 88], on: [86, 80, 13] },
+  mobile: { f: 1, far: 1, look: [52, 58] },
+  shelf1: { f: 1, far: 1, look: [32, 47] },
+  tent: { f: 1, look: [74, 72], on: [82, 67, 0] },
+  catTree: { f: 1, via: [[54, 76]], look: [53, 95], mid: [40, 86, 21], on: [43, 85, 42] },
+  bowls: { f: 2, look: [84, 56], act: 'eat' },
+  stoolA: { f: 2, look: [44, 76], on: [32, 66, 13], not: 'dragon' },   // the dragon's seat, whenever it's here
+  stoolB: { f: 2, via: [[88, 76]], look: [85, 91] },
+  counter: { f: 2, far: 1, look: [42, 42], on: [25, 25, 12] },
+  lemon: { f: 2, via: [[66, 80], [56, 88]], look: [56, 100] },
+  icebox: { f: 2, far: 1, look: [72, 34], on: [63, 21, 34] },
+  table: { f: 2, look: [66, 76], on: [62, 66, 16] },
+  oven: { f: 2, far: 1, look: [36, 53] },
+  lantern: { f: 3, look: [52, 82] },
+  rug3: { f: 3, on: [76, 68, 1] },
+  lamp: { f: 3, look: [38, 90] },
+  bookcase: { f: 3, far: 1, look: [47, 34] },
+  telescope: { f: 3, far: 1, look: [86, 38] },
+  bed3: { f: 3, look: [58, 76], on: [38, 62, 10] },
+};
+const PGR = PGV + 5, nothing = () => {};
+/* air: how high it flies about a room, high: how far above a thing it hovers. only: the one floor it visits. */
+const MOVER = {
+  cat: { f: 1, v: CATV, anim: 'walk', hop: 'leap', jump: 45, wait: 'sit', on: ['sit', 'groom'], eat: 'eat', off: catOff, in: catOn },
+  pup: { f: 2, v: PUPV, anim: 'walk', hop: 'land', jump: 16, wait: 'sitWag', on: ['sitWag', 'g2'], eat: 'sniff', off: nothing, in: nothing },
+  rabbit: { f: 3, v: RABR, anim: 'hop', hop: 'hop', jump: 16, wait: 'sit', on: ['sit', 'look'], eat: 'nibble', off: rabOff, in: rabOn },
+  sheep: { f: 1, only: 1, v: SHR, anim: 'drift', air: 18, high: 8, jump: 99, wait: 'float', on: ['float', 'float'], eat: 'eat' },
+  dragon: { f: 2, only: 2, v: DRV, anim: 'fly', air: 18, high: 0, jump: 99, wait: 'hover', on: ['perch', 'g2'], eat: 'eat' },
+  penguin: { f: 1, only: 1, v: PGR, anim: 'waddle', hop: 'flap', jump: 3, wait: 'stand', on: ['stand', 'flap'], eat: 'peck',
+    off: T => T.walk([deckEnd], PGR, 'waddle').hop(sand, .5, 'flap').walk([atB(130, 112), FRONT], PGR, 'waddle').hop(at1(78, 96), .5, 'flap').walk([at1(77, 84), catFront], PGR, 'waddle'),
+    in: T => T.walk([at1(77, 84), at1(78, 96)], PGR, 'waddle').hop(FRONT, .5, 'flap').walk([atB(130, 112), sand], PGR, 'waddle').hop(deckEnd, .55, 'flap').walk([HOME.penguin], PGR, 'waddle') },
+};
+const AT_HOME = {
+  cat: [['sit', 3], ['groom', 5], ['stretch', 2.4], ['sit', 4], ['g2', 4]],
+  pup: [['sitWag', 3], ['stand', 2], ['stretch', 2.4], ['sniff', 3], ['g2', 3], ['g4', 2]],
+  rabbit: [['sit', 3], ['look', 4], ['g4', 3], ['g2', 3.75], ['nibble', 3]],
+  sheep: [['float', 4], ['happy', 2], ['float', 5]],
+  dragon: [['perch', 4], ['g2', 3], ['perch', 3], ['hover', 2]],
+  penguin: [['stand', 4], ['flap', 2], ['gaze', 4], ['peck', 3]],
+};
+/* some like a nap more than others: how likely, in spare time at home, and for how long */
+const NAP = {
+  cat: { chance: .55, len: [12, 20] },
+  sheep: { chance: .3, len: [9, 15] },
+  rabbit: { chance: .2, len: [8, 13] },
+  dragon: { chance: .14, len: [7, 11] },
+  penguin: { chance: .06, len: [6, 9] },
+  pup: { chance: .03, len: [5, 8] },
+};
+const changeFloor = (T, M, a, b) => {
+  const A = ROOMS[a], B = ROOMS[b], za = FLOOR_Z[a - 1], zb = FLOOR_Z[b - 1];
+  T.walk(A.way, M.v, M.anim).hop(lad(za), .4, 'land').walk([lad(zb)], CLIMB, 'climb').hop(entry(zb), .4, 'land');
+  T.walk([...B.way.slice(0, -1).reverse(), B.door], M.v, M.anim);
+};
+/* there and back from home, with so many seconds at the far end: no dice in here, so it can be timed first */
+function trip(T, s, on, dwell) {
+  const M = MOVER[T.id], R = ROOMS[s.f], z = FLOOR_Z[s.f - 1], at = p => ({ x: p[0], y: p[1], z: z + (p[2] || 0) });
+  const stay = () => {
+    if (on) T.pose(dwell * .6, M.on[0]).pose(dwell * .4, M.on[1]);
+    else if (s.free) T.pose(dwell * .5, M.on[1]).pose(dwell * .5, M.wait);
+    else T.pose(dwell * .8, s.act ? M.eat : 'gaze').pose(dwell * .2, M.wait);
+  };
+  const stand = at(s.look || s.on);
+  if (M.air) {
+    T.walk([on ? { ...at(s.on), z: z + s.on[2] + M.high } : { ...stand, z: z + M.air }], M.v, M.anim);
+    stay();
+    T.walk([HOME[T.id]], M.v, M.anim);
+    return;
+  }
+  const via = s.far ? [R.hub] : (s.via || []).map(at), up = on && s.look;
+  M.off(T);
+  if (s.f !== M.f) changeFloor(T, M, M.f, s.f);
+  T.walk([...via, stand], M.v, M.anim);
+  if (up) { if (s.mid) T.hop(at(s.mid), .5, M.hop); T.hop(at(s.on), .55, M.hop); }
+  stay();
+  if (up) { if (s.mid) T.hop(at(s.mid), .5, M.hop); T.hop(stand, .5, M.hop); }
+  T.walk([...via.slice().reverse(), R.door], M.v, M.anim);
+  if (s.f !== M.f) changeFloor(T, M, s.f, M.f);
+  M.in(T);
+}
+/* its own floor first, and the newest thing in the tower most of all */
+function pickSpot(T, r) {
+  const M = MOVER[T.id], list = [];
+  let newest = null, total = 0;
+  for (const k of OWNED.set) newest = k;
+  for (const key in FURN_SPOT) {
+    const s = FURN_SPOT[key];
+    if (!own(key) || s.f > storeys || s.not === T.id || (M.only && s.f !== M.only)) continue;
+    if (!s.look && s.on[2] > M.jump) continue;
+    list.push({ s, key, w: (s.f === M.f ? 3 : 1) * (key === newest ? 3 : 1) });
+  }
+  if (T.id !== 'penguin') for (const look of ROOMS[M.f].free) list.push({ s: { f: M.f, far: 1, look, free: 1 }, key: null, w: 1 });
+  for (const c of list) total += c.w;
+  let d = r() * total;
+  for (const c of list) { d -= c.w; if (d <= 0) return c; }
+  return list[list.length - 1] || null;
+}
+function tryTrip(T, r, end) {
+  if (!present(T.id)) return false;
+  const c = pickSpot(T, r);
+  if (!c) return false;
+  const M = MOVER[T.id], s = c.s, can = s.on && s.on[2] <= M.jump && !(s.not && present(s.not)), on = can && (!s.look || r() < .5);
+  if (!on && !s.look) return false;
+  const dry = new Track(HOME[T.id], T.id);
+  trip(dry, s, on, 0);
+  const room = end - T.t - dry.t;
+  if (room < 3) return false;
+  const t0 = T.t, t1 = t0 + dry.t + Math.min(room, 5 + r() * 9);
+  if (c.key && T.ctx.visits.some(v => v.key === c.key && v.t0 < t1 && t0 < v.t1)) return false;
+  trip(T, s, on, t1 - t0 - dry.t);
+  if (c.key) T.ctx.visits.push({ id: T.id, key: c.key, on, t0, t1 });
+  return true;
+}
+function fidget(T, r, end) {
+  const left = end - T.t;
+  const nap = NAP[T.id];
+  if (left > nap.len[1] && r() < nap.chance) { T.pose(nap.len[0] + r() * (nap.len[1] - nap.len[0]), SLEEP_POSE[T.id]); return; }
+  if (T.id === 'penguin' && left > 9 && r() < .3) { T.walk([atB(172, 124, 5)], PGV, 'waddle').pose(4, 'gaze').walk([HOME.penguin], PGV, 'waddle'); return; }
+  const list = AT_HOME[T.id].filter(a => a[1] <= left);
+  if (!list.length) { T.until(end, HOME_ANIM[T.id]); return; }
+  const a = list[r() * list.length | 0];
+  T.pose(a[1], a[0]);
+}
+/* starts at home and is home again exactly on time, so a meeting at a set moment still happens */
+function idle(T, r, dur) {
+  const end = T.t + dur;
+  if (!T.t) T.pose(.5, HOME_ANIM[T.id]);    // a block always opens on the pose the last one closed on
+  while (end - T.t > .01) {
+    if (end - T.t > 6 && r() < .7) tryTrip(T, r, end);
+    fidget(T, r, end);
+  }
+}
 
 const SCRIPTS = {
   /* everyone's best moment in one loop */
@@ -641,11 +787,14 @@ function assignFaces(segs) {
 function compileBlock(name, seed) {
   const r = mulberry(seed), def = SCRIPTS[name], b = { name };
   // decided once for the whole block, so two animals agree
-  const ctx = { duoOut: r() < .7, nap: r() < .5 || !own('catTree') };
+  const ctx = { duoOut: r() < .7, nap: r() < .5 || !own('catTree'), visits: [] };
   for (const id of ACTOR_IDS) {
-    const T = new Track(HOME[id]);
+    const T = new Track(HOME[id], id, ctx);
     if (BLOCK_TIER[id]) hungryRest(T, r, id, BLOCK_TIER[id]);
-    else def[id](T, r, ctx);
+    else {
+      def[id](T, r, ctx);
+      if (T.t < LOOP - 3) idle(T, r, LOOP - 1.5 - T.t);
+    }
     const home = HOME[id];
     if (T.t > LOOP) console.warn(`script ${name}: ${id} runs ${T.t.toFixed(1)}s`);
     if (T.p.x !== home.x || T.p.y !== home.y || T.p.z !== home.z) console.warn(`script ${name}: ${id} ends away from home`);
@@ -654,6 +803,7 @@ function compileBlock(name, seed) {
     b[id] = T.segs;
   }
   b.shower = def.shower || null;
+  b.visits = ctx.visits;
   return b;
 }
 /* The endless order is a seeded shuffle of a weighted deck, a pure function of the

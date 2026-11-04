@@ -10,7 +10,7 @@ const results = [];
 const check = (name, ok, detail) => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}: ${detail}`); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-const page = await open('');
+const page = await open('notut=1');
 await sleep(300);
 const ev = page.evaluate;
 await page.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
@@ -167,7 +167,8 @@ check('the change waits for the next story', await ev(`dollhouse.game.tier('cat'
 const samplePoses = id => ev(`(() => { const out = []; const k = Math.floor(dollhouse.clock() / 120); for (let t = .5; t < 120; t += 1.5) { dollhouse.renderAt(k * 120 + t); out.push(dollhouse.pose().${id}); } return out; })()`);
 let poses = await samplePoses('cat');
 check('a hungry animal stays home', poses.every(p => p[0] === 67 && p[1] === 91) && poses.some(p => p[3] === 'curl') && poses.some(p => p[3] === 'sit'), [...new Set(poses.map(p => p[3]))].join());
-check('mostly asleep', poses.filter(p => p[3] === 'curl').length / poses.length > .7, `${Math.round(poses.filter(p => p[3] === 'curl').length / poses.length * 100)}% of the time`);
+const dozing = poses.filter(p => p[3] === 'curl').length / poses.length;
+check('asleep about half the time', dozing > .4 && dozing < .75, `${Math.round(dozing * 100)}% of the time`);
 await ev(`dollhouse.game.setHunger('cat', 0); 1`);
 check('at zero, it finishes the story first', await ev(`dollhouse.game.tier('cat')`) === 1 && !(await ev(`dollhouse.game.isAsleep('cat')`)), 'still tier 1');
 await ev(nextBlock);
@@ -265,6 +266,7 @@ await sleep(100);
 /* ── the things that give nothing, but notice a finger ────────────────── */
 const critters = ['sail', 'boat', 'turtle', 'crab', 'butter0', 'butter1', 'bee', 'gull0', 'gull1', 'gull2', 'jelly0', 'jelly1', 'fish0', 'fish1', 'fish2', 'fish3', 'fish4'];
 await ev('dollhouse.game.collectAll(); 1');
+await ev('window.realRandom = Math.random; Math.random = () => .99; 1');   // no luck for this sweep
 const glassBefore = (await ev('dollhouse.game.state()')).glass;
 const reacted = [], unmoved = [], missed = [];
 for (const key of critters) {
@@ -280,6 +282,7 @@ for (const key of critters) {
   await ev('dollhouse.game.clearTaps(); 1');
   if (a === await ev(`dollhouse.frameHash(${t + .9})`)) unmoved.push(key);
 }
+await ev('Math.random = window.realRandom; 1');
 check('every creature answers a real tap', !missed.length && reacted.length === critters.length, missed.length ? 'missed ' + missed.join() : reacted.length + ' of them');
 check('and it shows', !unmoved.length, unmoved.join() || 'the picture changes for each');
 const reward = await ev('dollhouse.game.state()');
@@ -485,6 +488,214 @@ const armed = await ev('dollhouse.game.storeys()');
 await tapEl('#resetBtn');
 const back = await ev('dollhouse.game.state()');
 check('reset needs two presses', armed === 3 && back.storeys === 1 && back.glass === 0 && back.pets.length === 0, `after one press ${armed} floors, after two ${back.storeys}`);
+
+/* ── fish, turtle, gull and jellyfish: a little glass, now and then ───── */
+await page.send('Page.reload');   // renderAt stopped the clock, and with it the camera, part way through a move
+await sleep(1500);
+for (let i = 0; i < 50 && !(await ev('!!window.dollhouse').catch(() => false)); i++) await sleep(100);
+await ev(`[...document.querySelectorAll('#floors button')].find(b => b.textContent === '全体').click(); 1`);
+await sleep(1000);
+const luckyKeys = ['fish0', 'turtle', 'gull0', 'jelly0'], luck = {};
+for (const key of luckyKeys.concat('crab', 'bee')) {
+  const t = await ev(`(() => { for (let t = 20.5; t < 2400; t += 7) { dollhouse.renderAt(t); const c = dollhouse.game.crit('${key}'); if (!c || !c.r || c.x < 12 || c.x > 348 || c.y < 50 || c.y > 625) continue; const h = dollhouse.game.hit(c.x, c.y); if (h && h.key === '${key}') return t; } return -1; })()`);
+  const c = await ev(`dollhouse.game.crit('${key}')`);
+  await ev(`dollhouse.game.clearTaps(); dollhouse.renderAt(${t}); window.realRandom = Math.random; Math.random = () => 0; 1`);
+  const g0 = (await ev('dollhouse.game.state()')).glass;
+  await tap(...await toClient(c.x, c.y));
+  const g1 = (await ev('dollhouse.game.state()')).glass;
+  await tap(...await toClient(c.x, c.y));
+  const g2 = (await ev('dollhouse.game.state()')).glass;
+  await ev('Math.random = window.realRandom; dollhouse.game.clearTaps(); 1');
+  luck[key] = [g1 - g0, g2 - g1];
+}
+check('lucky creatures can give glass', luckyKeys.every(k => luck[k][0] >= 1 && luck[k][0] <= 3), JSON.stringify(luck));
+check('a second tap during the reaction gives nothing', luckyKeys.every(k => luck[k][1] === 0), 'once per reaction');
+check('the others never do', luck.crab[0] === 0 && luck.bee[0] === 0, 'crab and bee');
+
+/* ── the camera on a pet ──────────────────────────────────────────────── */
+await page.send('Page.reload');   // renderAt stopped the clock, and the camera runs on it
+await sleep(1500);
+for (let i = 0; i < 50 && !(await ev('!!window.dollhouse').catch(() => false)); i++) await sleep(100);
+await ev('dollhouse.game.reset(); dollhouse.game.advance(4000); dollhouse.game.collectAll(); dollhouse.game.collectAll(); 1');
+await sleep(300);
+const camInfo = () => ev(`(() => { const G = dollhouse.game, v = G.camera(), a = G.actorAt('cat'); return { view: String(G.view()), w: v[2], h: v[3], u: (a[0] - v[0]) / v[2], v: (a[1] - v[1]) / v[3], edge: v[0] >= 0 && v[1] >= 0 && v[0] + v[2] <= 360.01 && v[1] + v[3] <= 640.01 }; })()`);
+const floorBtn = name => `[...document.querySelectorAll('#floors button')].find(b => b.textContent === '${name}')`;
+await ev(`${floorBtn('全体')}.click(); 1`);
+await tapEl(faceSel);
+await sleep(300);
+const viewBeforeTreat = String(await ev('dollhouse.game.view()'));
+await tapEl('#card .good[data-good="cookie"]');
+await sleep(2500);
+let cam = await camInfo();
+check('a treat brings the camera right up to the pet', cam.view === 'close' && Math.abs(cam.w - 90) < 1 && cam.edge, JSON.stringify(cam));
+check('the pet is in the clear part of the screen', cam.u > .3 && cam.u < .7 && cam.v > .2 && cam.v < .55, `${cam.u.toFixed(2)}, ${cam.v.toFixed(2)}`);
+await sleep(5000);
+cam = await camInfo();
+check('and goes back when the treat is finished', cam.view === viewBeforeTreat, cam.view + ' / ' + viewBeforeTreat);
+await tapEl('#card .good[data-good="ball"]');
+await sleep(800);
+check('a toy does the same', String(await ev('dollhouse.game.view()')) === 'close', 'close up');
+await ev(`${floorBtn('1階')}.click(); 1`);
+await sleep(200);
+check('a floor button wins over the close-up', String(await ev('dollhouse.game.view()')) === '1', 'floor 1');
+await sleep(9500);
+check('and it stays there', String(await ev('dollhouse.game.view()')) === '1', 'floor 1');
+await ev(`${floorBtn('全体')}.click(); 1`);
+await sleep(300);
+await tapEl(faceSel);
+await sleep(300);
+check('the card offers to follow', (await ev(`document.querySelector('#card .fl').textContent`)) === 'ついていく', 'one button');
+await tapEl('#card .fl');
+await sleep(2000);
+cam = await camInfo();
+check('following: the card closes and the camera stays on the pet', await ev('dollhouse.game.following()') === 'cat' && !(await ev(`document.getElementById('card').classList.contains('on')`)) && Math.abs(cam.w - 120) < 1 && cam.u > .3 && cam.u < .7 && cam.v > .3 && cam.v < .7 && cam.edge, JSON.stringify(cam));
+check('the face button shows who', await ev(`document.querySelector(${JSON.stringify(faceSel)}).classList.contains('following')`), 'marked');
+const a0 = await ev(`dollhouse.game.actorAt('cat')`);
+await tap(...await toClient(a0[0], a0[1]));
+await sleep(300);
+check('the pet can still be tapped', await ev(`document.getElementById('card').classList.contains('on')`) && (await ev(`document.querySelector('#card .fl').textContent`)) === 'やめる', 'card open, offers to stop');
+await tapEl('#card .x');
+await ev('dollhouse.game.advance(2000); dollhouse.game.collectAll(); 1');
+await ev(`document.getElementById('shopBtn').click(); 1`);
+await sleep(100);
+await ev(`document.querySelector('#shop .good[data-furn="doorMat"]').click(); 1`);
+await sleep(300);
+check('buying something still shows it', String(await ev('dollhouse.game.view()')) === '1', String(await ev('dollhouse.game.view()')));
+await sleep(4000);
+check('and then the camera goes back to the pet', await ev('dollhouse.game.following()') === 'cat', 'following');
+await tapEl(faceSel);
+await sleep(300);
+await tapEl('#card .fl');
+await sleep(200);
+check('stopping returns to where it was', !(await ev('dollhouse.game.following()')) && String(await ev('dollhouse.game.view()')) === 'all', String(await ev('dollhouse.game.view()')));
+await tapEl('#card .fl');
+await sleep(200);
+await ev(`${floorBtn('全体')}.click(); 1`);
+await sleep(200);
+check('a floor button stops following', !(await ev('dollhouse.game.following()')), 'stopped');
+
+/* ── spare time ───────────────────────────────────────────────────────── */
+const owned = await ev(`(() => { const G = dollhouse.game, keys = new Set(); for (const n of ['crab', 'boat', 'palm', 'play', 'quiet']) for (let s = 1; s < 40; s++) for (const v of dollhouse.visits(n, s)) keys.add(v.key + ':' + v.id); return [...keys]; })()`);
+check('only what has been bought gets a visit', owned.length > 0 && owned.every(k => k.startsWith('doorMat:')), [...new Set(owned)].join());
+const spare = await open('full=1&loop=1');
+await sleep(400);
+const visited = await spare.evaluate(`(() => {
+  const names = ['showcase', 'crab', 'boat', 'rainbow', 'palm', 'roof', 'beach', 'play', 'perch', 'snack', 'quiet'], out = {}, bad = [];
+  for (const n of names) for (let s = 1; s <= 60; s++) {
+    const vs = dollhouse.visits(n, s * 37);
+    for (const v of vs) {
+      const o = out[v.key] = out[v.key] || { look: 0, on: 0, who: {} };
+      o[v.on ? 'on' : 'look']++; o.who[v.id] = 1;
+      if (v.t1 > 120) bad.push(v.key);
+      if (vs.some(w => w !== v && w.key === v.key && w.t0 < v.t1 && v.t0 < w.t1)) bad.push(v.key + ' twice');
+    }
+  }
+  return { out, bad };
+})()`);
+const allKeys = await spare.evaluate('dollhouse.game.furnitureKeys()');
+check('every piece of furniture gets visited', allKeys.length === 23 && allKeys.every(k => visited.out[k]), allKeys.filter(k => !visited.out[k]).join() || allKeys.length + ' pieces');
+const canSit = ['doorMat', 'blocks', 'rug1', 'basket', 'tent', 'catTree', 'counter', 'icebox', 'table', 'rug3', 'bed3'];
+check('and sat on, where that makes sense', canSit.every(k => visited.out[k] && visited.out[k].on), canSit.filter(k => !visited.out[k] || !visited.out[k].on).join() || canSit.length + ' of them');
+const onlyLook = allKeys.filter(k => !canSit.includes(k));
+check('hanging and crowded things are only looked at', onlyLook.every(k => visited.out[k] && !visited.out[k].on && visited.out[k].look), onlyLook.join());
+check('nobody shares a visit, or runs over', !visited.bad.length, visited.bad.slice(0, 4).join() || 'clean');
+const everyone = new Set(Object.values(visited.out).flatMap(o => Object.keys(o.who)));
+check('all six go visiting', everyone.size === 6, [...everyone].join());
+const sleepy = await spare.evaluate(`(() => {
+  const weight = { showcase: 1, crab: 2, boat: 2, rainbow: 2, palm: 2, roof: 2, beach: 2, play: 1, perch: 1, snack: 1, quiet: 1 };
+  const asleep = new Set(['curl', 'loaf', 'snooze', 'sleep', 'nap']), ids = ['cat', 'pup', 'rabbit', 'sheep', 'dragon', 'penguin'], total = {}, meet = { nose: 0, noseN: 0, beach: 0, beachN: 0, nap: 0, napN: 0, quiet: 0, quietN: 0 };
+  let W = 0;
+  for (const i of ids) total[i] = 0;
+  for (const n in weight) {
+    const c = {}; let k = 0;
+    for (const i of ids) c[i] = 0;
+    for (let s = 1; s <= 8; s++) for (let t = .5; t < 120; t += 1) { const p = dollhouse.poseIn(n, s * 53, t); k++; for (const i of ids) if (asleep.has(p[i].anim)) c[i]++; }
+    for (const i of ids) total[i] += c[i] / k * weight[n];
+    W += weight[n];
+  }
+  for (const i of ids) total[i] = Math.round(total[i] / W * 100);
+  /* the meetings at a set moment are still kept */
+  for (let s = 1; s <= 40; s++) {
+    let p = dollhouse.poseIn('crab', s, 13); meet.noseN++; if (p.cat.anim === 'nose' && p.pup.anim === 'nose') meet.nose++;
+    p = dollhouse.poseIn('beach', s, 28); meet.beachN++; if (p.cat.anim === 'nose' && p.pup.anim === 'nose') meet.beach++;
+    p = dollhouse.poseIn('perch', s, 32); if (p.cat.anim === 'curl') { meet.napN++; if (p.rabbit.anim === 'loaf') meet.nap++; }
+    p = dollhouse.poseIn('quiet', s, 32); meet.quietN++; if (p.pup.anim === 'curl' && p.sheep.anim === 'snooze') meet.quiet++;
+  }
+  return { total, meet };
+})()`);
+console.log('INFO  asleep, % of a full deck:', JSON.stringify(sleepy.total));
+const naps = sleepy.total, want = { cat: 15, sheep: 11, rabbit: 9, dragon: 5, penguin: 4, pup: 2 };
+check('each sleeps as much as it likes', Object.keys(want).every(k => Math.abs(naps[k] - want[k]) <= 4), JSON.stringify(naps));
+check('the cat sleeps most and the puppy least', Object.keys(want).every(k => naps.cat >= naps[k] && naps.pup <= naps[k]) && naps.cat - naps.pup >= 8, `cat ${naps.cat}%, puppy ${naps.pup}%`);
+check('even the puppy naps sometimes', naps.pup >= 1, naps.pup + '%');
+const m = sleepy.meet;
+check('the meetings still happen', m.nose === m.noseN && m.beach === m.beachN && m.nap === m.napN && m.napN > 0 && m.quiet === m.quietN, JSON.stringify(m));
+check('no story problems from any of it', !spare.logs.length, spare.logs.slice(0, 3).join(' | ') || 'none');
+spare.close();
+
+/* ── the first time ───────────────────────────────────────────────────── */
+const fresh = await open('');
+const fev = fresh.evaluate;
+await fresh.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+await sleep(800);
+const tutState = () => fev(`({ step: dollhouse.game.tutorial(), on: document.getElementById('tut').classList.contains('on'), arrow: document.getElementById('tutArrow').classList.contains('on'), text: document.querySelector('#tut span').textContent, glass: dollhouse.game.state().glass, card: document.getElementById('card').classList.contains('on') })`);
+const fclick = sel => fev(`document.querySelector(${JSON.stringify(sel)}).click(); 1`);
+let tu = await tutState();
+check('a new game starts with the tutorial', tu.step === 'glass' && tu.on && tu.arrow && tu.text.includes('シーグラス'), tu.text);
+const gp = await fev(`(() => { const s = dollhouse.game.slots(), g = dollhouse.game.state().beach[0]; const p = s[g.slot]; const r = document.getElementById('view').getBoundingClientRect(); return [r.left + p[0] / 360 * r.width, r.top + p[1] / 640 * r.height]; })()`);
+await fresh.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: gp[0], y: gp[1] }] });
+await fresh.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+await sleep(500);
+tu = await tutState();
+check('picking up glass moves on, with a little extra', tu.step === 'card' && tu.glass >= 11 && tu.on, `${tu.step}, ${tu.glass} glass`);
+await fclick('#faces .face');
+await sleep(400);
+tu = await tutState();
+check('then the treat', tu.step === 'treat' && tu.text.includes('おやつ') && tu.arrow, tu.text);
+await fclick('#card .x');
+await sleep(200);
+check('closing the card steps back', (await tutState()).step === 'card', 'asks again');
+await fclick('#faces .face');
+await sleep(300);
+await fclick('#card .good[data-good="cookie"]');
+await sleep(300);
+tu = await tutState();
+check('it keeps out of the way of the close-up', tu.step === 'shop' && !tu.on, 'hidden');
+await sleep(6500);
+tu = await tutState();
+check('then the shop, with the card out of the way', tu.step === 'shop' && tu.on && !tu.card, tu.text);
+await fclick('#shopBtn');
+await sleep(400);
+tu = await tutState();
+check('and something to buy', tu.step === 'buy' && tu.on && tu.arrow, tu.text);
+
+await fclick('#shop .good[data-furn="doorMat"]');
+await sleep(500);
+check('it waits while the new thing glows', !(await tutState()).on, 'hidden');
+await sleep(3800);
+tu = await tutState();
+check('and ends on the tower and new pets', tu.step === 'grow' && tu.on && tu.text.includes('ペット') && tu.text.includes('階'), tu.text);
+await fclick('#tut button');
+await sleep(200);
+tu = await tutState();
+check('then it is gone', tu.step === null && !tu.on && !tu.arrow, 'finished');
+await fresh.send('Page.reload');
+await sleep(1500);
+for (let i = 0; i < 50 && !(await fev('!!window.dollhouse').catch(() => false)); i++) await sleep(100);
+await sleep(300);
+tu = await tutState();
+check('and it stays gone', tu.step === null && !tu.on, 'after a reload');
+await fev('dollhouse.game.reset(); 1');
+await sleep(300);
+tu = await tutState();
+check('starting over brings it back', tu.step === 'glass' && tu.on, tu.step);
+await fclick('#tut button');
+await sleep(200);
+check('it can be skipped', (await tutState()).step === null, 'skipped');
+const oldSave = await fev(`(() => { const k = 'summer-tower-save-v1', o = JSON.parse(localStorage.getItem(k)); delete o.tut; localStorage.setItem(k, JSON.stringify(o)); return dollhouse.game.read().tut; })()`);
+check('an old save never sees it', oldSave === null, 'no tutorial field means finished');
+check('no errors in the tutorial', !fresh.logs.length, fresh.logs.slice(0, 3).join(' | ') || 'none');
+fresh.close();
 
 check('console', !page.logs.length, page.logs.length ? page.logs.slice(0, 5).join(' | ') : 'no warnings or errors');
 page.close();

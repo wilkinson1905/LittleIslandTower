@@ -19,6 +19,9 @@ const RULES = {
   highlightFor: 3,         // how long a new piece of furniture glows
   resumeAfter: 60,         // a hidden tab this long counts as having been closed
   sillPrice: 10,
+  tutorialGift: 10,        // enough for a first treat and a first piece of furniture
+  critterChance: .1,       // a fish, the turtle, a gull or a jellyfish sometimes leaves a little glass
+  critterGlass: [1, 3],
 };
 const KINDS = [
   { id: 'blue', value: 1, chance: .72 },
@@ -72,6 +75,7 @@ const newState = () => ({
   roof: 'blue',
   beach: [], n: 0, spawnIn: 6, sill: false, played: 0, doneAt: 0, lastSeen: 0, furn: [],
   presents: [], balloonIn: RULES.balloonFirst, bn: 0,
+  tut: QS.has('notut') ? null : { gift: false, fed: false, furn: false },   // null: finished, or a game from before there was one
 });
 let GS = newState();
 let gameOn = false;
@@ -112,6 +116,7 @@ function readSave() {
   s.doneAt = cleanNum(o.doneAt, 0, 1e10, 0);
   s.lastSeen = cleanNum(o.lastSeen, 0, 1e15, 0);
   // a save from before furniture could be bought keeps its progress and starts with the beds
+  s.tut = o.tut ? { gift: !!o.tut.gift, fed: !!o.tut.fed, furn: !!o.tut.furn } : null;
   s.furn = Array.isArray(o.furn) ? FURN_KEYS.filter(k => o.furn.includes(k)) : [];
   if (s.pets.includes('dragon') && !s.furn.includes('stoolA')) s.furn.push('stoolA');
   return s;
@@ -389,6 +394,7 @@ function buyFor(id, good) {
   WORLD.aff[id] = GS.aff[id];
   if (g.fill) GS.hunger[id] = Math.min(1, GS.hunger[id] + g.fill);
   WORLD.react[id] = { t0: WORLD.now, dur: g.dur, anim: g.type === 'おやつ' ? 'eat' : 'play', item: good };
+  if (GS.tut) GS.tut.fed = true;
   return true;
 }
 function petAnimal(id) {
@@ -410,6 +416,7 @@ function furnish(key) {
   if (!canFurnish(key)) return false;
   GS.glass -= FURNITURE[key].price;
   GS.furn.push(key);
+  if (GS.tut) GS.tut.furn = true;
   pushWorld();
   rebake();
   return true;
@@ -516,7 +523,7 @@ function movingPixels(key, t) {
   return list;
 }
 function showBought(key, view) {
-  const back = HILITE ? HILITE.back : CAM.name, roofId = key === 'roof' ? NAMED['roof' + storeys].id : -1, list = [];
+  const back = HILITE ? HILITE.back : camState(), roofId = key === 'roof' ? NAMED['roof' + storeys].id : -1, list = [];
   setView(view);
   for (let i = 0; i < N; i++) { const id = gId[i]; if (id && (id === roofId || OBJ[id].o.furn === key)) list.push(i); }
   const moving = MOVING_ART[key] ? movingPixels(key, 0) : [];
@@ -528,7 +535,7 @@ function drawHighlight(t) {
   const e = WORLD.now - L.t0, on = RULES.highlightFor;
   if (e < 0 || e >= on + .4) {
     HILITE = null;
-    if (CAM.name === L.view) setView(L.back);     // unless the player has already looked elsewhere
+    if (CAM.name === L.view) restoreCam(L.back);     // unless the player has already looked elsewhere
     return;
   }
   const a = Math.min(1, e / .3) * (1 - smooth((e - on) / .4));
@@ -560,16 +567,45 @@ const VIEWS = {
   3: [90, 135, 180, 320],
   beach: [110, 320, 180, 320],
 };
-const CAM = { cur: [0, 0, 360, 640], to: [0, 0, 360, 640], name: 'all' };
-function setView(name) { CAM.name = name; CAM.to = VIEWS[name]; refreshUI(); }
+const CAM = { cur: [0, 0, 360, 640], to: [0, 0, 360, 640], name: 'all', follow: null, prev: 'all', close: null };
+const FOLLOW_SIZE = [120, 640 / 3], CLOSE_SIZE = [90, 160];
+function setView(name) { CAM.name = name; CAM.follow = CAM.close = null; CAM.to = VIEWS[name]; refreshUI(); }
+/* what to go back to: a floor, or a pet being followed */
+const camState = () => (CAM.close ? CAM.close.back : CAM.follow ? { follow: CAM.follow, prev: CAM.prev } : { view: CAM.name });
+function followPet(id) {
+  const s = camState();
+  CAM.prev = s.prev ?? s.view; CAM.follow = id; CAM.close = null; CAM.name = 'follow';
+  refreshUI();
+}
+function restoreCam(s) {
+  if (s.follow && present(s.follow)) { CAM.close = null; CAM.follow = s.follow; CAM.prev = s.prev; CAM.name = 'follow'; refreshUI(); }
+  else setView(s.prev ?? s.view ?? 'all');
+  if (cardFor) placeCard(cardFor);
+}
+/* a treat or a toy: right up close while it lasts */
+function closeUp(id) {
+  CAM.close = { id, back: camState() }; CAM.follow = null; CAM.name = 'close';
+  refreshUI();
+}
+/* the pet in the middle, or clear of its card, and never past the edge of the picture */
+function petRect(id, [w, h]) {
+  const A = ACTOR[id];
+  return [clamp(Math.round(iX(A.x, A.y) - w / 2), 0, W - w), clamp(Math.round(iY(A.x, A.y, A.z) - 8 - h * (cardFor ? .36 : .5)), 0, H - h), w, h];
+}
 function stepCamera(dt) {
+  if (CAM.close && !WORLD.react[CAM.close.id]) restoreCam(CAM.close.back);
+  const who = CAM.close ? CAM.close.id : CAM.follow;
+  if (who) CAM.to = petRect(who, CAM.close ? CLOSE_SIZE : FOLLOW_SIZE);
   let moved = false;
   for (let i = 0; i < 4; i++) {
     const d = CAM.to[i] - CAM.cur[i];
     if (Math.abs(d) < .5) { if (d) moved = true; CAM.cur[i] = CAM.to[i]; continue; }
-    CAM.cur[i] += d * Math.min(1, dt * 9); moved = true;
+    CAM.cur[i] += d * Math.min(1, dt * (who ? 5 : 9)); moved = true;
   }
-  if (moved || CFG.zoom.length !== 4) CFG.zoom = CAM.cur.map(v => v);
+  if (!moved && CFG.zoom.length === 4) return;
+  // once it has stopped zooming, whole pixels only: the picture would shimmer under a walking pet
+  const settled = who && Math.abs(CAM.to[2] - CAM.cur[2]) < .5;
+  CFG.zoom = CAM.cur.map((v, i) => (settled && i < 2 ? Math.round(v) : v));
 }
 /* the room it's in, the beach it's on, or the whole picture if it has gone up a palm or onto the roof */
 function viewFor(id) {
@@ -578,6 +614,8 @@ function viewFor(id) {
   return A.z <= 5 && A.x > 110 ? 'beach' : 'all';
 }
 function lookAt(id) {
+  if (CAM.close) return;
+  if (CAM.follow) { CAM.follow = id; refreshUI(); return; }
   const v = viewFor(id);
   if (v !== CAM.name && (CAM.name !== 'all' || v !== 'beach')) setView(v);
 }
@@ -617,7 +655,7 @@ function floatNumber(ix, iy, text) {
 }
 function buildUI() {
   UI.ui = $('ui'); UI.ui.hidden = false;
-  for (const k of ['glassN', 'reloadBox', 'consent', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
+  for (const k of ['tut', 'tutArrow', 'glassN', 'reloadBox', 'consent', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
   const keep = (s, scale) => { const c = spriteCanvas(s, scale); UI.icons.push([c, s]); return c; };
   UI.icons = [];
   $('glassIcon').appendChild(keep(GLASS_SPR[0], 2));
@@ -643,6 +681,7 @@ function buildUI() {
     UI.floors.appendChild(b);
   }
   UI.growBtn.onclick = onMainButton;
+  UI.tut.lastChild.onclick = finishTutorial;
   UI.shopBtn.onclick = () => { const on = !shopOpen; closeSheets(); shopOpen = on; renderShop(); };
   UI.helpBtn.onclick = () => { const on = !helpOpen; closeSheets(); helpOpen = on; renderHelp(); };
   UI.menuBtn.onclick = () => { const on = !menuOpen; closeSheets(); menuOpen = on; renderMenu(); };
@@ -686,10 +725,13 @@ function openCard(id) {
   closeSheets();
   cardFor = id;
   renderCard();
-  // keep the sheet off the animal: it goes on top when the animal is low on the screen
-  const v = CAM.to;
-  UI.card.classList.toggle('top', (ACTOR[id].sy - v[1]) / v[3] > .5);
+  placeCard(id);
   UI.card.classList.add('on');
+}
+/* keep the sheet off the animal: it goes on top when the animal is low on the screen. A camera on the pet keeps it clear of a sheet below. */
+function placeCard(id) {
+  const v = CAM.to;
+  UI.card.classList.toggle('top', !CAM.close && !CAM.follow && (ACTOR[id].sy - v[1]) / v[3] > .5);
 }
 function hearts(n) {
   let h = '';
@@ -701,10 +743,14 @@ function renderCard() {
   if (!id) return;
   const a = ANIMALS[id], c = UI.card, icons = ITEM_ICON();
   c.innerHTML = `<button class="x" aria-label="とじる">×</button>
-    <div class="head"><span class="ic"></span><div><b>${a.name}</b><div class="hearts">${hearts(GS.aff[id])}</div><div class="hunger"><i></i></div></div></div>
+    <div class="head"><span class="ic"></span><div><b>${a.name}</b><div class="hearts">${hearts(GS.aff[id])}</div><div class="hunger"><i></i></div></div><button class="fl">${CAM.follow === id ? 'やめる' : 'ついていく'}</button></div>
     <div class="goods"></div>`;
   c.querySelector('.ic').appendChild(spriteCanvas(FACE()[id], 2));
   c.querySelector('.x').onclick = closeCard;
+  c.querySelector('.fl').onclick = () => {
+    if (CAM.follow === id) { setView(CAM.prev); placeCard(id); renderCard(); }
+    else { closeCard(); followPet(id); }
+  };
   showHunger();
   const box = c.querySelector('.goods'), busy = !!WORLD.react[id] && WORLD.react[id].anim !== 'happy';
   for (const key of Object.keys(GOODS)) {
@@ -716,7 +762,7 @@ function renderCard() {
     b.querySelector('.gi').appendChild(spriteCanvas(icons[key], 2));
     b.onclick = () => {
       delete WORLD.react[id]; // a pat should never block a treat
-      if (buyFor(id, key)) { saveGame(); refreshUI(); renderCard(); setTimeout(() => { if (cardFor === id) renderCard(); }, (g.dur + 1) * 1000); }
+      if (buyFor(id, key)) { closeUp(id); placeCard(id); saveGame(); refreshUI(); renderCard(); setTimeout(() => { if (cardFor === id) renderCard(); }, (g.dur + 1) * 1000); }
     };
     box.appendChild(b);
   }
@@ -826,6 +872,7 @@ function refreshUI() {
   for (const id in UI.faceBtns) {
     UI.faceBtns[id].classList.toggle('known', present(id));
     UI.faceBtns[id].classList.toggle('hungry', present(id) && GS.hunger[id] <= 0);
+    UI.faceBtns[id].classList.toggle('following', (CAM.close ? CAM.close.back.follow : CAM.follow) === id);
   }
   let label = '', frac = 1, ready = true;
   if (!towerDone()) {
@@ -895,9 +942,19 @@ function hitCritter(ix, iy, reach) {
   }
   return best;
 }
+const LUCKY = /^(fish|turtle|gull|jelly)/;
+function critterLuck(key, c) {
+  if (!LUCKY.test(key) || Math.random() >= RULES.critterChance) return;
+  const [lo, hi] = RULES.critterGlass, v = lo + Math.floor(Math.random() * (hi - lo + 1));
+  GS.glass += v; GS.total += v;
+  spark(c.x, c.y, 'sea6');
+  floatNumber(c.x, c.y, '+' + v);
+  saveGame(); refreshUI();
+}
 function tapCritter(key, ix, iy) {
-  if (WORLD.tap[key]) return;
+  if (WORLD.tap[key]) return;           // only one go per reaction: a mashed finger is no better
   const c = CRIT[key], t0 = WORLD.now;
+  critterLuck(key, c);
   if (!key.startsWith('fish')) { WORLD.tap[key] = { t0, dir: c.x >= ix ? 1 : -1 }; return; }
   for (const k of FISH_KEYS) {        // everyone close by takes the hint
     const f = CRIT[k];
@@ -1028,6 +1085,7 @@ function gameFrame(dt) {
   advance(dt);
   stepCamera(dt);
   if (toastTimer > 0 && (toastTimer -= dt) <= 0) UI.toast.classList.remove('on');
+  tutorialFrame();
   if ((saveEvery -= dt) <= 0) { saveEvery = 5; saveGame(); refreshUI(); }
 }
 function gameBoot() {
@@ -1044,6 +1102,72 @@ function gameBoot() {
   pushWorld();
 }
 /* runs once the first bake has told us where the sand is */
+/* ── the first time: what to do next, read from the state, so closing a sheet simply steps back ─ */
+const TUT_TEXT = {
+  glass: '光るシーグラスをタップしよう',
+  card: 'シーグラスをおまけしたよ。ねこをタップしてみよう',
+  treat: 'おやつをあげよう',
+  shop: 'おみせで家具を買ってみよう',
+  buy: 'これを買ってみよう',
+  grow: 'たくさん集めると次の階を建てられるよ。新しいペットが来るかも！',
+};
+function tutStep() {
+  const T = GS.tut;
+  if (!T) return null;
+  if (!T.gift) return 'glass';
+  if (!T.fed) return cardFor === 'cat' ? 'treat' : 'card';
+  if (!T.furn) return shopOpen ? 'buy' : 'shop';
+  return 'grow';
+}
+const finishTutorial = () => { GS.tut = null; saveGame(); tutorialFrame(); };
+let tutShown = null;
+/* where the arrow points, in the screen's own units: x, y, and whether it has to come from below */
+function tutTarget(step) {
+  const box = UI.ui.getBoundingClientRect(), u = box.width / W;
+  if (step === 'glass') {
+    const g = GS.beach[0], v = CAM.cur;
+    if (!g) return null;
+    const s = SLOTS[g.slot], x = (s.x - v[0]) / v[2] * box.width, y = (s.y - v[1]) / v[3] * box.height;
+    return x < 0 || y < 0 || x > box.width || y > box.height ? null : [x, y - 6 * u, false];
+  }
+  const el = step === 'card' ? UI.faceBtns.cat : step === 'treat' ? UI.card.querySelector('.good[data-good="cookie"]')
+    : step === 'shop' ? UI.shopBtn : step === 'buy' ? tutButton() : UI.growBtn;
+  if (!el) return null;
+  const r = el.getBoundingClientRect(), x = r.left + r.width / 2 - box.left, top = r.top - box.top;
+  return top < 40 * u ? [x, r.bottom - box.top, true] : [x, top, false];
+}
+function tutorialFrame() {
+  const T = GS.tut, step = tutStep();
+  if (T && !T.gift && GS.total > 0) {
+    T.gift = true;
+    GS.glass += RULES.tutorialGift; GS.total += RULES.tutorialGift;
+    floatNumber(CAM.cur[0] + CAM.cur[2] / 2, CAM.cur[1] + CAM.cur[3] * .4, '+' + RULES.tutorialGift);
+    saveGame(); refreshUI();
+    return;
+  }
+  const blocked = growing || CAM.close || HILITE || menuOpen || helpOpen || UI.consent.classList.contains('on') || (shopOpen && step !== 'buy');
+  const show = !!step && !blocked;
+  UI.tut.classList.toggle('on', show);
+  UI.tutArrow.classList.toggle('on', show);
+  if (!show) return;
+  if (step !== tutShown) {
+    if (tutShown === 'treat' && step === 'shop') closeCard();
+    tutShown = step;
+    UI.tut.firstChild.textContent = TUT_TEXT[step];
+    const b = UI.tut.lastChild;
+    b.textContent = step === 'grow' ? 'はじめる' : 'スキップ';
+    b.classList.toggle('go', step === 'grow');
+    if (step === 'buy') { const el = tutButton(); if (el) el.scrollIntoView({ block: 'center' }); }
+  }
+  // clear of whatever sheet is open: over the dock for the shop, under a card that sits up top
+  UI.tut.classList.toggle('bottom', step === 'buy');
+  UI.tut.style.top = '';
+  if (cardFor && UI.card.classList.contains('top')) UI.tut.style.top = UI.card.offsetTop + UI.card.offsetHeight + 6 + 'px';
+  const at = tutTarget(step);
+  UI.tutArrow.classList.toggle('on', !!at);
+  if (at) { UI.tutArrow.style.left = at[0] + 'px'; UI.tutArrow.style.top = at[1] + 'px'; UI.tutArrow.classList.toggle('up', at[2]); }
+}
+const tutButton = () => UI.shop.querySelector('.good[data-furn="doorMat"]') || UI.shop.querySelector('.good[data-furn]');
 function gameStart() {
   if (!gameOn) return;
   initSlots();
@@ -1103,6 +1227,6 @@ const GAME = {
   slots: () => SLOTS.map(s => [s.x, s.y]),
   hit: hitTest, present, view: () => CAM.name, react: () => Object.keys(WORLD.react),
   actorAt: id => [ACTOR[id].sx, ACTOR[id].sy],
-  camera: () => CAM.cur.slice(),
+  tutorial: tutStep, camera: () => CAM.cur.slice(), following: () => CAM.follow, furnitureKeys: () => FURN_KEYS.slice(),
   storeys: () => storeys,
 };
