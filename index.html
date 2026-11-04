@@ -19,7 +19,6 @@
 
   #topbar { position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); top: calc(var(--u) * 8); display: flex; gap: calc(var(--u) * 6); align-items: center; }
   .pill { display: flex; align-items: center; gap: calc(var(--u) * 5); height: calc(var(--u) * 30); padding: 0 calc(var(--u) * 10); background: #fff8e7; border-radius: calc(var(--u) * 15); box-shadow: 0 calc(var(--u) * 2) 0 #d9c49a; font-weight: 700; font-size: calc(var(--u) * 14); }
-  #bottleBtn { background: #e2f6fb; box-shadow: 0 calc(var(--u) * 2) 0 #9fd3e2; }
   #shopBtn { margin-left: auto; font-size: calc(var(--u) * 12); }
   #helpBtn, #menuBtn { width: calc(var(--u) * 30); padding: 0; justify-content: center; }
 
@@ -38,6 +37,9 @@
   .face .qm { font-weight: 700; font-size: calc(var(--u) * 15); color: #c9b48a; }
   .face.known .px { display: block; }
   .face.known .qm { display: none; }
+  .face .hg { display: none; position: absolute; right: calc(var(--u) * 1); top: calc(var(--u) * 1); }
+  .face.hungry .hg { display: block; }
+  .face.hungry .hg .px { display: block; }
 
   #toast { position: absolute; left: calc(var(--u) * 24); right: calc(var(--u) * 24); top: calc(var(--u) * 46); padding: calc(var(--u) * 8) calc(var(--u) * 12); margin-right: calc(var(--u) * 26); background: #fff8e7f2; border-radius: calc(var(--u) * 12); box-shadow: 0 calc(var(--u) * 2) 0 #d9c49a; text-align: center; opacity: 0; transform: translateY(calc(var(--u) * -6)); transition: opacity .25s, transform .25s; }
   #toast.on { opacity: 1; transform: none; }
@@ -58,6 +60,9 @@
   .hearts i { font-style: normal; color: #e6d8bd; }
   .hearts i.full { color: #ec7f9d; }
   .hearts i.half { color: #f5bccb; }
+  .hunger { width: calc(var(--u) * 74); height: calc(var(--u) * 6); margin-top: calc(var(--u) * 3); background: #e6d8bd; border-radius: calc(var(--u) * 3); overflow: hidden; }
+  .hunger i { display: block; height: 100%; background: #8fce74; }
+  .hunger.low i { background: #efaa55; }
   .goods { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 6); }
   .head + .goods { margin-top: calc(var(--u) * 8); }
   .good { display: flex; align-items: center; gap: calc(var(--u) * 6); min-height: calc(var(--u) * 46); padding: calc(var(--u) * 4) calc(var(--u) * 7); text-align: left; background: #ffefc8; border-radius: calc(var(--u) * 10); }
@@ -71,6 +76,8 @@
   .good .gc { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: calc(var(--u) * 2); }
   .wide { display: block; width: 100%; min-height: calc(var(--u) * 42); margin-top: calc(var(--u) * 6); background: #e2f6fb; border-radius: calc(var(--u) * 10); font-weight: 700; }
   .wide.danger { background: #fbe3df; color: #9c4a3f; }
+  #reloadBox, #consent { z-index: 2; }
+  #reloadBox p, #consent p { margin: 0 0 calc(var(--u) * 4); }
 
   .float { position: absolute; transform: translate(-50%, -100%); font-weight: 700; font-size: calc(var(--u) * 15); color: #fff; text-shadow: 0 0 calc(var(--u) * 3) #1c6fa8, 0 calc(var(--u) * 1) 0 #1c6fa8; animation: rise .9s ease-out forwards; pointer-events: none; }
   @keyframes rise { to { margin-top: calc(var(--u) * -26); opacity: 0; } }
@@ -79,7 +86,7 @@
   #puff.on { opacity: 1; }
 
   #unhide { display: none; position: absolute; inset: 0; background: transparent; }
-  #ui.hide > *:not(#unhide):not(#puff) { display: none; }
+  #ui.hide > *:not(#unhide):not(#puff):not(#reloadBox) { display: none; }
   #ui.hide #unhide { display: block; }
 
   #panel { position: fixed; top: 8px; right: 8px; width: 270px; max-height: calc(100vh - 16px); overflow: auto; background: #17131fee; color: #f2d7b8; font: 11px/1.45 ui-monospace, Consolas, monospace; padding: 10px; border: 2px solid #4a2823; display: none; box-sizing: border-box; z-index: 5; }
@@ -91,6 +98,36 @@
   #panel input[type=number] { width: 80px; background: #0e0c18; color: inherit; border: 1px solid #4a2823; }
   #panel button { background: #351b1e; color: inherit; border: 1px solid #7a4731; font: inherit; padding: 2px 6px; cursor: pointer; margin: 2px 2px 2px 0; }
 </style>
+<script>
+window.__analytics = (function () {
+  var id = 'G-Z6DJ9Z3229', loaded = false;
+  return {
+    start: function () {
+      window['ga-disable-' + id] = false;
+      if (loaded) { window.gtag('config', id); return; }
+      loaded = true;
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { window.dataLayer.push(arguments); };
+      window.gtag('js', new Date());
+      window.gtag('config', id);
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=' + id;
+      document.head.appendChild(s);
+    },
+    stop: function () {
+      window['ga-disable-' + id] = true;
+      document.cookie.split(';').forEach(function (c) {
+        var n = c.split('=')[0].trim();
+        if (!/^_ga/.test(n)) return;
+        ['', '; domain=' + location.hostname, '; domain=.' + location.hostname].forEach(function (d) {
+          document.cookie = n + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/' + d;
+        });
+      });
+    },
+  };
+})();
+</script>
 </head>
 <body>
 <div id="stage">
@@ -98,7 +135,6 @@
   <div id="ui" hidden>
     <div id="topbar">
       <div class="pill"><span id="glassIcon"></span><span id="glassN">0</span></div>
-      <button class="pill" id="bottleBtn" hidden aria-label="小びんを開ける"><span id="bottleIcon"></span><span id="bottleN"></span></button>
       <button class="pill" id="shopBtn">おみせ</button>
       <button class="pill" id="helpBtn" aria-label="遊び方">？</button>
       <button class="pill" id="menuBtn" aria-label="メニュー">≡</button>
@@ -113,6 +149,8 @@
     <div id="shop" class="sheet"></div>
     <div id="help" class="sheet"></div>
     <div id="menu" class="sheet"></div>
+    <div id="consent" class="sheet"></div>
+    <div id="reloadBox" class="sheet"><p>絵がうまく表示できませんでした。</p><button id="reloadBtn" class="wide">再読み込み</button></div>
     <div id="puff"></div>
     <button id="unhide" aria-label="文字を表示する"></button>
   </div>
@@ -203,6 +241,7 @@ const RAMPS = {
   peb:  ['#4d5f78', '#66788f', '#8293a6', '#9fadbb', '#bbc6ce', '#d3dbde', '#e6ebec', '#f4f6f6'],
   sky:  ['#1a2346', '#24325e', '#314677', '#3f5a8a', '#5e82ad', '#8aaecb', '#b9d3e0', '#e2eef0'],
   gld:  ['#ffcf6e', '#ffe9a8', '#fff4c8', '#fffbe8'],
+  red:  ['#5c0f1c', '#8a1622', '#b81f2a', '#dc2f32', '#f0483f', '#fa6f5e', '#ff9a85', '#ffc6b6'],
 };
 const C = {};                    // C.wood4 is packed RGB
 const PAL_RGB = [[0, 0, 0]];     // index 0 means transparent
@@ -774,13 +813,16 @@ const roofR = h => {
   for (let i = 1; i < P.length; i++) if (h <= P[i][0]) return lerp(P[i - 1][1], P[i][1], (h - P[i - 1][0]) / (P[i][0] - P[i - 1][0]));
   return P[P.length - 1][1];
 };
+/* the colour the roof was bought in: which ramp, and how far along it, so each reads as itself */
+const ROOF_RAMPS = { blue: ['sea', 0], red: ['red', 0], green: ['lef', 0], pink: ['pin', -1] };
+const roofCol = lv => { const [r, d] = ROOF_RAMPS[WORLD.roof]; return C[r + clamp(lv + d, 0, 7)]; };
 function bellRoof(n) {
   const Zb = TOP_Z(n), BANDS = [6, 7, 27, 28, 50, 51];
   O('roof' + n, [3, 3, Zb, 110, 110, Zb + 120], () => {
     // the moulded cornice the roof rests on
     skirt(Zb, 6, 1.05, (s, r, side) => {
       const lv = side === 0 ? 6 : side === 1 ? 5 : 4;
-      return r === 0 ? C['crm' + (lv - 3)] : r === 3 ? C.sea2 : r > 3 ? C.crm7 : C['crm' + lv];
+      return r === 0 ? C['crm' + (lv - 3)] : r === 3 ? roofCol(2) : r > 3 ? C.crm7 : C['crm' + lv];
     });
     const z0 = Zb + 6;
     for (let h = 0; h <= 104; h++) {
@@ -802,7 +844,7 @@ function bellRoof(n) {
         // the bulb catches the sun on its upper left
         if (h > 50 && h < 76 && s < -hw * .25 && t < hh * .5) lv += 1;
         const [x, y] = worldAt(s, t);
-        const col = gold ? (s < 0 ? C.amb7 : C.amb5) : C['sea' + clamp(Math.round(lv), 0, 7)];
+        const col = gold ? (s < 0 ? C.amb7 : C.amb5) : roofCol(clamp(Math.round(lv), 0, 7));
         put(OX + s, scrY(t, z0 + h), col, x | 0, y | 0, z0 + h, NBILL);
       }
     }
@@ -2066,8 +2108,21 @@ const entry = z => ({ x: 39, y: 95, z });        // the floor beside the ladder,
 const FOOT = atB(34, 104), FRONT = atB(86, 106), SAND = atB(146, 119), PIER = atB(154, 119, 5), TO_FOOT = atB(60, 118);
 /* the crab rests at its right end at 12-20 s and every 40 s after, at its left end at 32-40 s and every 40 s after */
 const CRAB_R = atB(116, 134), CRAB_L = atB(99, 151);
-/* two animals at the same time and place, if both are here */
-const both = (a, b) => present(a) && present(b);
+/* Hunger, read once per block so nobody jumps in the middle of a story: 0 fine, 1 stays home, 2 sleeps until fed. */
+const HUNGER_LOW = .3;
+const BLOCK_TIER = { cat: 0, pup: 0, rabbit: 0, sheep: 0, dragon: 0, penguin: 0 };
+const hungerTier = id => { const h = WORLD.hunger[id]; return h <= 0 ? 2 : h <= HUNGER_LOW ? 1 : 0; };
+const SLEEP_POSE = { cat: 'curl', pup: 'curl', rabbit: 'loaf', sheep: 'snooze', dragon: 'sleep', penguin: 'nap' };
+const AWAKE_POSE = { cat: 'sit', pup: 'sitWag', rabbit: 'sit', sheep: 'float', dragon: 'perch', penguin: 'stand' };
+/* someone to do things with: here, and not too hungry to come */
+const avail = id => present(id) && !BLOCK_TIER[id];
+/* two animals at the same time and place, if both can */
+const both = (a, b) => avail(a) && avail(b);
+function hungryRest(T, r, id, tier) {
+  if (tier === 2) { T.until(LOOP, SLEEP_POSE[id]); return; }
+  while (T.t < LOOP - 34) T.pose(18 + r() * 12, SLEEP_POSE[id]).pose(3 + r() * 3, AWAKE_POSE[id]);
+  T.until(LOOP, SLEEP_POSE[id]);
+}
 /* A shower: it starts, it ends, and at leave everyone heads home from the rainbow. */
 const RAIN_DAY = { start: 28, end: 68, leave: 94 }, RAIN_SHOW = { start: 42, end: 82, leave: 104 };
 const WET = { pet: .15, dragon: .8 };      // how likely each is to be out in it
@@ -2122,7 +2177,7 @@ const catFromJetty = T => { T.walk([PIER], CATV, 'walk').hop(SAND, .4, 'land').w
 const catToPup = T => { catToLadder(T); T.hop(lad(Z1), .4, 'land').walk([lad(Z2)], CLIMB, 'climb').hop(entry(Z2), .4, 'land').walk([at2(56, 88), at2(54, 82)], CATV, 'walk'); };
 /* out on the sand when it starts: runs for the door, or sits it out; afterwards the door or the jetty */
 function catCaught(T, r, ctx, day, always) {
-  const { start: S, end: E, leave } = day, stays = r() < WET.pet, pick = r() < .5, duo = present('pup') && ctx.duoOut, out = always || stays || duo || pick;
+  const { start: S, end: E, leave } = day, stays = r() < WET.pet, pick = r() < .5, duo = avail('pup') && ctx.duoOut, out = always || stays || duo || pick;
   T.until(S + 1, 'sit');
   if (stays) T.until(E - 1, 'sit');
   else {
@@ -2156,12 +2211,12 @@ const CAT = {
     T.pose(3, 'sit').pose(5, 'groom').pose(1, 'sit').walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   play(T, r) {
-    if (present('pup')) { CAT.chase(T, r); return; }
+    if (avail('pup')) { CAT.chase(T, r); return; }
     T.pose(6 + r() * 8, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
     T.pose(9, 'g2').pose(3, 'sit').pose(6, 'groom').pose(5, 'g4').pose(2, 'sit'); catFromRug(T); catOn(T);
   },
   perch(T, r, ctx) {
-    if (ctx.nap && present('pup')) { T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(84, 'curl').pose(1, 'sit').pose(6, 'groom').pose(2, 'sit'); return; }
+    if (ctx.nap && (present('rabbit') ? avail('rabbit') : avail('pup'))) { T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(84, 'curl').pose(1, 'sit').pose(6, 'groom').pose(2, 'sit'); return; }
     T.pose(14 + r() * 10, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
     if (own('catTree')) { catClimb(T); T.pose(26 + r() * 10, 'sit').pose(6, 'groom').pose(1, 'sit'); catDescend(T); }
     else T.pose(14, 'sit').pose(6, 'groom').pose(1, 'sit');
@@ -2186,7 +2241,7 @@ const CAT = {
     T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   crab(T, r) {
-    if (present('pup')) { CAT.invite(T); return; }
+    if (avail('pup')) { CAT.invite(T); return; }
     T.pose(1 + r() * 2, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
     T.walk([CRAB_R], CATV, 'walk').until(12, 'sit').until(20, 'tease').until(26, 'sit');
     T.walk([CRAB_L], CATV, 'walk').until(32, 'sit').until(40, 'tease');
@@ -2196,7 +2251,7 @@ const CAT = {
   boat(T, r) {
     T.pose(5 + r() * 5, 'curl').pose(1, 'sit'); catOff(T); catOut(T);
     catToJetty(T);
-    if (present('pup')) T.until(36, 'gaze').pose(3, 'gaze', { hearts: 1 }).until(56 + r() * 6, 'gaze');
+    if (avail('pup')) T.until(36, 'gaze').pose(3, 'gaze', { hearts: 1 }).until(56 + r() * 6, 'gaze');
     else T.pose(36 + r() * 6, 'gaze');
     T.pose(4, 'groom'); catFromJetty(T);
   },
@@ -2214,8 +2269,8 @@ const CAT = {
   },
   roof(T, r) {
     T.pose(3 + r() * 4, 'curl').pose(1, 'sit'); catOff(T); catToLadder(T);
-    toRoof(T, Z1, present('pup') ? rf(-14, 14, 30) : rf(-6, 14, 31), CATV, 'walk');
-    if (present('pup')) T.until(42, 'sit').pose(14, 'gaze').pose(4, 'groom').pose(1, 'sit');
+    toRoof(T, Z1, avail('pup') ? rf(-14, 14, 30) : rf(-6, 14, 31), CATV, 'walk');
+    if (avail('pup')) T.until(42, 'sit').pose(14, 'gaze').pose(4, 'groom').pose(1, 'sit');
     else T.pose(24 + r() * 8, 'sit').pose(6, 'groom').pose(12, 'gaze').pose(1, 'sit');
     fromRoof(T, Z1, CATV, 'walk'); catFromLadder(T); catOn(T);
   },
@@ -2228,7 +2283,7 @@ const CAT = {
     T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   lounge(T, r) {
-    if (present('pup')) { CAT.greet(T, r); return; }
+    if (avail('pup')) { CAT.greet(T, r); return; }
     T.pose(5 + r() * 6, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catOut(T);
     T.walk([atB(82, 136)], CATV, 'walk').hop(atB(70, 150, 5), .6, 'land').pose(1, 'sit');
     T.pose(36 + r() * 12, 'curl').pose(1, 'sit').pose(2.4, 'stretch').hop(atB(82, 136), .6, 'land');
@@ -2265,8 +2320,9 @@ const PUP = {
     T.walk([TO_FOOT, PUP_SAND], PUPR, 'walk');
     pupCaught(T, r, ctx, RAIN_SHOW);
   },
-  /* the cat is always here too: from the door of the loop, one length behind it */
+  /* the cat too, if it isn't too hungry: from the door of the loop, one length behind it */
   play(T, r) {
+    if (!avail('cat')) { PUP.bowls(T, r); return; }
     T.pose(2 + r() * 2, 'curl').pose(1.2, 'stand'); pupDown(T);
     T.walk([TO_FOOT, atB(96, 118), LAP[3]], PUPR, 'walk').until(20, 'sitWag');
     for (let n = 0; n < 3; n++) T.walk(lapFrom(3, 1), CHASEV, 'walk');
@@ -2282,7 +2338,8 @@ const PUP = {
     T.hop(lad(Z1), .4, 'land').walk([lad(Z2)], CLIMB, 'climb').hop(entry(Z2), .4, 'land'); pupFromLadder(T);
   },
   /* the cat comes up to say hello */
-  visited(T) {
+  visited(T, r) {
+    if (!avail('cat')) { PUP.beg(T, r); return; }
     T.until(38, 'curl').pose(1.2, 'stand').until(40, 'stand').pose(5, 'nose', { flip: true }).pose(4, 'sitWag');
     T.walk([at2(74, 42), at2(50, 42)], PUPV, 'walk').pose(3, 'sniff').pose(8, 'sitWag');
     T.walk([at2(74, 42), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
@@ -2298,12 +2355,13 @@ const PUP = {
     T.walk([at2(74, 58), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
   },
   rest(T, r) {
-    if (present('sheep')) T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(80, 'curl');   // the sheep comes to sleep beside it
+    if (avail('sheep')) T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(80, 'curl');   // the sheep comes to sleep beside it
     else T.pose(44 + r() * 20, 'curl');
     T.pose(1.2, 'stand').pose(2.4, 'stretch').pose(.6, 'stand').pose(10, 'sitWag');
   },
   /* the cat comes for it, and off they go to the crab */
-  crab(T) {
+  crab(T, r) {
+    if (!avail('cat')) { PUP.beg(T, r); return; }
     T.until(10.5, 'curl').pose(1.5, 'stand').pose(3, 'nose', { flip: true });
     pupToLadder(T); ladderDown(T, Z2);
     T.walk([TO_FOOT, atB(112, 140)], PUPR, 'walk').until(32, 'sitWag').until(40, 'tease').pose(1.5, 'stand');
@@ -2323,6 +2381,7 @@ const PUP = {
   },
   /* the cat is up the palm; it would like to climb as well, and can't */
   palm(T, r) {
+    if (!avail('cat')) { PUP.beg(T, r); return; }
     T.pose(8 + r() * 6, 'curl').pose(1.2, 'stand'); pupDown(T);
     T.walk([TO_FOOT, atB(46, 146)], PUPR, 'walk').pose(3, 'sniff').pose(7, 'bark').pose(4, 'sitWag');
     T.walk([atB(60, 138), atB(46, 146)], PUPR, 'walk').pose(6, 'bark').pose(3, 'sitWag');
@@ -2331,7 +2390,8 @@ const PUP = {
   /* meets the cat on the sand */
   beach(T, r) {
     T.pose(3 + r() * 4, 'curl').pose(1.2, 'stand'); pupDown(T);
-    T.walk([TO_FOOT, atB(92, 100), NOSE_PUP], PUPR, 'walk').until(26, 'sitWag').pose(5, 'nose', { flip: true }).pose(2, 'g4');
+    T.walk([TO_FOOT, atB(92, 100), NOSE_PUP], PUPR, 'walk').until(26, 'sitWag');
+    if (avail('cat')) T.pose(5, 'nose', { flip: true }).pose(2, 'g4'); else T.pose(5, 'sniff').pose(2, 'sitWag');
     T.walk([atB(122, 106)], PUPR, 'walk').pose(4, 'sniff').pose(3, 'sitWag');
     T.walk([atB(100, 150)], PUPR, 'walk').pose(10 + r() * 6, 'sitWag').walk([atB(58, 120)], PUPR, 'walk').pose(5, 'sniff');
     pupUp(T);
@@ -2439,7 +2499,7 @@ const SHEEP = {
   },
   rain(T, r) { T.pose(10 + r() * 10, 'float').pose(9, 'g2').pose(16, 'snooze').pose(2, 'float'); },
   rest(T, r) {
-    if (present('pup')) {   // up to the puppy's floor, for a sleep beside it
+    if (avail('pup')) {   // up to the puppy's floor, for a sleep beside it
       T.pose(6 + r() * 2, 'float'); shOut(T);
       T.walk([atB(100, 100, 118), at2(86, 68, 10)], SHR, 'drift').until(80, 'snooze').pose(1, 'float');
       T.walk([atB(100, 100, 118), atB(104, 118, 44)], SHR, 'drift'); shIn(T);
@@ -2596,14 +2656,14 @@ const SCRIPTS = {
   /* a nap against the cat, or the cat up its tree */
   perch: {
     cat: CAT.perch,
-    pup: (T, r, ctx) => (ctx.nap && !present('rabbit') ? PUP.nap(T, r) : PUP.bowls(T, r)),
-    rabbit: (T, r, ctx) => (ctx.nap ? RAB.nap(T, r) : RAB.bed(T, r)),
+    pup: (T, r, ctx) => (ctx.nap && !present('rabbit') && avail('cat') ? PUP.nap(T, r) : PUP.bowls(T, r)),
+    rabbit: (T, r, ctx) => (ctx.nap && avail('cat') ? RAB.nap(T, r) : RAB.bed(T, r)),
     sheep: SHEEP.rain, dragon: DRAGON.oven, penguin: PENGUIN.rest,
   },
   /* the dragon's flame and the sheep's rain; without them, the cat calls on the puppy */
   snack: {
-    cat: (T, r) => (present('pup') && !both('dragon', 'sheep') ? CAT.visit(T, r) : CAT.rest(T, r)),
-    pup: (T, r) => (both('dragon', 'sheep') ? PUP.beg(T, r) : PUP.visited(T)),
+    cat: (T, r) => (avail('pup') && !both('dragon', 'sheep') ? CAT.visit(T, r) : CAT.rest(T, r)),
+    pup: (T, r) => (both('dragon', 'sheep') ? PUP.beg(T, r) : PUP.visited(T, r)),
     rabbit: RAB.bed,
     sheep: (T, r) => (both('dragon', 'sheep') ? SHEEP.douse(T, r) : SHEEP.drift(T, r)),
     dragon: (T, r) => (both('dragon', 'sheep') ? DRAGON.fire(T, r) : DRAGON.oven(T, r)),
@@ -2630,7 +2690,8 @@ function compileBlock(name, seed) {
   const ctx = { duoOut: r() < .7, nap: r() < .5 || !own('catTree') };
   for (const id of ACTOR_IDS) {
     const T = new Track(HOME[id]);
-    def[id](T, r, ctx);
+    if (BLOCK_TIER[id]) hungryRest(T, r, id, BLOCK_TIER[id]);
+    else def[id](T, r, ctx);
     const home = HOME[id];
     if (T.t > LOOP) console.warn(`script ${name}: ${id} runs ${T.t.toFixed(1)}s`);
     if (T.p.x !== home.x || T.p.y !== home.y || T.p.z !== home.z) console.warn(`script ${name}: ${id} ends away from home`);
@@ -2661,10 +2722,15 @@ function storyAt(k) {
   return i < rest.length ? rest[i] : 'quiet';
 }
 const blockCache = new Map();
+let tierBlock = null;
 function blockFor(k) {
+  if (k !== tierBlock) {   // hunger only ever changes what an animal does from the next story on
+    tierBlock = k;
+    for (const id of ACTOR_IDS) BLOCK_TIER[id] = hungerTier(id);
+  }
   // furniture is left out on purpose: a purchase changes the next block, not the one playing.
   // who is here is in: it only changes when the tower grows or the page has been away.
-  const key = (CFG.loop ? 'L' : 'F') + CFG.seed + ':' + storeys + ':' + (WORLD.pets.dragon ? 1 : 0) + (WORLD.pets.sheep ? 1 : 0) + (WORLD.pets.penguin ? 1 : 0) + ':' + k;
+  const key = (CFG.loop ? 'L' : 'F') + CFG.seed + ':' + storeys + ':' + (WORLD.pets.dragon ? 1 : 0) + (WORLD.pets.sheep ? 1 : 0) + (WORLD.pets.penguin ? 1 : 0) + ':' + ACTOR_IDS.map(id => BLOCK_TIER[id]).join('') + ':' + k;
   let b = blockCache.get(key);
   if (b) return b;
   const name = CFG.loop ? SCRIPT_NAMES[((k % SCRIPT_NAMES.length) + SCRIPT_NAMES.length) % SCRIPT_NAMES.length] : storyAt(k);
@@ -2703,7 +2769,7 @@ function sampleActor(A, segs, t) {
    ═══════════════════════════════════════════════════════════════════════ */
 const FX_INFO = [
   ['clouds', '雲'], ['swell', 'うねり'], ['sparkle', '海のきらめき'], ['foam', '波打ち際'], ['ripples', '杭の波紋'],
-  ['gulls', 'かもめ'], ['sail', '遠くの帆船'], ['boat', '桟橋の小舟'], ['fishJump', 'はねる魚'], ['turtle', '海がめの影'],
+  ['gulls', 'かもめ'], ['sail', '遠くの帆船'], ['boat', '桟橋の小舟'], ['fishJump', 'はねる魚'], ['shoal', '泳ぐ魚'], ['turtle', '海がめの影'],
   ['jelly', '空のくらげ'], ['shower', '天気雨'], ['rainbow', '虹'], ['palms', 'やしの葉'], ['sunflowers', 'ひまわり'],
   ['grass', '草'], ['butterflies', 'ちょう'], ['bee', 'はち'], ['crab', 'かに'], ['pool', '潮だまり'],
   ['paperBoat', '笹舟'], ['pennant', '尖塔の旗'], ['roofGlint', '屋根の照り'], ['winGlint', '窓の照り'], ['sunPatch', '床の日だまり'],
@@ -2727,6 +2793,10 @@ const WORLD = {
   beach: [],
   presents: [],
   sillTreat: false,
+  hunger: { cat: 1, pup: 1, rabbit: 1, sheep: 1, dragon: 1, penguin: 1 },
+  roof: 'blue',
+  glow: -1,                 // the slot of the piece of glass that has been waiting longest to be noticed
+  tap: {},                  // things tapped just now, and when; the picture is untouched while it's empty
   react: {},
   sparks: [],
   now: 0,
@@ -2872,6 +2942,28 @@ function fxZ(sx, sy, t, ph) {
   }
 }
 
+/* ── things that notice a finger: each records where it is as it's drawn ─ */
+const CRIT = {};
+function crit(key, x, y, r, gate = 0) {
+  const c = CRIT[key] || (CRIT[key] = { key, x: 0, y: 0, r: 0, gate: 0 });
+  c.x = x; c.y = y; c.r = r; c.gate = gate;
+}
+/* how long ago it was tapped, or -1; a reaction forgets itself when it's over */
+function tapAge(key, dur) {
+  const k = WORLD.tap[key];
+  if (!k) return -1;
+  const e = WORLD.now - k.t0;
+  if (e < 0 || e >= dur) { delete WORLD.tap[key]; return -1; }
+  return e;
+}
+const riseFall = u => (u < .35 ? smooth(u / .35) : 1 - smooth((u - .35) / .65));
+function rockBlit(s, sx, sy, tilt, gate) {
+  const x0 = sx - s.ax, y0 = sy - s.ay, mid = s.w / 2;
+  for (let j = 0; j < s.h; j++) for (let c = 0; c < s.w; c++) {
+    const v = s.d[j * s.w + c];
+    if (v) gate(x0 + c, y0 + j + Math.round((c - mid) * tilt), v);
+  }
+}
 /* ── the sea ──────────────────────────────────────────────────────────── */
 const FOAM = { idx: null, f: null, ph: null };
 function initFoam() {
@@ -2928,17 +3020,25 @@ const GULL = [
   mk(['.....', 'ooooo', '..o..'], 'o:cld7'),
   mk(['..o..', '.o.o.', 'o...o'], 'o:cld7'),
 ];
+const GULL_KEYS = ['gull0', 'gull1', 'gull2'];
 function fxGulls(t) {
   for (let n = 0; n < 3; n++) {
     const c = cyc(t, 2 + (n === 2 ? 1 : 0), n * .37), sx = Math.floor(c * 420) - 30;
-    const sy = 66 + n * 34 + Math.round(osc(t, 7 + n, n * .2) * 9);
-    sblit(GULL[fr(t, 4 + n, 3)], n === 1 ? W - sx : sx, sy, false, (x, y) => ppx(x, y, P.cld7));
+    const key = GULL_KEYS[n], e = tapAge(key, 4.5), X = n === 1 ? W - sx : sx;
+    const sy = 66 + n * 34 + Math.round(osc(t, 7 + n, n * .2) * 9) - (e < 0 ? 0 : Math.round(riseFall(e / 4.5) * 40));
+    sblit(GULL[fr(t, (4 + n) * (e < 0 ? 1 : 3), 3)], X, sy, false, (x, y) => ppx(x, y, P.cld7));
+    crit(key, X, sy - 1, 5, 2);
   }
 }
 const SAILBOAT = mk(['...o....', '...oW...', '...oWW..', '...oWWW.', '...oWWWW', '...o....', 'hhhhhhhh', '.hhhhhh.'], 'o:hon2 W:cld7 h:ter5');
 function fxSail(t) {
-  const sx = Math.floor(cyc(t, 1, .3) * 400) - 20;
-  sblit(SAILBOAT, sx, HORIZON + 4 + Math.round(osc(t, 8) * .6), false, seaVal);
+  const e = tapAge('sail', 10);                 // a burst of speed, then the wind drops until it's back on time
+  const dx = e < 0 ? 0 : e < 1.5 ? 28 * smooth(e / 1.5) : 28 * (1 - smooth((e - 1.5) / 8.5));
+  const fade = e < 0 ? 0 : Math.max(0, 1 - e / 4);
+  const sx = Math.floor(cyc(t, 1, .3) * 400) - 20 + Math.round(dx), sy = HORIZON + 4 + Math.round(osc(t, 8) * .6);
+  if (fade) rockBlit(SAILBOAT, sx, sy, Math.sin(e * 5) * .28 * fade, seaVal);
+  else sblit(SAILBOAT, sx, sy, false, seaVal);
+  crit('sail', sx, sy - 4, 8, 1);
 }
 function seaVal(x, y, v) {
   if (x < 0 || y < 0 || x >= W || y >= H) return;
@@ -2949,8 +3049,18 @@ const DINGHY = [
   mk(['......o.......', '...ooooooo....', '.oaaaaaaaaaoo.', 'obbbbbbbbbbbbo', '.occcccccccco.', '..oooooooooo..'], 'o:hon1 a:hon6 b:cld7 c:sea3'),
 ];
 function fxBoat(t) {
-  const sx = iX(186, 134), sy = iY(186, 134, 0) + Math.round(osc(t, 10) * 1);
-  sblit(DINGHY[0], sx, sy, osc(t, 2, .1) > .9);
+  const sx = iX(186, 134), sy = iY(186, 134, 0) + Math.round(osc(t, 10) * 1), e = tapAge('boat', 3.5);
+  if (e < 0) sblit(DINGHY[0], sx, sy, osc(t, 2, .1) > .9);
+  else {
+    const fade = 1 - e / 3.5;
+    for (let n = 0; n < 2; n++) {
+      const u = (e - n * .5) / 2;
+      if (u <= 0 || u >= 1) continue;
+      for (let a = 0; a < 28; a++) if (a % 2 || u < .6) seapx(Math.round(sx + Math.cos(a / 28 * TAU) * (9 + u * 16)), Math.round(sy - 2 + Math.sin(a / 28 * TAU) * (4 + u * 7)), P.cld7);
+    }
+    rockBlit(DINGHY[0], sx, sy + Math.round(Math.sin(e * 7) * 1.5 * fade), Math.sin(e * 6) * .3 * fade, spx);
+  }
+  crit('boat', sx, sy - 3, 9);
 }
 const FISHLET = mk(['.oo.o', 'oaaoo', '.oo.o'], 'o:peb3 a:cld7');
 function fxFishJump(t) {
@@ -2963,20 +3073,61 @@ function fxFishJump(t) {
   }
 }
 function fxTurtle(t) {
-  const sx = Math.floor(cyc(t, 1, .1) * 440) - 40, sy = 604 + Math.round(osc(t, 3) * 3), fl = fr(t, 2, 2);
-  for (let a = -8; a <= 8; a++) for (let b = -4; b <= 4; b++) if ((a * a) / 64 + (b * b) / 16 < 1) seapx(sx + a, sy + b, (a + b * 2) % 5 === 0 ? P.azu4 : P.azu3);
-  for (let k = 0; k < 4; k++) { seapx(sx + 6 + k, sy - 4 - k * (fl ? 1 : 0), P.azu3); seapx(sx + 6 + k, sy + 4 + k * (fl ? 0 : 1), P.azu3); seapx(sx - 6 - k, sy - 3, P.azu3); seapx(sx - 6 - k, sy + 3, P.azu3); }
-  for (let a = 9; a < 12; a++) for (let b = -1; b <= 1; b++) seapx(sx + a, sy + b, P.azu3);
+  const e = tapAge('turtle', 12);        // dives in a hurry, and comes back up a good while later
+  const vis = e < 0 ? 1 : e < 1 ? 1 - e : e < 10 ? 0 : (e - 10) / 2;
+  const sx = Math.floor(cyc(t, 1, .1) * 440) - 40 + (e >= 0 && e < 1 ? Math.round(smooth(e) * 22) : 0), sy = 574 + Math.round(osc(t, 3) * 3), fl = e >= 0 && e < 1 ? fr(t, 8, 2) : fr(t, 2, 2);
+  crit('turtle', sx, sy, vis > .3 ? 12 : 0, 1);
+  if (e >= 0 && e < 1.6) for (let i = 0; i < 8; i++) {
+    const c = e * 1.1 - hsh(i, 75) * .5;
+    if (c > 0 && c < 1) seapx(sx - 6 + Math.round(hsh(i, 76) * 14), sy + 2 - Math.round(c * 16), P.cld7);
+  }
+  if (vis <= 0) return;
+  const px = (x, y, col) => { if (vis >= 1 || hsh(x - sx, y - sy, 77) < vis) seapx(x, y, col); };
+  for (let a = -8; a <= 8; a++) for (let b = -4; b <= 4; b++) if ((a * a) / 64 + (b * b) / 16 < 1) px(sx + a, sy + b, (a + b * 2) % 5 === 0 ? P.azu4 : P.azu3);
+  for (let k = 0; k < 4; k++) { px(sx + 6 + k, sy - 4 - k * (fl ? 1 : 0), P.azu3); px(sx + 6 + k, sy + 4 + k * (fl ? 0 : 1), P.azu3); px(sx - 6 - k, sy - 3, P.azu3); px(sx - 6 - k, sy + 3, P.azu3); }
+  for (let a = 9; a < 12; a++) for (let b = -1; b <= 1; b++) px(sx + a, sy + b, P.azu3);
 }
+/* shadows in the shallows, following the shore: centre of its beat, distance from the shore, beats per block, phase */
+const SHOAL = [[1.57, 1.34, 3, .1], [2.2, 1.46, 2, .4], [.95, 1.4, 3, .7], [1.2, 1.24, 2, .2], [1.95, 1.26, 3, .55]];
+const FISH_KEYS = SHOAL.map((f, n) => 'fish' + n);
+const fishX = [0, 0], fishAt = (n, t) => {
+  const [a0, f, c, ph] = SHOAL[n], a = a0 + osc(t, c, ph) * .34;
+  const r = Math.sqrt(Math.max(.1, f - (Math.sin(a * 3 + 1) * .07 + Math.sin(a * 7 + 2) * .04 + Math.sin(a * 13) * .02)));
+  fishX[0] = 180 + SHORE.ru * r * Math.cos(a); fishX[1] = OY + SHORE.cy + SHORE.rv * r * Math.sin(a);
+  return fishX;
+};
+function fxShoal(t) {
+  for (let n = 0; n < SHOAL.length; n++) {
+    const key = FISH_KEYS[n], e = tapAge(key, 7.5);
+    const ahead = fishAt(n, t + .2)[0], at = fishAt(n, t);
+    let x = at[0], y = at[1], vis = 1, dir = ahead > x ? 1 : -1, wag = fr(t, 5, 2);
+    if (e >= 0) {          // gone in a flash, and back when the coast is clear
+      const k = WORLD.tap[key];
+      if (e < .8) { const u = e / .8, off = 1 - (1 - u) ** 3; x += k.dx * off; y += k.dy * off; vis = 1 - u * u; dir = k.dx > 0 ? 1 : -1; wag = fr(t, 24, 2); }
+      else if (e < 6.5) vis = 0;
+      else vis = e - 6.5;
+    }
+    x = Math.round(x); y = Math.round(y);
+    crit(key, x, y, vis > .4 ? 5 : 0, 1);
+    if (vis <= 0) continue;
+    const px = (a, b, col) => { if (vis >= 1 || hsh(a, b, n, 79) < vis) seapx(x + a * dir, y + b, col); };
+    for (let a = -3; a <= 4; a++) { const w = a < -1 || a > 3 ? 0 : 1; for (let b = -w; b <= w; b++) px(a, b, b ? P.azu2 : P.azu1); }
+    px(-4, wag ? -1 : 1, P.azu2); px(-5, wag ? -2 : 2, P.azu2); px(-5, wag ? -1 : 1, P.azu2); px(-4, 0, P.azu2);
+  }
+}
+const JELLY_KEYS = ['jelly0', 'jelly1'];
 const JELLY = [
   mk(['...ppp...', '.ppWWWpp.', 'pWWWWWWWp', 'pWWWWWWWp', 'ppppppppp', '.p.p.p.p.', '.p.p.p.p.', 'p.p.p.p..', '.p.p.p.p.'], 'p:pin6 W:cld7'),
   mk(['.........', '...ppp...', '.pWWWWWp.', 'pWWWWWWWp', 'ppppppppp', 'p.p.p.p.p', '.p.p.p.p.', '.p.p.p.p.', 'p.p.p.p..'], 'p:pin6 W:cld7'),
 ];
 function fxJelly(t) {
   for (let n = 0; n < 2; n++) {
-    const c = cyc(t, 1, n * .55), sy = 210 - Math.floor(c * 230), sx = 40 + n * 250 + Math.round(osc(t, 3, n * .3) * 16);
-    const s = JELLY[fr(t, 1 + n, 2)];
-    sblit(s, sx, sy, n === 1, (x, y, v) => { if (y >= 0 && y < HORIZON && (x + y) % 2 === 0) ppx(x, y, v); });
+    const key = JELLY_KEYS[n], e = tapAge(key, 4.5), c = cyc(t, 1, n * .55), sx = 40 + n * 250 + Math.round(osc(t, 3, n * .3) * 16);
+    const sy = 210 - Math.floor(c * 230) - (e < 0 ? 0 : Math.round(riseFall(e / 4.5) * 34));
+    const s = JELLY[e < 0 ? fr(t, 1 + n, 2) : fr(t, 4, 2)], glows = e >= 0 && e < 1.4;
+    sblit(s, sx, sy, n === 1, (x, y, v) => { if (y >= 0 && y < HORIZON && (e >= 0 || (x + y) % 2 === 0)) ppx(x, y, glows ? UPP[v] : v); });
+    if (glows) for (let a = 0; a < 10; a++) ppx(sx + Math.round(Math.cos(a / 10 * TAU) * (7 + e * 5)), sy - 4 + Math.round(Math.sin(a / 10 * TAU) * (7 + e * 5)), P.pin5);
+    crit(key, sx, sy - 4, sy > 0 && sy < HORIZON + 4 ? 7 : 0, 2);
   }
 }
 /* ── weather: a sun shower, then a rainbow, on stories that ask for one ─ */
@@ -2988,7 +3139,7 @@ function showerAmount(b, local) {
 function rainbowAmount(b, local) {
   if (!b.shower) return 0;
   const z = b.shower[1];
-  return smooth((local - z + 2) / 5) * (1 - smooth((local - z - 18) / 6));
+  return smooth((local - z + 2) / 5) * (1 - smooth((local - z - 18) / 8));
 }
 function fxShower(t, b, local) {
   const amt = showerAmount(b, local);
@@ -3012,8 +3163,16 @@ function fxRainbow(t, b, local) {
     for (let a = 0; a < 480; a++) {
       const ang = Math.PI * a / 480, sx = Math.round(cx + Math.cos(ang) * r), sy = Math.round(cy - Math.sin(ang) * r * .8);
       if (sy >= HORIZON || sx < 0 || sx >= W) continue;
-      const q = sy < 0 ? 1 : Math.min(amt, (HORIZON - sy) / 26);
-      if (hsh(sx, sy, 7) < q * .62) { seapx(sx, sy, pi); seapx(sx, sy + 1, pi); }
+      // really see-through: the sky shows more and more, and it thins out towards the horizon
+      const a8 = Math.round(amt * Math.min(1, (HORIZON - sy) / 26) * 158);
+      if (a8 <= 0) continue;
+      const v = (PAL32[pi] & 0xffffff | a8 << 24) >>> 0;
+      for (let k = 0; k < 2; k++) {
+        const y = sy + k;
+        if (y < 0 || y >= H) continue;
+        const i = y * W + sx;
+        if (!gId[i] && !dyn[i]) dyn[i] = v;
+      }
     }
   }
 }
@@ -3089,15 +3248,21 @@ const FLUT = [
   mk(['aa.aa', 'abobA'.replace('A', 'a'), '.aoa.', '..o..'], 'a:sea4 b:cld7 o:wood1'),
   mk(['.....', '.aoa.', '.aoa.', '..o..'], 'a:sea3 o:wood1'),
 ];
+const BUTTER_KEYS = ['butter0', 'butter1'];
 function fxButter(t) {
   for (let n = 0; n < 2; n++) {
-    const sx = 290 + Math.round(osc(t, 3 + n, n * .4) * 22 + osc(t, 11, n * .1) * 5);
-    const sy = 448 + Math.round(osc(t, 4, n * .3) * 16 + osc(t, 17, n * .2) * 3);
-    sblit(FLUT[n * 2 + fr(t, 8, 2)], sx, sy);
+    const key = BUTTER_KEYS[n], e = tapAge(key, 3.6), h = e < 0 ? 0 : riseFall(e / 3.6);
+    const sx = 290 + Math.round(osc(t, 3 + n, n * .4) * 22 + osc(t, 11, n * .1) * 5 + (e < 0 ? 0 : h * Math.sin(e * 4) * 9));
+    const sy = 448 + Math.round(osc(t, 4, n * .3) * 16 + osc(t, 17, n * .2) * 3 - h * 44);
+    sblit(FLUT[n * 2 + fr(t, e < 0 ? 8 : 20, 2)], sx, sy);
+    crit(key, sx, sy - 2, 4);
   }
 }
 function fxBee(t) {
-  const sx = 282 + Math.round(osc(t, 5) * 16 + osc(t, 37, .2) * 3), sy = 438 + Math.round(osc(t, 7, .4) * 10 + osc(t, 41) * 2);
+  const e = tapAge('bee', 2.6), turn = e < 0 ? 0 : Math.sin(e / 2.6 * Math.PI) * 10;
+  const sx = 282 + Math.round(osc(t, 5) * 16 + osc(t, 37, .2) * 3 + (e < 0 ? 0 : Math.cos(e * 14) * turn));
+  const sy = 438 + Math.round(osc(t, 7, .4) * 10 + osc(t, 41) * 2 + (e < 0 ? 0 : Math.sin(e * 14) * turn * .7));
+  crit('bee', sx, sy, 4);
   spx(sx, sy, P.amb7); spx(sx + 1, sy, P.mid1); if (fr(t, 12, 2)) spx(sx, sy - 1, P.cld7);
 }
 const CRAB = [
@@ -3112,7 +3277,15 @@ function crabTeased(b, local) {
 }
 function fxCrab(t, b, local) {
   const c = cyc(t, 3), walk = c < .3 ? c / .3 : c < .5 ? 1 : c < .8 ? 1 - (c - .5) / .3 : 0;
-  const moving = (c < .3 || (c >= .5 && c < .8)), x = 112 + Math.round(walk * 34);
+  const moving = (c < .3 || (c >= .5 && c < .8)), x = 112 + Math.round(walk * 34), e = tapAge('crab', 4.5);
+  if (e >= 0) {          // claws up, off it scuttles, and back it comes when nothing happens
+    const run = e < .6 ? 0 : e < 2 ? smooth((e - .6) / 1.4) : 1 - smooth((e - 2) / 2.5), X = x + Math.round(run * WORLD.tap.crab.dir * 30);
+    if (e < .6) sblit(CRAB[2], X, 528 - fr(t, 8, 2) * 2);
+    else sblit(fr(t, 16, 2) ? CRAB[2] : CRAB[1], X, 528);
+    crit('crab', X, 526, 5);
+    return;
+  }
+  crit('crab', x, 526, 5);
   if (!moving && crabTeased(b, local)) sblit(CRAB[fr(t, 5, 2) ? 2 : 0], x, 528 - fr(t, 5, 2));
   else sblit(CRAB[moving ? fr(t, 6, 2) : 0], x, 528);
 }
@@ -3500,6 +3673,11 @@ const POSE = {
     }
   },
 };
+const HUNGRY = mk([
+  '...ooooooo...', '..oWWWWWWWo..', '.oWWWWWWWWWo.',
+  'oWWWWWWWWWWWo', 'oWWWWWWWWWWWo', 'oWWWWWWWWWWWo', 'oWWWWWWWWWWWo', 'oWWWWWWWWWWWo',
+  '.oWWWWWWWWWo.', '..oWWWWWWWo..', '...ooWWWooo..', '.....oWo.....', '......o......',
+], 'o:peb2 W:cld7', 6, 12);
 const HEART = mk(['.o.o.', 'oPoPo', 'oPPPo', '.oPo.', '..o..'], 'o:rose2 P:pin6');
 function drawHearts(sx, sy, e) {
   for (let i = 0; i < 3; i++) {
@@ -3567,6 +3745,8 @@ function drawActors(t, b, local) {
     if (!present(id)) continue;
     const A = ACTOR[id];
     sampleActor(A, b[id], local);
+    // fed: awake, and waiting at home for the next story
+    if (BLOCK_TIER[id] && WORLD.hunger[id] > HUNGER_LOW && A.anim === SLEEP_POSE[id]) A.anim = AWAKE_POSE[id];
     A.react = applyReact(A, WORLD.now);
     drawOrder.push(A);
   }
@@ -3593,6 +3773,10 @@ function drawActors(t, b, local) {
     const sx = iX(A.x, A.y) + SHOT.ox, sy = iY(A.x, A.y, z);
     A.sx = sx; A.sy = sy - Math.round(SHOT.s.h / 2); A.h = SHOT.s.h;
     if (SHOT.sleep && FX.zzz) fxZ(sx + 3, sy - SHOT.s.h, t, ACTOR_IDS.indexOf(A.id) * .17);
+    if (!Rx && BLOCK_TIER[A.id] === 2 && WORLD.hunger[A.id] <= 0) {
+      const bx = sx - 6, by = sy - SHOT.s.h - 1 + Math.round(osc(t, 40, ACTOR_IDS.indexOf(A.id) * .17));
+      sblit(HUNGRY, bx, by); sblit(ITEM.cookie, bx, by - 4);
+    }
     if (SHOT.effect === 'rain') for (let i = 0; i < 9; i++) {
       const c = cyc(t, 60 + i * 3, hsh(i, 141)), yy = sy + 1 + Math.round(c * 14);
       lpx(sx - 7 + Math.round(hsh(i, 142) * 14), yy, lut, P.sea6);
@@ -3637,6 +3821,7 @@ function drawDynamic(t, st) {
   if (FX.swell) fxSwell(t);
   if (FX.sparkle) fxSparkle(t);
   if (FX.turtle) fxTurtle(t);
+  if (FX.shoal) fxShoal(t);
   if (FX.sail) fxSail(t);
   if (FX.fishJump) fxFishJump(t);
   if (FX.ripples) fxRipples(t);
@@ -3761,9 +3946,10 @@ const RULES = {
   floorCost: { 2: 120, 3: 300 },
   spawnEvery: 10,          // a new piece of glass, seconds
   beachCap: 12,            // never more than this lying about
-  bottleEvery: 45,         // while closed: one piece per this many seconds
-  bottleCaps: [10, 20, 30, 45, 60],   // and no more than this in the bottle, level by level
-  bottlePrices: [15, 30, 50, 80],     // what the next size costs
+  hungerMinutes: 30,       // from full to empty, while the game is open
+  roofPrice: 20,
+  glowAfter: 15,           // nothing picked up for this long: one piece starts to shine
+  repaintAfter: 10,        // hidden this long: the whole picture is drawn again on return
   balloonFirst: 180,       // the first balloon comes early, so it gets noticed
   balloonEvery: [240, 360],  // then one per this many seconds, while the game is open
   balloonCross: 30,        // seconds to cross the sea
@@ -3778,8 +3964,8 @@ const KINDS = [
   { id: 'amber', value: 5, chance: .05 },
 ];
 const GOODS = {
-  cookie: { name: '貝がらクッキー', type: 'おやつ', price: 5, gain: 1, dur: 5 },
-  ice: { name: 'ラムネアイス', type: 'おやつ', price: 12, gain: 2, dur: 6.5 },
+  cookie: { name: '貝がらクッキー', type: 'おやつ', price: 5, gain: 1, dur: 5, fill: .5 },
+  ice: { name: 'ラムネアイス', type: 'おやつ', price: 12, gain: 2, dur: 6.5, fill: 1 },
   ball: { name: 'ビーチボール', type: 'おもちゃ', price: 8, gain: 2, dur: 8 },
   wheel: { name: 'かざぐるま', type: 'おもちゃ', price: 15, gain: 3, dur: 9 },
 };
@@ -3816,11 +4002,14 @@ const FURNITURE = {
 const FURN_KEYS = Object.keys(FURNITURE);
 const PET_ORDER = ['dragon', 'sheep', 'penguin'];
 const PRESENT_VALUES = [15, 25, 50];
+const ROOF_NAMES = { blue: '青', red: '赤', green: '緑', pink: 'ピンク' };
 const newState = () => ({
-  v: 1, glass: 0, stash: 0, total: 0, storeys: 1, pets: [],
+  v: 1, glass: 0, total: 0, storeys: 1, pets: [],
   aff: { cat: 0, pup: 0, rabbit: 0, sheep: 0, dragon: 0, penguin: 0 },
+  hunger: { cat: 1, pup: 1, rabbit: 1, sheep: 1, dragon: 1, penguin: 1 },
+  roof: 'blue',
   beach: [], n: 0, spawnIn: 6, sill: false, played: 0, doneAt: 0, lastSeen: 0, furn: [],
-  bottleLv: 0, presents: [], balloonIn: RULES.balloonFirst, bn: 0,
+  presents: [], balloonIn: RULES.balloonFirst, bn: 0,
 });
 let GS = newState();
 let gameOn = false;
@@ -3843,9 +4032,9 @@ function readSave() {
   if (!o || o.v !== 1) return null;
   const s = newState();
   s.glass = cleanNum(o.glass, 0, 1e7, 0) | 0;
-  // what's already in the bottle stays, even above the size of an old save's bottle
-  s.stash = cleanNum(o.stash, 0, RULES.bottleCaps.at(-1), 0) | 0;
-  s.bottleLv = cleanNum(o.bottleLv, 0, RULES.bottlePrices.length, 0) | 0;
+  // an old save's bottle is simply not read: what was in it, and what it cost, are gone
+  for (const k in s.hunger) s.hunger[k] = cleanNum(o.hunger && o.hunger[k], 0, 1, 1);
+  if (ROOF_NAMES[o.roof]) s.roof = o.roof;
   s.presents = Array.isArray(o.presents) ? o.presents.filter(p => p && Number.isInteger(p.slot) && p.slot >= 0 && p.slot < 60 && PRESENT_VALUES.includes(p.value)).slice(0, RULES.presentCap) : [];
   s.balloonIn = cleanNum(o.balloonIn, 0, RULES.balloonEvery[1], RULES.balloonFirst);
   s.bn = cleanNum(o.bn, 0, 1e9, 0) | 0;
@@ -3884,10 +4073,29 @@ function initSlots() {
   }
 }
 const GLASS_SPR = [
-  mk(['..ooo..', '.oWaao.', 'oaaaaao', 'oaaabbo', '.oooo..'], 'o:azu2 W:cld7 a:sea6 b:sea4', 3, 3),
-  mk(['.oooo..', 'oWaaao.', 'oaaaabo', '.oaabbo', '..oooo.'], 'o:lef1 W:cld7 a:lef6 b:lef4', 3, 3),
-  mk(['..ooo..', '.oWaao.', 'oWaaabo', 'oaaabbo', '.oabbo.', '..ooo..'], 'o:hon1 W:cld7 a:amb7 b:amb5', 3, 3),
+  mk(['...ooo...', '..oWWao..', '.oWaaaao.', 'oWaaaaabo', 'oaaaaabbo', '.oabbbbo.', '..oooo...'], 'o:sea1 W:cld7 a:sea6 b:sea4', 4, 4),
+  mk(['..oooo...', '.oWWaao..', 'oWaaaaao.', 'oWaaaaabo', '.oaaaabbo', '.ooabbbo.', '...oooo..'], 'o:lef1 W:cld7 a:lef6 b:lef4', 4, 4),
+  mk(['...ooo...', '..oWWao..', '.oWaaaao.', 'oWaaaaabo', 'oaaaaaabo', 'oaaaabbbo', '.oabbbo..', '..oooo...'], 'o:hon1 W:cld7 a:amb7 b:amb5', 4, 4),
 ];
+/* a star that opens and closes */
+function drawCross(x, y, reach, col = P.cld7) {
+  spx(x, y, P.cld7);
+  for (let k = 1; k <= reach; k++) {
+    const c = k === reach ? P.sea7 : col;
+    spx(x - k, y, c); spx(x + k, y, c); spx(x, y - k, c); spx(x, y + k, c);
+  }
+}
+/* the sea leaves it there: a small splash where it lands */
+const SPLASHES = [];
+function drawSplashes(now) {
+  for (let n = SPLASHES.length - 1; n >= 0; n--) {
+    const p = SPLASHES[n], u = (now - p.t0) / .8;
+    if (u >= 1 || u < 0) { SPLASHES.splice(n, 1); continue; }
+    const r = 3 + u * 10;
+    for (let a = 0; a < 16; a++) if (a % 2 || u < .5) spx(Math.round(p.x + Math.cos(a / 16 * TAU) * r), Math.round(p.y + Math.sin(a / 16 * TAU) * r * .45), P.cld7);
+    for (let i = 0; i < 5; i++) spx(p.x - 6 + i * 3, p.y - 2 - Math.round(Math.sin(u * Math.PI) * (5 + (i % 3) * 3)), P.cld7);
+  }
+}
 /* big enough to see from the whole-island camera */
 const BALLOON_SPR = (() => {
   const rx = 10, ry = 12, rows = [];
@@ -3922,16 +4130,20 @@ function drawGameGround(t) {
     sblit(PRESENT_SPR, s.x, s.y - hop);
     if (c > .1 && c < .16) { spx(s.x + 4, s.y - 9, P.cld7); spx(s.x + 3, s.y - 9, P.cld7); spx(s.x + 5, s.y - 9, P.cld7); spx(s.x + 4, s.y - 10, P.cld7); spx(s.x + 4, s.y - 8, P.cld7); }
   }
+  drawSplashes(WORLD.now);
   for (const g of WORLD.beach) {
     const s = SLOTS[g.slot];
     if (!s) continue;
     const k = g.kind, tw = cyc(t, 12 + g.slot % 7, g.slot * .13);
-    sblit(GLASS_SPR[k], s.x, s.y);
-    if (tw < .1) {
-      const big = tw > .03 && tw < .07;
-      spx(s.x - 1, s.y - 3, P.cld7);
-      if (big) { spx(s.x - 2, s.y - 3, P.cld7); spx(s.x, s.y - 3, P.cld7); spx(s.x - 1, s.y - 4, P.cld7); spx(s.x - 1, s.y - 2, P.cld7); }
+    if (g.slot === WORLD.glow) {     // it has been waiting: a slow, wide pulse that's hard to miss
+      const p = .5 + .5 * Math.sin(WORLD.now * 4.5), rx = 9 + p * 5, ry = 5 + p * 3, col = k === 2 ? P.amb7 : k === 1 ? P.lef7 : P.sea7;
+      for (let a = 0; a < 26; a++) if ((a + (WORLD.now * 6 | 0)) % 2) spx(Math.round(s.x + Math.cos(a / 26 * TAU) * rx), Math.round(s.y - 1 + Math.sin(a / 26 * TAU) * ry), col);
+      sblit(GLASS_SPR[k], s.x, s.y - Math.round(p * 2));
+      drawCross(s.x - 1, s.y - 4 - Math.round(p * 2), 3 + Math.round(p * 4));
+      continue;
     }
+    sblit(GLASS_SPR[k], s.x, s.y);
+    if (tw < .1) drawCross(s.x - 1, s.y - 3, 1 + Math.round(Math.sin(tw / .1 * Math.PI) * 4));
   }
   if (WORLD.sillTreat && storeys >= 2) {
     const s = -53, sy = scrY(backT(s) + 2, Z2 + 18);
@@ -4007,6 +4219,8 @@ function pushWorld() {
   WORLD.beach = GS.beach;
   WORLD.presents = GS.presents;
   WORLD.sillTreat = GS.sill;
+  WORLD.hunger = GS.hunger;
+  WORLD.roof = GS.roof;
 }
 function spawnGlass() {
   if (GS.beach.length >= RULES.beachCap || !SLOTS.length) return false;
@@ -4015,10 +4229,16 @@ function spawnGlass() {
   while (used.has(slot)) slot = (slot + 1) % SLOTS.length;
   const roll = hsh(n, 162);
   GS.beach.push({ slot, kind: roll < KINDS[0].chance ? 0 : roll < KINDS[0].chance + KINDS[1].chance ? 1 : 2 });
+  if (SPLASHES.length >= RULES.beachCap) SPLASHES.shift();
+  SPLASHES.push({ x: SLOTS[slot].x, y: SLOTS[slot].y, t0: WORLD.now });
   return true;
 }
+let unpicked = 0;       // seconds since anything was picked up; only for the shine, so it isn't saved
 function advance(sec) {
   GS.played += sec;
+  for (const id of ACTOR_IDS) if (present(id)) GS.hunger[id] = Math.max(0, GS.hunger[id] - sec / (RULES.hungerMinutes * 60));
+  unpicked += sec;
+  WORLD.glow = unpicked >= RULES.glowAfter && GS.beach.length ? GS.beach[0].slot : -1;
   GS.spawnIn -= sec;
   while (GS.spawnIn <= 0) { GS.spawnIn += RULES.spawnEvery; spawnGlass(); }
   if (FLOAT && (FLOAT.e += sec) >= RULES.balloonCross) FLOAT = null;   // missed: it's gone
@@ -4063,36 +4283,19 @@ function openPresent(index) {
   GS.glass += p.value; GS.total += p.value;
   return p.value;
 }
-const bottleCap = () => RULES.bottleCaps[GS.bottleLv];
-const nextBottlePrice = () => RULES.bottlePrices[GS.bottleLv] || 0;
-function upgradeBottle() {
-  const price = nextBottlePrice();
-  if (!price || GS.glass < price) return false;
-  GS.glass -= price;
-  GS.bottleLv++;
-  return true;
-}
 function collectAt(index) {
   const g = GS.beach[index];
   if (!g) return 0;
   GS.beach.splice(index, 1);
   const v = KINDS[g.kind].value;
   GS.glass += v; GS.total += v;
-  return v;
-}
-function emptyBottle() {
-  const v = GS.stash;
-  GS.glass += v; GS.total += v; GS.stash = 0;
+  unpicked = 0; WORLD.glow = -1;
   return v;
 }
 /* what happens while no one was looking */
 function settleAbsence(sec) {
-  const out = { glass: 0, pet: null };
+  const out = { pet: null };
   if (!(sec > 0)) return out;
-  const before = GS.stash;
-  // an old save may hold more than its bottle: that's kept, it just doesn't grow
-  if (before < bottleCap()) GS.stash = Math.min(bottleCap(), before + Math.floor(sec / RULES.bottleEvery));
-  out.glass = GS.stash - before;
   if (GS.sill) {
     const next = PET_ORDER.find(p => !GS.pets.includes(p));
     if (next) {
@@ -4107,18 +4310,22 @@ function settleAbsence(sec) {
 const nextFloorCost = () => RULES.floorCost[GS.storeys + 1] || 0;
 const towerDone = () => GS.storeys >= 3;
 const allPets = () => PET_ORDER.every(p => GS.pets.includes(p));
-function canBuy(id, good) { return present(id) && GS.glass >= GOODS[good].price && !WORLD.react[id]; }
+/* really out for the count, not just on its way home on an empty stomach */
+const isAsleep = id => GS.hunger[id] <= 0 && BLOCK_TIER[id] === 2;
+const canFeedOnly = (id, good) => GS.hunger[id] <= 0 && !GOODS[good].fill;   // no toys until it has eaten
+function canBuy(id, good) { return present(id) && GS.glass >= GOODS[good].price && !WORLD.react[id] && !canFeedOnly(id, good); }
 function buyFor(id, good) {
   if (!canBuy(id, good)) return false;
   const g = GOODS[good];
   GS.glass -= g.price;
   GS.aff[id] = Math.min(10, GS.aff[id] + g.gain);
   WORLD.aff[id] = GS.aff[id];
+  if (g.fill) GS.hunger[id] = Math.min(1, GS.hunger[id] + g.fill);
   WORLD.react[id] = { t0: WORLD.now, dur: g.dur, anim: g.type === 'おやつ' ? 'eat' : 'play', item: good };
   return true;
 }
 function petAnimal(id) {
-  if (!present(id) || WORLD.react[id]) return false;
+  if (!present(id) || WORLD.react[id] || isAsleep(id)) return false;   // a pat doesn't wake a hungry animal
   WORLD.react[id] = { t0: WORLD.now, dur: 1.5, anim: 'happy', stay: true };
   return true;
 }
@@ -4139,6 +4346,42 @@ function furnish(key) {
   pushWorld();
   rebake();
   return true;
+}
+/* ── the roof's colour ────────────────────────────────────────────────── */
+const canRoof = color => !!ROOF_NAMES[color] && color !== GS.roof && GS.glass >= RULES.roofPrice;
+function changeRoof(color) {
+  if (!canRoof(color)) return false;
+  GS.glass -= RULES.roofPrice;
+  GS.roof = color;
+  pushWorld();
+  rebake();
+  return true;
+}
+function placeRoof(color) {
+  if (!changeRoof(color)) return;
+  closeSheets();
+  setView('all');
+  startHighlight('roof');
+  const top = OY + 56 - TOP_Z(storeys);
+  for (let i = 0; i < 12; i++) spark(180 + hsh(i, 175) * 110 - 55, top - hsh(i, 176) * 90, 'amb7', 13, 1);
+  saveGame(); refreshUI();
+}
+/* the shop's small picture: the same bell, from the same curve */
+const ROOF_MINI = {};
+function roofMini(color) {
+  if (ROOF_MINI[color]) return ROOF_MINI[color];
+  const [ramp, d] = ROOF_RAMPS[color], lv = n => ramp + clamp(n + d, 0, 7), rows = [], tall = 30, hw = 17;
+  for (let j = 0; j < tall; j++) {
+    const h = 104 * (1 - j / (tall - 1)), w = Math.max(.5, hw * roofR(h));
+    let row = '';
+    for (let x = -hw; x <= hw; x++) {
+      if (Math.abs(x) > w) { row += '.'; continue; }
+      if (h >= 77 && h <= 81) { row += 'g'; continue; }
+      row += Math.abs(x) > w - 1 ? 'o' : x < -w * .35 ? 'c' : x > w * .4 ? 'a' : 'b';
+    }
+    rows.push(row);
+  }
+  return ROOF_MINI[color] = mk(rows, `o:${lv(0)} a:${lv(2)} b:${lv(3)} c:${lv(5)} g:amb7`, hw, tall - 1);
 }
 /* ── the furniture's picture: the room's own art, cut out ───────────────── */
 const ART = {};
@@ -4207,8 +4450,8 @@ function movingPixels(key, t) {
   return list;
 }
 function startHighlight(key) {
-  const list = [];
-  for (let i = 0; i < N; i++) { const id = gId[i]; if (id && OBJ[id].o.furn === key) list.push(i); }
+  const list = [], roofId = key === 'roof' ? NAMED['roof' + storeys].id : -1;
+  for (let i = 0; i < N; i++) { const id = gId[i]; if (id && (id === roofId || OBJ[id].o.furn === key)) list.push(i); }
   const moving = MOVING_ART[key] ? movingPixels(key, 0) : [];
   let x0 = W, y0 = H, x1 = 0, y1 = 0;
   for (const l of [list, moving]) for (const i of l) { const sx = i % W, sy = i / W | 0; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
@@ -4284,12 +4527,15 @@ function lookAt(id) {
 /* ── the screen ───────────────────────────────────────────────────────── */
 const UI = {};
 const $ = id => document.getElementById(id);
-function spriteCanvas(s, scale = 2, u = 1) {
-  const c = document.createElement('canvas');
-  c.width = s.w; c.height = s.h;
+function paintSprite(c, s) {
   const g = c.getContext('2d'), im = g.createImageData(s.w, s.h), d = new Uint32Array(im.data.buffer);
   for (let i = 0; i < s.w * s.h; i++) if (s.d[i]) d[i] = PAL32[s.d[i]];
   g.putImageData(im, 0, 0);
+}
+function spriteCanvas(s, scale = 2, u = 1) {
+  const c = document.createElement('canvas');
+  c.width = s.w; c.height = s.h;
+  paintSprite(c, s);
   c.style.width = `calc(var(--u) * ${s.w * scale})`; c.style.height = `calc(var(--u) * ${s.h * scale})`;
   c.className = 'px';
   return c;
@@ -4313,17 +4559,19 @@ function floatNumber(ix, iy, text) {
 }
 function buildUI() {
   UI.ui = $('ui'); UI.ui.hidden = false;
-  for (const k of ['glassN', 'bottleBtn', 'bottleN', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
-  $('glassIcon').appendChild(spriteCanvas(GLASS_SPR[0], 2));
-  $('bottleIcon').appendChild(spriteCanvas(BOTTLE, 2));
+  for (const k of ['glassN', 'reloadBox', 'consent', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
+  const keep = (s, scale) => { const c = spriteCanvas(s, scale); UI.icons.push([c, s]); return c; };
+  UI.icons = [];
+  $('glassIcon').appendChild(keep(GLASS_SPR[0], 2));
   UI.faceBtns = {};
   const faces = FACE();
   for (const id of ['cat', 'pup', 'rabbit', 'dragon', 'sheep', 'penguin']) {
     const b = document.createElement('button');
     b.className = 'face'; b.setAttribute('aria-label', ANIMALS[id].name);
-    const img = spriteCanvas(faces[id], faces[id].w > 13 ? 1.5 : 2);
+    const img = keep(faces[id], faces[id].w > 13 ? 1.5 : 2);
     const q = document.createElement('span'); q.className = 'qm'; q.textContent = '？';
-    b.append(img, q);
+    const hg = document.createElement('span'); hg.className = 'hg'; hg.appendChild(keep(ITEM.cookie, 1));
+    b.append(img, q, hg);
     b.onclick = () => {
       if (present(id)) { petAnimal(id); lookAt(id); openCard(id); }
     };
@@ -4337,17 +4585,14 @@ function buildUI() {
     UI.floors.appendChild(b);
   }
   UI.growBtn.onclick = onMainButton;
-  UI.bottleBtn.onclick = () => {
-    if (emptyBottle()) { saveGame(); refreshUI(); }
-  };
   UI.shopBtn.onclick = () => { const on = !shopOpen; closeSheets(); shopOpen = on; renderShop(); };
   UI.helpBtn.onclick = () => { const on = !helpOpen; closeSheets(); helpOpen = on; renderHelp(); };
   UI.menuBtn.onclick = () => { const on = !menuOpen; closeSheets(); menuOpen = on; renderMenu(); };
   UI.unhide.onclick = () => { UI.ui.classList.remove('hide'); };
-  display.addEventListener('pointerup', onCanvasTap);
+  // not pointerup: a card opened then would be under the finger when the click arrives, and buy whatever's there
+  display.addEventListener('click', onCanvasTap);
   refreshUI();
 }
-const BOTTLE = mk(['..oo..', '..cc..', '.oWao.', '.oaao.', 'oWaaao', 'oaabao', 'oaabao', '.oooo.'], 'o:azu2 c:hon4 W:cld7 a:sea6 b:lef6', 3, 7);
 function onMainButton() {
   if (growing) return;
   if (!towerDone()) {
@@ -4398,16 +4643,17 @@ function renderCard() {
   if (!id) return;
   const a = ANIMALS[id], c = UI.card, icons = ITEM_ICON();
   c.innerHTML = `<button class="x" aria-label="とじる">×</button>
-    <div class="head"><span class="ic"></span><div><b>${a.name}</b><div class="hearts">${hearts(GS.aff[id])}</div></div></div>
+    <div class="head"><span class="ic"></span><div><b>${a.name}</b><div class="hearts">${hearts(GS.aff[id])}</div><div class="hunger"><i></i></div></div></div>
     <div class="goods"></div>`;
   c.querySelector('.ic').appendChild(spriteCanvas(FACE()[id], 2));
   c.querySelector('.x').onclick = closeCard;
+  showHunger();
   const box = c.querySelector('.goods'), busy = !!WORLD.react[id] && WORLD.react[id].anim !== 'happy';
   for (const key of Object.keys(GOODS)) {
     const g = GOODS[key], b = document.createElement('button');
     b.className = 'good'; b.dataset.good = key;
     const afford = GS.glass >= g.price;
-    b.disabled = !afford || busy;
+    b.disabled = !afford || busy || canFeedOnly(id, key);
     b.innerHTML = `<span class="gi"></span><span class="gt">${g.name}</span><span class="gp ${afford ? '' : 'no'}">${g.price}</span>`;
     b.querySelector('.gi').appendChild(spriteCanvas(icons[key], 2));
     b.onclick = () => {
@@ -4416,6 +4662,14 @@ function renderCard() {
     };
     box.appendChild(b);
   }
+}
+/* no words: a bar under the hearts */
+function showHunger() {
+  const box = UI.card.querySelector('.hunger');
+  if (!box || !cardFor) return;
+  const h = GS.hunger[cardFor];
+  box.firstChild.style.width = h * 100 + '%';
+  box.classList.toggle('low', h <= HUNGER_LOW);
 }
 function renderShop() {
   const m = UI.shop;
@@ -4428,17 +4682,17 @@ function renderShop() {
     b.innerHTML = `<span class="gi"></span><span class="gc"><span class="gt">${name}</span><span class="gp ${GS.glass >= price ? '' : 'no'}">${price}</span></span>`;
     b.querySelector('.gi').appendChild(canvas);
   };
-  const bottlePrice = nextBottlePrice();
-  if (bottlePrice) {
-    const h = document.createElement('h3'); h.textContent = '小びん';
-    const box = document.createElement('div'); box.className = 'goods';
+  const roofHead = document.createElement('h3'); roofHead.textContent = '屋根の色';
+  const roofBox = document.createElement('div'); roofBox.className = 'goods';
+  for (const color in ROOF_NAMES) {
     const b = document.createElement('button');
-    picture(b, spriteCanvas(BOTTLE, 3), `${RULES.bottleCaps[GS.bottleLv + 1]}個入りの小びん`, bottlePrice);
-    b.dataset.bottle = '1';
-    b.onclick = () => { if (upgradeBottle()) { saveGame(); refreshUI(); } };
-    box.appendChild(b);
-    m.append(h, box);
+    picture(b, spriteCanvas(roofMini(color), 1), ROOF_NAMES[color], RULES.roofPrice);
+    b.dataset.roof = color;
+    if (color === GS.roof) { b.disabled = true; b.querySelector('.gp').textContent = '✓'; }
+    b.onclick = () => placeRoof(color);
+    roofBox.appendChild(b);
   }
+  m.append(roofHead, roofBox);
   const left = furnitureLeft();
   for (let n = 1; n <= GS.storeys; n++) {
     const keys = left.filter(k => FURNITURE[k].floor === n);
@@ -4467,11 +4721,13 @@ function placeFurniture(key) {
   saveGame(); refreshUI();
 }
 const HELP = [
-  '波打ち際に光るシーグラスをタップして集めます。閉じている間も、小びんに少したまります。',
+  '波打ち際に光るシーグラスをタップして集めます。',
   '集めたシーグラスで塔を建て増しします。階が増えると動物がやってきます。',
-  '「おみせ」で家具を買うと、部屋に置かれます。動物たちも使います。小びんを大きくすると、閉じている間にたくさんたまります。',
+  '「おみせ」で家具を買うと、部屋に置かれます。動物たちも使います。屋根の色も何度でも変えられます。',
   'プレゼント付きの風船が流れてきたら、タップしましょう。浜に落ちたプレゼントを開くと、シーグラスがたくさん出てきます。',
   '動物をタップすると、おやつやおもちゃをあげられます。なつくと新しいしぐさを見せてくれます。',
+  'おなかがすくと、動物はあまり動かなくなり、やがて眠ってしまいます。おやつをあげると元気になります。',
+  '船や海がめ、カニ、虫、かもめ、くらげ、魚もタップしてみましょう。',
   '動物たちは、はしごで屋根や浜辺にも出かけます。',
   '3階まで建ったら、窓辺におやつを置きましょう。次に開いたとき、新しい動物が来ているかもしれません。',
   '進み具合はこのブラウザの中に自動で保存されます。',
@@ -4480,7 +4736,7 @@ function renderHelp() {
   const m = UI.help;
   m.classList.toggle('on', helpOpen);
   if (!helpOpen) return;
-  m.innerHTML = `<button class="x" aria-label="とじる">×</button><h3>遊び方</h3><ul>${HELP.map(s => `<li>${s}</li>`).join('')}</ul>`;
+  m.innerHTML = `<button class="x" aria-label="とじる">×</button><h3>遊び方</h3><ul>${HELP.concat(analytics() ? ['同意していただいた場合だけ、訪問数を数えるために Google Analytics を使います。メニューから変更できます。'] : []).map(s => `<li>${s}</li>`).join('')}</ul>`;
   m.querySelector('.x').onclick = closeSheets;
 }
 function renderMenu() {
@@ -4489,7 +4745,10 @@ function renderMenu() {
   if (!menuOpen) return;
   m.innerHTML = `<button class="x" aria-label="とじる">×</button><h3>Little Island Tower</h3>
     <button id="hideBtn" class="wide">文字を隠して眺める</button>
+    ${analytics() ? `<button id="gaBtn" class="wide">訪問数の計測：${readConsent() === 'yes' ? 'オン' : 'オフ'}</button>` : ''}
     <button id="resetBtn" class="wide danger">最初からやり直す</button>`;
+  const ga = m.querySelector('#gaBtn');
+  if (ga) ga.onclick = () => setConsent(readConsent() !== 'yes');
   m.querySelector('.x').onclick = () => { menuOpen = false; renderMenu(); };
   m.querySelector('#hideBtn').onclick = () => { menuOpen = false; renderMenu(); UI.ui.classList.add('hide'); };
   const r = m.querySelector('#resetBtn');
@@ -4501,16 +4760,16 @@ function renderMenu() {
 function refreshUI() {
   if (!UI.ui) return;
   UI.glassN.textContent = GS.glass;
-  UI.bottleBtn.hidden = !GS.stash;
-  UI.bottleN.textContent = '+' + GS.stash;
-  UI.shopBtn.hidden = !furnitureLeft().length && !nextBottlePrice();
   if (shopOpen) renderShop();
   for (const b of UI.floors.children) {
     const v = b.dataset.view;
     b.hidden = v !== 'all' && +v > storeys;
     b.classList.toggle('sel', v === String(CAM.name));
   }
-  for (const id in UI.faceBtns) UI.faceBtns[id].classList.toggle('known', present(id));
+  for (const id in UI.faceBtns) {
+    UI.faceBtns[id].classList.toggle('known', present(id));
+    UI.faceBtns[id].classList.toggle('hungry', present(id) && GS.hunger[id] <= 0);
+  }
   let label = '', frac = 1, ready = true;
   if (!towerDone()) {
     const cost = nextFloorCost();
@@ -4527,9 +4786,10 @@ function refreshCardPrices() {
   const c = UI.card, id = cardFor, busy = !!WORLD.react[id] && WORLD.react[id].anim !== 'happy';
   c.querySelectorAll('.good').forEach(b => {
     const key = b.dataset.good, afford = GS.glass >= GOODS[key].price;
-    b.disabled = !afford || busy;
+    b.disabled = !afford || busy || canFeedOnly(id, key);
     b.querySelector('.gp').classList.toggle('no', !afford);
   });
+  showHunger();
 }
 function toInternal(e) {
   const r = display.getBoundingClientRect(), v = CAM.cur;
@@ -4561,14 +4821,43 @@ function hitTest(ix, iy) {
     const A = ACTOR[id], d = Math.hypot(A.sx - ix, A.sy - iy) - 3;
     if (d < bd) { bd = d; best = { kind: 'animal', id }; }
   }
+  return best || hitCritter(ix, iy, reach);
+}
+/* the things that give nothing: only if the finger found nothing else */
+function hitCritter(ix, iy, reach) {
+  let best = null, bd = reach;
+  for (const key in CRIT) {
+    const c = CRIT[key];
+    if (!c.r) continue;
+    const sx = Math.round(c.x), sy = Math.round(c.y);
+    if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+    const g = gId[sy * W + sx];
+    if ((c.gate === 1 && g) || (c.gate === 2 && !isExt[g])) continue;  // behind the tower or a roof
+    const d = Math.hypot(c.x - ix, c.y - iy) - c.r;
+    if (d < bd) { bd = d; best = { kind: 'critter', key }; }
+  }
   return best;
+}
+function tapCritter(key, ix, iy) {
+  if (WORLD.tap[key]) return;
+  const c = CRIT[key], t0 = WORLD.now;
+  if (!key.startsWith('fish')) { WORLD.tap[key] = { t0, dir: c.x >= ix ? 1 : -1 }; return; }
+  for (const k of FISH_KEYS) {        // everyone close by takes the hint
+    const f = CRIT[k];
+    if (!f || !f.r || WORLD.tap[k] || (k !== key && Math.hypot(f.x - c.x, f.y - c.y) > 46)) continue;
+    const a = Math.atan2(f.y - iy, f.x - ix);
+    WORLD.tap[k] = { t0, dx: Math.cos(a) * 64, dy: Math.sin(a) * 40 };
+  }
 }
 function onCanvasTap(e) {
   if (growing) return;
   if (menuOpen || shopOpen || helpOpen) { closeSheets(); return; }
   const [ix, iy] = toInternal(e), hit = hitTest(ix, iy);
   if (!hit) { closeCard(); return; }
-  if (hit.kind === 'balloon') {
+  if (hit.kind === 'critter') {
+    closeCard();
+    tapCritter(hit.key, ix, iy);
+  } else if (hit.kind === 'balloon') {
     if (catchBalloon()) { saveGame(); refreshUI(); }
   } else if (hit.kind === 'present') {
     const s = SLOTS[GS.presents[hit.n].slot], v = openPresent(hit.n);
@@ -4592,7 +4881,8 @@ function resetGame() {
   try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* the store is blocked: the new game just won't persist */ }
   GS = newState();
   FLOAT = null; HILITE = null;
-  FALLING.length = LOOSE.length = BURSTS.length = 0;
+  FALLING.length = LOOSE.length = BURSTS.length = SPLASHES.length = 0;
+  WORLD.tap = {}; WORLD.glow = -1; unpicked = 0;
   for (let i = 0; i < 3; i++) spawnGlass();
   GS.lastSeen = nowMs();
   storeys = 1;
@@ -4600,6 +4890,72 @@ function resetGame() {
   pushWorld(); rebake();
   closeSheets(); setView('all');
   saveGame(); refreshUI();
+}
+/* ── coming back from the background ──────────────────────────────────────
+   A phone's browser may throw away a canvas's pixels while the page is hidden.
+   What's redrawn every frame survives; what was baked once (sky, tower, island) doesn't. */
+const PICTURE = { bad: false, repaints: 0, timer: 0 };
+function pictureOk() {
+  if (PICTURE.bad) return false;
+  try {
+    const base = LAYER.base.getContext('2d').getImageData(0, 0, W, H).data, sky = LAYER.sky.getContext('2d').getImageData(0, 0, W, H).data;
+    for (let i = 0; i < N; i += 997) {
+      const j = i * 4;
+      if (sky[j + 3] !== 255) return false;
+      const v = baseIdx[i], p = PAL_RGB[v];
+      if (v && (base[j + 3] !== 255 || base[j] !== p[0] || base[j + 1] !== p[1] || base[j + 2] !== p[2])) return false;
+    }
+    for (const g of [dctx, fctx]) {
+      const c = g.getImageData(g === dctx ? DW >> 1 : W >> 1, 0, 1, 1).data;
+      if (c[0] + c[1] + c[2] === 0) return false;     // nothing here is ever pure black
+    }
+    return true;
+  } catch (e) { return false; }
+}
+function restorePicture() {
+  PICTURE.repaints++;
+  HILITE = null;
+  fctx.imageSmoothingEnabled = dctx.imageSmoothingEnabled = false;
+  buildSky();
+  rebake();
+  layout();
+  for (const [c, s] of UI.icons) paintSprite(c, s);
+  if (cardFor) renderCard();
+  if (shopOpen) renderShop();
+}
+function showReload(on) { UI.reloadBox.classList.toggle('on', on); }
+function settlePicture(tries) {
+  renderFrame(clock);
+  if (pictureOk()) { showReload(false); return; }
+  if (!tries) { showReload(true); return; }
+  // the browser may still be getting its canvases back
+  clearTimeout(PICTURE.timer);
+  PICTURE.timer = setTimeout(() => { restorePicture(); settlePicture(tries - 1); }, 1000);
+}
+function returnToPage(sec) {
+  if (sec >= RULES.repaintAfter || !pictureOk()) restorePicture();
+  settlePicture(1);
+}
+/* ── counting visits, only for those who agreed; only the public page has any of this ── */
+const CONSENT_KEY = 'summer-tower-analytics';
+const analytics = () => window.__analytics || null;
+function readConsent() { try { return localStorage.getItem(CONSENT_KEY); } catch (e) { return null; } }
+function setConsent(yes) {
+  try { localStorage.setItem(CONSENT_KEY, yes ? 'yes' : 'no'); } catch (e) { /* blocked: it asks again next time */ }
+  UI.consent.classList.remove('on');
+  try { if (yes) analytics().start(); else analytics().stop(); } catch (e) { /* the game doesn't depend on it */ }
+  renderMenu(); renderHelp();
+}
+function startAnalytics() {
+  if (!analytics()) return;
+  const said = readConsent();
+  if (said === 'yes') { try { analytics().start(); } catch (e) { /* the game doesn't depend on it */ } return; }
+  if (said) return;
+  UI.consent.innerHTML = `<p>訪問数を数えるために、Google Analytics（Cookie を使います）を使ってもよいですか？</p>
+    <div class="goods"><button class="wide" id="gaYes">いいよ</button><button class="wide" id="gaNo">使わない</button></div>`;
+  UI.consent.querySelector('#gaYes').onclick = () => setConsent(true);
+  UI.consent.querySelector('#gaNo').onclick = () => setConsent(false);
+  UI.consent.classList.add('on');
 }
 /* an absence, whether a closed page or a long-hidden tab */
 function comeBack() {
@@ -4644,12 +5000,20 @@ function gameStart() {
   buildUI();
   if (fresh) saveGame();
   else comeBack();
+  startAnalytics();
+  $('reloadBtn').onclick = () => { saveGame(); location.reload(); };
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { hiddenAt = nowMs(); saveGame(); }
-    else if (hiddenAt && nowMs() - hiddenAt >= RULES.resumeAfter * 1000) comeBack();
+    if (document.hidden) { hiddenAt = nowMs(); saveGame(); return; }
+    const away = hiddenAt ? (nowMs() - hiddenAt) / 1000 : 0;
+    hiddenAt = 0;
+    returnToPage(away);
+    if (away >= RULES.resumeAfter) comeBack();
   });
   window.addEventListener('pagehide', saveGame);
+  window.addEventListener('pageshow', e => { if (e.persisted) returnToPage(RULES.repaintAfter); });
+  document.addEventListener('resume', () => returnToPage(RULES.repaintAfter));
+  for (const c of [display, frame, dynCanvas]) c.addEventListener('contextrestored', () => { if (!document.hidden) returnToPage(RULES.repaintAfter); });
 }
 const GAME = {
   state: () => JSON.parse(JSON.stringify(GS)),
@@ -4663,9 +5027,15 @@ const GAME = {
   buy: (id, good) => { delete WORLD.react[id]; const ok = buyFor(id, good); delete WORLD.react[id]; if (UI.ui) refreshUI(); return ok; },
   grow: () => { const ok = growNow(); pushWorld(); if (UI.ui) refreshUI(); return ok; },
   sill: placeSill,
-  bottle: () => { const ok = upgradeBottle(); if (UI.ui) refreshUI(); return ok; },
-  bottleCap,
-  fillBottle: n => { GS.stash = n; },
+  roof: color => { const ok = changeRoof(color); if (UI.ui) refreshUI(); return ok; },
+  setHunger: (id, v) => { GS.hunger[id] = v; if (UI.ui) refreshUI(); },
+  feedAll: () => { for (const k in GS.hunger) GS.hunger[k] = 1; },
+  isAsleep, tier: id => BLOCK_TIER[id], setTiers: o => { Object.assign(BLOCK_TIER, o); },
+  crit: key => CRIT[key] && { ...CRIT[key] }, tapped: () => Object.keys(WORLD.tap), clearTaps: () => { WORLD.tap = {}; },
+  glow: () => WORLD.glow, splashes: () => SPLASHES.length,
+  breakPicture: () => { for (const c of [LAYER.base, LAYER.sky]) c.getContext('2d').clearRect(0, 0, W, H); fctx.fillStyle = '#000'; fctx.fillRect(0, 0, W, H); },
+  pictureOk, returnToPage, repaints: () => PICTURE.repaints, forceBadPicture: on => { PICTURE.bad = on; },
+  shiftClock: sec => { clockShift += sec * 1000; },
   balloon: () => { const b = balloonAt(); return b && [b[0], b[1] - 22]; },
   launch: launchBalloon,
   catchBalloon,
