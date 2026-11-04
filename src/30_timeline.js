@@ -627,13 +627,15 @@ const SCRIPTS = {
 const SCRIPT_NAMES = Object.keys(SCRIPTS);
 const SCRIPT_WEIGHTS = [['showcase', 1], ['crab', 2], ['boat', 2], ['rainbow', 2], ['palm', 2], ['roof', 2], ['beach', 2], ['play', 1], ['perch', 1], ['snack', 1], ['quiet', 1]];
 
-/* face: 0 SE, 1 SW, 2 NE, 3 NW. Poses keep the facing of the walk before them. */
+/* face: 0 SE, 1 SW, 2 NE, 3 NW. Poses keep the facing of the walk before them.
+   head: 1 toward the viewer, -1 away, 0 across. A walk along a floor axis stays "across". */
 function assignFaces(segs) {
   let face = 0;
   for (const s of segs) {
-    const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y;
+    const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y, across = dx - dy, down = (dx + dy) / 2;
     if (dx || dy) face = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 0 : 3) : (dy >= 0 ? 1 : 2);
     s.face = face;
+    s.head = Math.abs(down) > Math.abs(across) * .75 ? Math.sign(down) : 0;
   }
 }
 function compileBlock(name, seed) {
@@ -697,11 +699,11 @@ function findSeg(segs, t) {
   return segs[lo];
 }
 const ACTOR = {};
-ACTOR_IDS.forEach(id => { ACTOR[id] = { id, x: 0, y: 0, z: 0, anim: '', face: 0, u: 0, local: 0, moving: false, o: null, sx: 0, sy: 0, h: 14 }; });
+ACTOR_IDS.forEach(id => { ACTOR[id] = { id, x: 0, y: 0, z: 0, anim: '', face: 0, head: 0, u: 0, local: 0, moving: false, o: null, sx: 0, sy: 0, h: 14 }; });
 function sampleActor(A, segs, t) {
   const s = findSeg(segs, t);
   const u = clamp((t - s.t0) / Math.max(1e-6, s.t1 - s.t0), 0, 1);
-  A.anim = s.anim; A.o = s.o; A.u = u; A.local = t - s.t0; A.face = s.face;
+  A.anim = s.anim; A.o = s.o; A.u = u; A.local = t - s.t0; A.face = s.face; A.head = s.head;
   if (s.kind === 0) {
     A.x = s.a.x; A.y = s.a.y; A.z = s.a.z; A.moving = false;
     if (s.o && s.o.to) { // a belly slide: a pose with somewhere to get to

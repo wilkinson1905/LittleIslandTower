@@ -125,11 +125,18 @@ D.tilt = [0, 1, 2, 3].map(i => dogFrame(4, i, 'tilt', { hy: -1 }));
 D.sniff = [0, 1].map(i => dogFrame(4, i, 'sniff', { hy: 3, hx: 1, bow: 1 }));
 D.stretch = [dogFrame(4, 1, 'blink', { bow: 2, hy: 2 }), dogFrame(4, 3, 'blink', { bow: 3, hy: 3 })];
 /* seen from behind: at a window, or on the ladder */
-D.back = [0, 1].map(n => mk([
+const dogBack = (n, legs) => mk([
   '...oooo....', '.ooBBBBoo..', 'oEEBBBBEEo.', 'oEFEBcEFEo.', 'oEFEBBEFEo.', 'oEfFBBFfEo.', 'oEFoBBoEFo.', '.oEoBBoEo..',
-  '..oBBcBBo..', '.oBBBBBBBo.', n ? '.oBcBBBBBooo' : '.oBcBBBBBo.o', n ? '.oBBBBBcBoGGo' : '.oBBBBBcBooGo', '.oBBBBBBBoFGo', '.oUUoooUUoFo.', '..oo...oo.o..',
-], DM, 5, 14));
-const dogSit = (head, tail) => {
+  '..oBBcBBo..', '.oBBBBBBBo.', n ? '.oBcBBBBBooo' : '.oBcBBBBBo.o', n ? '.oBBBBBcBoGGo' : '.oBBBBBcBooGo', '.oBBBBBBBoFGo', ...legs,
+], DM, 5, 11 + legs.length);
+D.back = [0, 1].map(n => dogBack(n, ['.oUUoooUUoFo.', '..oo...oo.o..']));
+D.walkBack = [
+  dogBack(0, ['.oUUoBoBBoFo.', '.oUUo.ooo.o..', '..oo.........']),
+  dogBack(1, ['.oUUoooUUoFo.', '..oo...oo.o..', '.............']),
+  dogBack(0, ['.oBBoBoUUoFo.', '..ooo.oUUoo..', '.......oo....']),
+  dogBack(1, ['.oUUoooUUoFo.', '..oo...oo.o..', '.............']),
+];
+const dogSit = (head, tail, legs = ['..oBBBTBBBBo.', '..oUUoBBoUUo.', '..oooo..oooo.']) => {
   const headRows = {
     open:  ['....ooooo....', '..ooBBDBBoo..', '.oEBTBBBTBEo.', 'oEFBwBBBwBFEo', 'oEFBeBTBeBFEo', 'oEfBTTTTTBfEo', 'oEFoTTNTToFEo', '.oEooTTTooEo.', '..oo.ooo.oo..'],
     blink: ['....ooooo....', '..ooBBDBBoo..', '.oEBTBBBTBEo.', 'oEFBBBBBBBFEo', 'oEFBxBTBxBFEo', 'oEfBTTTTTBfEo', 'oEFoTTNTToFEo', '.oEooTTTooEo.', '..oo.ooo.oo..'],
@@ -141,13 +148,20 @@ const dogSit = (head, tail) => {
     ['..............oo', '...........ooGGo', '..........oFFGGo', '..........oFFFo.'],
     ['................', '................', '..........oFFGGo', '..........oFFGGo'],
   ][tail];
-  const body = ['...oBBDBBBo..', '..oBBTTTBBBo.', '..oBDBTBBdBo.', '..oBBBTBBBBo.', '..oUUoBBoUUo.', '..oooo..oooo.'];
-  const s = blank(16, 17, 6, 15);
+  const body = ['...oBBDBBBo..', '..oBBTTTBBBo.', '..oBDBTBBdBo.', ...legs];
+  const s = blank(16, 14 + legs.length, 6, 15);
   stamp(s, mk(tailRows, DM, 0, 0), 0, 8);
   stamp(s, mk(body, DM, 0, 0), 0, 9);
   stamp(s, mk(headRows, DM, 0, 0), 0, 1);
   return s;
 };
+/* trotting toward you: one front paw reaches down, then the other */
+D.walkFront = [
+  dogSit('open', 0, ['..oBBBTBBBBo.', '..oUUoBBobbo.', '..oUUo.oooo..', '..oooo.......']),
+  dogSit('open', 1),
+  dogSit('open', 2, ['..oBBBTBBBBo.', '..obboBBoUUo.', '...oooo.oUUo.', '........oooo.']),
+  dogSit('open', 1),
+];
 D.sit = [dogSit('open', 0), dogSit('open', 1), dogSit('open', 2), dogSit('open', 1)];
 D.sitBlink = dogSit('blink', 0);
 D.sitTilt = [dogSit('tilt', 0), dogSit('tilt', 1), dogSit('tilt', 2), dogSit('tilt', 1)];
@@ -258,6 +272,20 @@ function catWalk(phase, stance = 0) {
   return trim(out);
 }
 K.walk = [0, 1, 2, 3].map(i => catWalk(i));
+const catFrontLegs = [
+  ['.oWWodoGgo.', '.oWWo.ooo..', '..oo.......'],
+  ['.oWWodoWWo.', '..oo.o.oo..', '...........'],
+  ['.ogGodoWWo.', '..ooo.oWWo.', '.......oo..'],
+  ['.oWWodoWWo.', '..oo.o.oo..', '...........'],
+];
+K.walkFront = catFrontLegs.map(legs => catAt([...catHead('open'), '..oGWWWGo..', '.oGdWWWdGo.', '.oGdGWGdGo.', ...legs]));
+const catBackLegs = [
+  ['.oggoGoGgo.', '.oggo.ooo..', '..oo.......'],
+  ['.oggoooggo.', '..oo...oo..', '...........'],
+  ['.oGgoGoggo.', '..ooo.oggo.', '.......oo..'],
+  ['.oggoooggo.', '..oo...oo..', '...........'],
+];
+K.walkBack = catBackLegs.map(legs => catAt(['.o.......o.', 'oGo.....oGo', 'oGGoooooGGo', 'oGGGGGGGGGo', 'oGGGGGGGGGo', 'oGGGGGGGGgo', 'dgGGGGGGggd', '.odGGGGgdo.', '..oGGGGgo..', '.oGGGGGGgo.', '.oGGGGGggo.', ...legs]));
 K.leap = catWalk(0, 2);
 K.stretch = [
   mk(['...........o...o.', '..........oGo.oGo', 'ooo.......oGGGGGo', 'oGGoo.....oGxGxGo', '.ogGGooooooGGnGGo', '..oGGGdGGGGGWWGo.', '...oGGdGGdGGWWo..', '...oWooWooWWWWo..', '...oo.oo..oooo...'], CM, 8, 8),
@@ -454,8 +482,8 @@ const ITEM = {
 /* ── sprite sheet for review ──────────────────────────────────────────── */
 function drawSheet() {
   const items = [
-    K.sit, K.sitBlink, K.sitHappy, ...K.bat, ...K.groom, K.back[0], ...K.walk, K.leap, K.stretch[0], ...K.curl.slice(0, 2), ...K.eat, ...K.roll,
-    ...D.walk, ...D.back, D.stand[0], D.tilt[0], D.sniff[0], D.stretch[0], ...D.flop, D.sit[0], D.sitBlink, D.sitTilt[0], D.sitHappy[0], ...D.curl,
+    K.sit, K.sitBlink, K.sitHappy, ...K.bat, ...K.groom, K.back[0], ...K.walk, ...K.walkFront, ...K.walkBack, K.leap, K.stretch[0], ...K.curl.slice(0, 2), ...K.eat, ...K.roll,
+    ...D.walk, ...D.walkFront, ...D.walkBack, ...D.back, D.stand[0], D.tilt[0], D.sniff[0], D.stretch[0], ...D.flop, D.sit[0], D.sitBlink, D.sitTilt[0], D.sitHappy[0], ...D.curl,
     R.sit, R.blink, R.happy, R.earsDown, ...R.eat, ...R.wash, ...R.hopSE, ...R.hopNE, ...R.loaf,
     ...S.front, S.blink, S.happy[0], S.back[0],
     Y.fly[0], Y.fly[1], Y.fly[2], Y.flyBlink, Y.sit, Y.happy[0], Y.puff, Y.back[0], ...Y.sleep,

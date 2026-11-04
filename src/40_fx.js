@@ -776,9 +776,11 @@ const POSE = {
     SHOT.h = 14; SHOT.tail = null;
     const ear = cyc(t, 15, .2), earS = ear < .012 ? 1 : ear > .5 && ear < .512 ? 2 : 0;
     switch (an) {
-      case 'walk': SHOT.s = K.walk[fr(t, 10, 4)]; SHOT.flip = side; break;
+      case 'walk':
+        if (A.head) { SHOT.s = (A.head > 0 ? K.walkFront : K.walkBack)[fr(t, 10, 4)]; SHOT.tail = 'sit'; break; }
+        SHOT.s = K.walk[fr(t, 10, 4)]; SHOT.flip = side; break;
       case 'leap': case 'land': case 'crouch': SHOT.s = K.leap; SHOT.flip = side; break;
-      case 'climb': SHOT.s = K.back[0]; SHOT.ox = fr(t, 10, 2); break;
+      case 'climb': SHOT.s = K.walkBack[fr(t, 10, 4)]; break;
       case 'gaze': SHOT.s = K.back[earS]; SHOT.tail = 'window'; break;
       case 'nose': SHOT.s = K.walk[0]; SHOT.flip = !!(A.o && A.o.flip); break;
       case 'tease': SHOT.s = A.local % 1 < .25 ? K.bat[0] : A.local % 1 < .5 ? K.bat[1] : K.sitWide; SHOT.flip = true; SHOT.tail = 'sit'; break;
@@ -806,11 +808,13 @@ const POSE = {
     const tail = fr(t, 9, 4);
     SHOT.h = 16;
     switch (an) {
-      case 'walk': case 'land': SHOT.s = D.walk[fr(t, 13, 4)]; SHOT.flip = side; break;
+      case 'walk': case 'land':
+        if (an === 'walk' && A.head) { SHOT.s = (A.head > 0 ? D.walkFront : D.walkBack)[fr(t, 13, 4)]; break; }
+        SHOT.s = D.walk[fr(t, 13, 4)]; SHOT.flip = side; break;
       case 'stand': SHOT.s = D.stand[fr(t, 7, 4)]; SHOT.flip = true; break;
       case 'stretch': SHOT.s = D.stretch[A.local > .7 && A.local < 1.9 ? 1 : 0]; SHOT.flip = true; break;
       case 'sniff': case 'eat': SHOT.s = D.sniff[fr(t, 5, 2)]; break;
-      case 'climb': SHOT.s = D.back[fr(t, 13, 2)]; SHOT.ox = fr(t, 13, 2); break;
+      case 'climb': SHOT.s = D.walkBack[fr(t, 13, 4)]; break;
       case 'gaze': SHOT.s = D.back[fr(t, 7, 2)]; break;
       case 'nose': SHOT.s = D.stand[fr(t, 7, 4)]; SHOT.flip = !!(A.o && A.o.flip); break;
       case 'tease': case 'bark': SHOT.s = D.stretch[fr(t, 4, 2)]; SHOT.flip = true; SHOT.oz = fr(t, 4, 2) * 2; break;

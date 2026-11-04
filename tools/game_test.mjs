@@ -92,6 +92,8 @@ check('all 23 pictures have something in them', art.length === 0, art.length ? J
 check('roof colours come first in the shop', await ev(`document.querySelector('#shop .good').dataset.roof === 'blue' && document.querySelectorAll('#shop .good[data-roof]').length === 4`), 'four colours at the top');
 check('the colour it already has cannot be bought', await ev(`document.querySelector('#shop .good[data-roof="blue"]').disabled`), 'blue is greyed out');
 const beforeRug = await ev('dollhouse.game.state()');
+await ev(`[...document.querySelectorAll('#floors button')].find(b => b.textContent === '全体').click(); 1`);
+const viewBeforeRug = String(await ev('dollhouse.game.view()'));
 await tapEl('#shop .good[data-furn="rug1"]');
 const afterRug = await ev('dollhouse.game.state()');
 check('buying furniture costs glass', afterRug.glass === beforeRug.glass - 8 && afterRug.furn.includes('rug1'), `glass ${beforeRug.glass} to ${afterRug.glass}`);
@@ -102,6 +104,7 @@ check('the new furniture glows', lit && lit.key === 'rug1' && lit.px > 100 && li
 check('the camera goes to its floor', await ev('dollhouse.game.view()') === '1' || await ev('dollhouse.game.view()') === 1, String(await ev('dollhouse.game.view()')));
 await sleep(3800);
 check('the glow stops by itself', await ev('dollhouse.game.highlight()') === null, 'gone after about 3 s');
+check('the camera goes back to where it was', String(await ev('dollhouse.game.view()')) === 'all' && viewBeforeRug === 'all', viewBeforeRug);
 
 check('it cannot be bought twice', !(await ev(`dollhouse.game.furnish('rug1')`)), 'refused');
 check('nor for a floor not built', !(await ev(`dollhouse.game.furnish('oven')`)), 'refused');

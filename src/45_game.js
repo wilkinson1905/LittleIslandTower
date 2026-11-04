@@ -172,17 +172,22 @@ const BALLOON_SPR = (() => {
   rows.push('.........ooo.........', '........oPPPo........', '.........ooo.........');
   return mk(rows, 'o:ter3 P:ter6 p:ter5 W:cld7', rx, rows.length - 1);
 })();
+/* a box seen from the corner, like everything else on the island */
 const PRESENT_SPR = mk([
   '....rr.rr....',
   '.....rrr.....',
-  'ooooooroooooo',
-  'oBBBBBrBBBBBo',
-  'oBBBBBrBBBBbo',
-  'oBBBBBrBBBbbo',
-  'oBBBBBrBBbbbo',
-  'oBBBBBrBbbbbo',
-  'ooooooooooooo',
-], 'o:rose2 r:amb7 B:pin6 b:pin5', 6, 8);
+  '......r......',
+  '....ooToo....',
+  '..oorrTrroo..',
+  'ooTTTrrrTTToo',
+  'oBTrrTTTrrTbo',
+  'oBBRTTTTTRbbo',
+  'oBBRBBTbbRbbo',
+  'oBBRBBBbbRbbo',
+  '.ooRBBBbbRoo.',
+  '...ooBBboo...',
+  '.....ooo.....',
+], 'o:rose2 r:amb7 R:amb5 T:pin6 B:pin5 b:pin3', 6, 11);
 function drawGameGround(t) {
   for (const p of WORLD.presents) {
     if (FALLING.some(f => f.slot === p.slot)) continue;
@@ -422,8 +427,7 @@ function changeRoof(color) {
 function placeRoof(color) {
   if (!changeRoof(color)) return;
   closeSheets();
-  setView('all');
-  startHighlight('roof');
+  showBought('roof', 'all');
   const top = OY + 56 - TOP_Z(storeys);
   for (let i = 0; i < 12; i++) spark(180 + hsh(i, 175) * 110 - 55, top - hsh(i, 176) * 90, 'amb7', 13, 1);
   saveGame(); refreshUI();
@@ -491,7 +495,7 @@ function artCanvas(a, box = 46) {
   return c;
 }
 
-/* ── a new piece of furniture glows, once ─────────────────────────────── */
+/* ── a new piece of furniture glows, once, then the camera goes back ───── */
 let HILITE = null;
 const hiMask = new Uint8Array(N);
 function ringOf(list) {
@@ -511,31 +515,23 @@ function movingPixels(key, t) {
   for (let i = 0; i < N; i++) if (dyn[i]) list.push(i);
   return list;
 }
-function startHighlight(key) {
-  const list = [], roofId = key === 'roof' ? NAMED['roof' + storeys].id : -1;
+function showBought(key, view) {
+  const back = HILITE ? HILITE.back : CAM.name, roofId = key === 'roof' ? NAMED['roof' + storeys].id : -1, list = [];
+  setView(view);
   for (let i = 0; i < N; i++) { const id = gId[i]; if (id && (id === roofId || OBJ[id].o.furn === key)) list.push(i); }
   const moving = MOVING_ART[key] ? movingPixels(key, 0) : [];
-  let x0 = W, y0 = H, x1 = 0, y1 = 0;
-  for (const l of [list, moving]) for (const i of l) { const sx = i % W, sy = i / W | 0; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
-  const pad = SWAYS.has(key) ? 6 : 1;
-  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(W - 1, x1 + pad); y1 = Math.min(H - 1, y1 + pad);
-  const w = x1 - x0 + 1, h = y1 - y0 + 1, cut = makeCanvas(w, h), g = cut.getContext('2d'), im = g.createImageData(w, h), d = new Uint32Array(im.data.buffer);
-  for (const i of list) d[((i / W | 0) - y0) * w + i % W - x0] = PAL32[baseIdx[i]];
-  g.putImageData(im, 0, 0);
-  HILITE = { key, t0: WORLD.now, cut, x: x0, y: y0, w, h, list, ...(SWAYS.has(key) ? {} : ringOf(list.concat(moving))) };
+  HILITE = { key, t0: WORLD.now, list, back, view, ...(SWAYS.has(key) ? {} : ringOf(list.concat(moving))) };
 }
 function drawHighlight(t) {
   const L = HILITE;
   if (!L) return;
   const e = WORLD.now - L.t0, on = RULES.highlightFor;
-  if (e < 0 || e >= on + .4) { HILITE = null; return; }
+  if (e < 0 || e >= on + .4) {
+    HILITE = null;
+    if (CAM.name === L.view) setView(L.back);     // unless the player has already looked elsewhere
+    return;
+  }
   const a = Math.min(1, e / .3) * (1 - smooth((e - on) / .4));
-  fctx.fillStyle = '#16204a';
-  fctx.globalAlpha = .42 * a;
-  fctx.fillRect(0, 0, W, H);
-  fctx.globalAlpha = a;
-  fctx.drawImage(L.cut, L.x, L.y);
-  fctx.drawImage(dynCanvas, L.x, L.y, L.w, L.h, L.x, L.y, L.w, L.h);   // whatever's in front stays in front
   const { ring, ring2 } = SWAYS.has(L.key) ? ringOf(movingPixels(L.key, t)) : L;
   const pulse = .68 + .32 * Math.sin(e * 6);
   fctx.fillStyle = '#ffe27a';
@@ -775,8 +771,7 @@ function placeFurniture(key) {
   if (!furnish(key)) return;
   const f = FURNITURE[key], sx = iX(f.at[0], f.at[1]), sy = iY(f.at[0], f.at[1], f.at[2]);
   closeSheets();
-  setView(f.floor);
-  startHighlight(key);
+  showBought(key, f.floor);
   for (let i = 0; i < 7; i++) spark(sx + hsh(i, 173) * 24 - 12, sy + hsh(i, 174) * 18 - 9, 'amb7', 11, .9);
   // whoever lives on this floor comes over to see
   for (const id of ACTOR_IDS) if (present(id) && inOwnRoom(ACTOR[id]) && FLOOR_OF[id] === FLOOR_Z[f.floor - 1]) petAnimal(id);
@@ -976,7 +971,6 @@ function pictureOk() {
 }
 function restorePicture() {
   PICTURE.repaints++;
-  HILITE = null;
   fctx.imageSmoothingEnabled = dctx.imageSmoothingEnabled = false;
   buildSky();
   rebake();
