@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>夏の塔の箱庭</title>
+<title>Little Island Tower</title>
 <style>
   html, body { margin: 0; height: 100%; background: #0f5c9c; overflow: hidden; overscroll-behavior: none; }
   body { display: flex; align-items: center; justify-content: center; }
@@ -16,12 +16,12 @@
   #ui[hidden] { display: none; }
   #ui button { font: inherit; color: inherit; border: 0; cursor: pointer; pointer-events: auto; }
   #ui button[hidden] { display: none; }
-  #ui small { display: block; font-size: calc(var(--u) * 10); font-weight: 400; opacity: .8; }
 
   #topbar { position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 8); top: calc(var(--u) * 8); display: flex; gap: calc(var(--u) * 6); align-items: center; }
   .pill { display: flex; align-items: center; gap: calc(var(--u) * 5); height: calc(var(--u) * 30); padding: 0 calc(var(--u) * 10); background: #fff8e7; border-radius: calc(var(--u) * 15); box-shadow: 0 calc(var(--u) * 2) 0 #d9c49a; font-weight: 700; font-size: calc(var(--u) * 14); }
   #bottleBtn { background: #e2f6fb; box-shadow: 0 calc(var(--u) * 2) 0 #9fd3e2; }
-  #menuBtn { margin-left: auto; width: calc(var(--u) * 30); padding: 0; justify-content: center; }
+  #shopBtn { margin-left: auto; font-size: calc(var(--u) * 12); }
+  #helpBtn, #menuBtn { width: calc(var(--u) * 30); padding: 0; justify-content: center; }
 
   #floors { position: absolute; right: calc(var(--u) * 8); top: calc(var(--u) * 46); display: flex; flex-direction: column; gap: calc(var(--u) * 5); }
   #floors button { width: calc(var(--u) * 40); height: calc(var(--u) * 30); padding: 0; background: #fff8e7cc; border-radius: calc(var(--u) * 9); font-size: calc(var(--u) * 11); }
@@ -42,11 +42,13 @@
   #toast { position: absolute; left: calc(var(--u) * 24); right: calc(var(--u) * 24); top: calc(var(--u) * 46); padding: calc(var(--u) * 8) calc(var(--u) * 12); margin-right: calc(var(--u) * 26); background: #fff8e7f2; border-radius: calc(var(--u) * 12); box-shadow: 0 calc(var(--u) * 2) 0 #d9c49a; text-align: center; opacity: 0; transform: translateY(calc(var(--u) * -6)); transition: opacity .25s, transform .25s; }
   #toast.on { opacity: 1; transform: none; }
 
-  .sheet { position: absolute; left: calc(var(--u) * 6); right: calc(var(--u) * 6); bottom: calc(var(--u) * 62); padding: calc(var(--u) * 12); background: #fff8e7; border-radius: calc(var(--u) * 16); box-shadow: 0 calc(var(--u) * 3) 0 #d9c49a; pointer-events: auto; display: none; }
+  .sheet { position: absolute; left: calc(var(--u) * 6); right: calc(var(--u) * 6); bottom: calc(var(--u) * 62); max-height: calc(var(--u) * 520); overflow-y: auto; padding: calc(var(--u) * 12); background: #fff8e7; border-radius: calc(var(--u) * 16); box-shadow: 0 calc(var(--u) * 3) 0 #d9c49a; pointer-events: auto; display: none; }
   .sheet.on { display: block; }
   .sheet.top { top: calc(var(--u) * 44); bottom: auto; }
   .sheet h3 { margin: 0 0 calc(var(--u) * 6); font-size: calc(var(--u) * 15); }
-  .sheet .note { margin: calc(var(--u) * 6) 0; font-size: calc(var(--u) * 11); }
+  .sheet .goods + h3 { margin-top: calc(var(--u) * 12); }
+  .sheet ul { margin: 0; padding: 0 0 0 calc(var(--u) * 16); }
+  .sheet li { margin: calc(var(--u) * 6) 0; font-size: calc(var(--u) * 12); }
   .sheet .x { position: absolute; right: calc(var(--u) * 6); top: calc(var(--u) * 6); width: calc(var(--u) * 32); height: calc(var(--u) * 32); padding: 0; background: transparent; font-size: calc(var(--u) * 18); }
   .head { display: flex; align-items: center; gap: calc(var(--u) * 10); }
   .head b { font-size: calc(var(--u) * 15); }
@@ -57,13 +59,13 @@
   .hearts i.full { color: #ec7f9d; }
   .hearts i.half { color: #f5bccb; }
   .goods { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 6); }
+  .head + .goods { margin-top: calc(var(--u) * 8); }
   .good { display: flex; align-items: center; gap: calc(var(--u) * 6); min-height: calc(var(--u) * 46); padding: calc(var(--u) * 4) calc(var(--u) * 7); text-align: left; background: #ffefc8; border-radius: calc(var(--u) * 10); }
   .good:disabled { opacity: .55; cursor: default; }
   .good .gi { flex: none; display: flex; width: calc(var(--u) * 22); justify-content: center; }
   .good .gt { flex: 1 1 auto; min-width: 0; font-size: calc(var(--u) * 11); line-height: 1.25; font-weight: 700; }
   .good .gp { flex: none; font-weight: 700; font-size: calc(var(--u) * 13); color: #2b7fae; }
   .good .gp.no { color: #b98a8a; }
-  #ui .good .gp small { display: inline; font-size: calc(var(--u) * 9); margin-left: 1px; }
   .wide { display: block; width: 100%; min-height: calc(var(--u) * 42); margin-top: calc(var(--u) * 6); background: #e2f6fb; border-radius: calc(var(--u) * 10); font-weight: 700; }
   .wide.danger { background: #fbe3df; color: #9c4a3f; }
 
@@ -94,6 +96,8 @@
     <div id="topbar">
       <div class="pill"><span id="glassIcon"></span><span id="glassN">0</span></div>
       <button class="pill" id="bottleBtn" hidden aria-label="小びんを開ける"><span id="bottleIcon"></span><span id="bottleN"></span></button>
+      <button class="pill" id="shopBtn">家具</button>
+      <button class="pill" id="helpBtn" aria-label="遊び方">？</button>
       <button class="pill" id="menuBtn" aria-label="メニュー">≡</button>
     </div>
     <div id="toast"></div>
@@ -103,6 +107,8 @@
       <div id="faces"></div>
     </div>
     <div id="card" class="sheet"></div>
+    <div id="shop" class="sheet"></div>
+    <div id="help" class="sheet"></div>
     <div id="menu" class="sheet"></div>
     <div id="puff"></div>
     <button id="unhide" aria-label="文字を表示する"></button>
@@ -391,14 +397,14 @@ function O(name, aabb, paint, o = {}) {
   const ob = { name, id: OBJ.length, x0: aabb[0], y0: aabb[1], z0: aabb[2], x1: aabb[3], y1: aabb[4], z1: aabb[5], paint, o };
   OBJ.push(ob);
   NAMED[name] = ob;
-  if (o.shadow) SHADOWS.push({ x0: aabb[0], y0: aabb[1], x1: aabb[3], y1: aabb[4], z: aabb[2], level: o.level, only: o.only });
+  if (o.shadow) SHADOWS.push({ x0: aabb[0], y0: aabb[1], x1: aabb[3], y1: aabb[4], z: aabb[2], level: o.level, only: o.only, furn: o.furn });
   return ob;
 }
 const SHADOWS = [];
 const LIGHTS = [];
 function light(x, y, z, hexc, i, rad, zone, o = {}) {
   const v = hex(hexc);
-  LIGHTS.push({ x, y, z, r: (v >> 16 & 255) / 255, g: (v >> 8 & 255) / 255, b: (v & 255) / 255, i, rad, zone, fire: !!o.fire, flat: !!o.flat, level: o.level, only: o.only });
+  LIGHTS.push({ x, y, z, r: (v >> 16 & 255) / 255, g: (v >> 8 & 255) / 255, b: (v & 255) / 255, i, rad, zone, fire: !!o.fire, flat: !!o.flat, level: o.level, only: o.only, furn: o.furn });
 }
 
 /* AABB ordering: returns -1 if a is behind b, 1 if b is behind a, 0 if unknown. */
@@ -453,9 +459,12 @@ function zoneOf(ob, z) {
 const makeCanvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
 
 /* How many storeys the tower has now. Objects with o.level appear from that storey on;
-   objects with o.only exist at exactly that storey, like the roof. */
+   objects with o.only exist at exactly that storey, like the roof; objects with o.furn
+   appear once that piece of furniture has been bought. */
 let storeys = 1;
-const onNow = o => (o.level === undefined || storeys >= o.level) && (o.only === undefined || storeys === o.only);
+const OWNED = { all: true, set: new Set() };
+const own = key => OWNED.all || OWNED.set.has(key);
+const onNow = o => (o.level === undefined || storeys >= o.level) && (o.only === undefined || storeys === o.only) && (o.furn === undefined || own(o.furn));
 function paintAll() {
   gCol.fill(-1); gId.fill(0); gN.fill(0);
   // painted storey by storey: the plan isn't axis-aligned, so boxes alone can't order the walls
@@ -984,12 +993,12 @@ O('doorF1', [-100, -100, Z1, -99, -99, Z1 + 42], () => {
 }, { outline: 0, level: 1, layer: L_WALL(1) + .5 });
 O('doorMat', [62, 20, Z1, 76, 32, Z1 + 1], () => {
   top(62, 20, Z1 + 1, 14, 12, (i, j) => (i === 0 || j === 0 || i === 13 || j === 11) ? C.crm7 : (i + j) % 6 < 3 ? C.sea4 : C.sea5);
-}, { outline: 0, level: 1 });
+}, { outline: 0, level: 1, furn: 'doorMat' });
 
 /* the low shelf of picture books along the back wall */
 O('toyShelf', [-100, -100, Z1, -99, -99, Z1 + 20], () => {
   frontBox(-32, 34, -29, Z1, 20, 6, bookFace(34, 20, 11, ['sea4', 'pin4', 'amb6', 'lef4', 'crm7', 'ter5', 'pin5', 'sea5']), (u, e) => e === 0 ? C.hon7 : C.hon6);
-}, { level: 1, layer: L_BACK(1), outline: .85 });
+}, { level: 1, layer: L_BACK(1), outline: .85, furn: 'shelf1' });
 
 /* the big round rug with a sun in its centre */
 const RUG1 = { x: 56, y: 58, r: 19 };
@@ -1006,24 +1015,24 @@ O('rugF1', [RUG1.x - RUG1.r, RUG1.y - RUG1.r, Z1, RUG1.x + RUG1.r, RUG1.y + RUG1
     if (d > 5.5) return C.crm7;
     return d < 3 ? C.amb7 : C.amb6;
   });
-}, { outline: 0, level: 1 });
+}, { outline: 0, level: 1, furn: 'rug1' });
 
 /* a carpeted cat tree by the left pillar */
 const CATTREE = { x: 43, y: 85, shelfZ: Z1 + 21, topZ: Z1 + 41 };
 O('catTreeBase', [36, 78, Z1, 50, 92, Z1 + 3], () => {
   soft(36, 78, Z1, 14, 14, 3, 'pin', 4);
-}, { shadow: 1, level: 1 });
+}, { shadow: 1, level: 1, furn: 'catTree' });
 O('catTreePost', [41, 83, Z1 + 3, 46, 88, Z1 + 38], () => {
   fy(41, 87, Z1 + 3, 5, 35, (i, k) => k % 3 === 0 ? C.hon3 : (k + i) % 6 < 3 ? C.hon6 : C.hon5);
   fx(45, 83, Z1 + 3, 4, 35, (j, k) => k % 3 === 0 ? C.hon2 : (k + j) % 6 < 3 ? C.hon5 : C.hon4);
-}, { outline: .85, level: 1 });
+}, { outline: .85, level: 1, furn: 'catTree' });
 O('catTreeShelfLow', [34, 80, Z1 + 18, 46, 92, Z1 + 21], () => {
   soft(34, 80, Z1 + 18, 12, 12, 3, 'pin', 5);
-}, { level: 1 });
+}, { level: 1, furn: 'catTree' });
 O('catTreeTop', [36, 78, Z1 + 38, 50, 92, Z1 + 42], () => {
   soft(36, 78, Z1 + 38, 14, 14, 4, 'pin', 4);
   top(39, 81, Z1 + 42, 8, 8, (i, j) => (i - 3.5) ** 2 + (j - 3.5) ** 2 < 14 ? (i + j) % 5 === 0 ? C.pin4 : C.pin6 : -1);
-}, { level: 1 });
+}, { level: 1, furn: 'catTree' });
 
 /* the padded nest the cat naps in */
 const CATBED = { x: 67, y: 91, z: Z1 + 4 };
@@ -1052,7 +1061,7 @@ O('tent', [72, 44, Z1, 93, 65, Z1 + 26], () => {
     return Math.floor((i + 40) / 4) % 2 ? C.sea5 : C.crm7;
   });
   spr(x + 10, y1, Z1 + h, 'p:pin3 q:pin5 s:hon2', ['pq...', 'ppq..', 'pq...', 's....', 's....']);
-}, { level: 1 });
+}, { level: 1, furn: 'tent' });
 
 /* the wicker toy basket, full of balls */
 const BASKET = { x: 86, y: 80 };
@@ -1067,14 +1076,14 @@ O('ballBasket', [BASKET.x - 7, BASKET.y - 7, Z1, BASKET.x + 7, BASKET.y + 7, Z1 
       put(sx0 + s, Math.round(sy0 + arc - k - 2), k === 9 ? C.hon6 : co, x, y, Z1 + k, s > 0 ? NX : NY);
     }
   }
-}, { outline: .8, shadow: 1, level: 1 });
+}, { outline: .8, shadow: 1, level: 1, furn: 'basket' });
 
 /* the wooden blocks, stacked and tumbled */
 O('blocksF1', [38, 22, Z1, 54, 36, Z1 + 14], () => {
   box(42, 26, Z1, 7, 7, 7, { t: C.pin5, l: C.pin3, r: C.pin2 });
   box(48, 23, Z1, 6, 6, 6, { t: C.amb7, l: C.amb5, r: C.amb4 });
   box(43, 27, Z1 + 7, 5, 5, 5, { t: C.sea6, l: C.sea4, r: C.sea3 });
-}, { level: 1 });
+}, { level: 1, furn: 'blocks' });
 
 light(70, 88, Z1 + 40, '#fff4d8', .3, 80, 'G');
 light(30, 80, Z1 + 42, '#d8f0ff', .35, 60, 'G');
@@ -1118,7 +1127,7 @@ O('counterF2', [-100, -100, Z2, -99, -99, Z2 + COUNTER_H], () => {
     if ((c === 6 || c === 7) && k === 8) return C.amb7;
     return C.hon4;
   }, (u, e) => e === 0 ? C.crm7 : C.crm6);
-}, { level: 2, layer: L_BACK(2), outline: .85 });
+}, { level: 2, layer: L_BACK(2), outline: .85, furn: 'counter' });
 
 /* the little brick oven, with a fire behind its door */
 const OVEN = { s: -30, w: 26, t: -25, z: Z2 };
@@ -1132,7 +1141,7 @@ O('ovenF2', [-100, -100, Z2, -99, -99, Z2 + 22], () => {
     if ((i + off) % 4 === 0) return C.ter3;
     return hsh((i + off) >> 2, row, 8) < .5 ? C.ter5 : C.ter6;
   }, (i, e) => (i + e * 3) % 8 === 0 ? C.ter5 : C.ter6);
-}, { level: 2, layer: L_ONBACK(2), outline: .82 });
+}, { level: 2, layer: L_ONBACK(2), outline: .82, furn: 'oven' });
 
 /* pots and jars on the worktop, kept low so the floor above doesn't cut them */
 O('counterTopF2', [-100, -100, Z2 + COUNTER_H, -99, -99, Z2 + COUNTER_H + 10], () => {
@@ -1141,7 +1150,7 @@ O('counterTopF2', [-100, -100, Z2 + COUNTER_H, -99, -99, Z2 + COUNTER_H + 10], (
   at(15, -31, 'o:hon2 a:pin5 b:pin3 c:hon5', ['.ooo.', 'caaac', 'caabc', 'caabc']);
   at(21, -31, 'o:hon2 a:amb6 b:amb4 c:hon5', ['.ooo.', 'caaac', 'caabc', 'caabc', 'caabc']);
   at(27, -31, 'o:hon2 a:lef5 b:lef3 c:hon5', ['.ooo.', 'caaac', 'caabc', 'caabc']);
-}, { outline: 0, level: 2, layer: L_ONBACK(2) + .1 });
+}, { outline: 0, level: 2, layer: L_ONBACK(2) + .1, furn: 'counter' });
 
 /* the round table, set for a feast */
 const TABLE2 = { x: 52, y: 62, r: 13, z: Z2 + 16 };
@@ -1149,7 +1158,7 @@ const tableScr = () => [OX + TABLE2.x - TABLE2.y, OY + ((TABLE2.x + TABLE2.y) >>
 O('tableF2Foot', [47, 57, Z2, 57, 67, Z2 + 13], () => {
   fy(50, 62, Z2 + 2, 4, 11, (i) => i === 0 ? C.hon6 : C.hon3);
   top(46, 57, Z2 + 1, 12, 10, (i, j) => Math.hypot(i - 5.5, (j - 4.5) * 1.2) < 6 ? C.hon3 : -1);
-}, { level: 2 });
+}, { level: 2, furn: 'table' });
 O('tableF2', [TABLE2.x - TABLE2.r, TABLE2.y - TABLE2.r, Z2 + 13, TABLE2.x + TABLE2.r, TABLE2.y + TABLE2.r, Z2 + 16], () => {
   const r = TABLE2.r, [sx0, sy0] = tableScr(), rs = Math.round(r * 1.41);
   for (let s = -rs; s <= rs; s++) {
@@ -1161,17 +1170,17 @@ O('tableF2', [TABLE2.x - TABLE2.r, TABLE2.y - TABLE2.r, Z2 + 13, TABLE2.x + TABL
     if (d > r) return -1;
     return d > r - 2 ? C.pin5 : C.crm7;
   });
-}, { shadow: 0, level: 2 });
+}, { shadow: 0, level: 2, furn: 'table' });
 O('tableF2Things', [TABLE2.x - 10, TABLE2.y - 10, Z2 + 16, TABLE2.x + 10, TABLE2.y + 10, Z2 + 26], () => {
   spr(TABLE2.x, TABLE2.y, Z2 + 16, 'o:hon1 w:cld7 c:pin4 d:pin2 r:ter5 a:sea5 b:sea3', [
     '.....r.....', '...ccccc...', '..cwwwwwc..', '..cdcdcdc..', '..ccccccc..', '.aaaaaaaaa.', '.bbbbbbbbb.', '....bbb....',
   ]);
   spr(TABLE2.x - 7, TABLE2.y + 6, Z2 + 16, 'a:amb6 g:lef4 r:ter5 b:sea5 c:sea6', ['.ragr.', 'bccccb', '.bbbb.']);
   spr(TABLE2.x + 8, TABLE2.y - 6, Z2 + 16, 'a:cld7 b:cld5 m:crm6', ['.mm.', 'aaab', 'aaab', 'aaab']);
-}, { outline: .75, level: 2 });
+}, { outline: .75, level: 2, furn: 'table' });
 
 /* two toadstool stools and floor bowls for the animals */
-const stool = (name, x, y) => O(name, [x - 6, y - 6, Z2, x + 6, y + 6, Z2 + 11], () => {
+const stool = (name, x, y, furn) => O(name, [x - 6, y - 6, Z2, x + 6, y + 6, Z2 + 11], () => {
   const sx0 = OX + x - y, sy0 = OY + ((x + y) >> 1);
   for (let k = 0; k < 8; k++) for (let s = -3; s <= 3; s++) put(sx0 + s, sy0 - Z2 - k, s > 1 ? C.crm5 : C.crm7, x, y, Z2 + k, NBILL);
   for (let a = -8; a <= 8; a++) for (let b = 0; b <= 6; b++) {
@@ -1179,8 +1188,8 @@ const stool = (name, x, y) => O(name, [x - 6, y - 6, Z2, x + 6, y + 6, Z2 + 11],
     const spot = hsh((a + 8) >> 2, b >> 1, x) > .78;
     put(sx0 + a, sy0 - Z2 - 7 - b, spot ? C.crm7 : a > 3 ? C.ter4 : C.ter5, x, y, Z2 + 7 + b, NBILL);
   }
-}, { outline: .9, shadow: 1, level: 2 });
-stool('stoolA', 32, 66); stool('stoolB', 78, 84);
+}, { outline: .9, shadow: 1, level: 2, furn });
+stool('stoolA', 32, 66, 'stoolA'); stool('stoolB', 78, 84, 'stoolB');
 const BOWLS = [{ x: 90, y: 60 }, { x: 96, y: 50 }];
 BOWLS.forEach((b, n) => O('bowlF2' + n, [b.x - 5, b.y - 4, Z2, b.x + 5, b.y + 4, Z2 + 4], () => {
   const sx0 = OX + b.x - b.y, sy0 = OY + ((b.x + b.y) >> 1) - Z2;
@@ -1190,7 +1199,7 @@ BOWLS.forEach((b, n) => O('bowlF2' + n, [b.x - 5, b.y - 4, Z2, b.x + 5, b.y + 4,
     for (let k = 0; k <= 3; k++) put(sx0 + s, Math.round(sy0 + a - k), C[co + (s > 2 ? 3 : 5)], b.x, b.y, Z2 + k, NBILL);
     for (let y = -a; y <= a; y++) put(sx0 + s, Math.round(sy0 + y - 4), Math.abs(y) > a - 1 ? C[co + 6] : n ? C.hon5 : C.cld7, b.x, b.y, Z2 + 4, NBILL);
   }
-}, { outline: .8, level: 2 }));
+}, { outline: .8, level: 2, furn: 'bowls' }));
 
 /* a plump icebox by the right-hand wall */
 O('icebox', [56, 14, Z2, 70, 28, Z2 + 34], () => {
@@ -1199,7 +1208,7 @@ O('icebox', [56, 14, Z2, 70, 28, Z2 + 34], () => {
     right: (j, k) => (k === 22 ? C.cld0 : null),
   });
   spr(63, 28, Z2 + 13, 'a:pin4 b:sea5 c:amb6 d:lef5', ['a.b', '...', 'c.d']);
-}, { shadow: 1, level: 2 });
+}, { shadow: 1, level: 2, furn: 'icebox' });
 
 /* a lemon tree in a pot, by the left pillar */
 O('lemonTree', [38, 90, Z2, 54, 102, Z2 + 44], () => {
@@ -1217,11 +1226,20 @@ O('lemonTree', [38, 90, Z2, 54, 102, Z2 + 44], () => {
     if (hsh(a >> 2, b >> 2, 8) > .85 && (a & 3) < 2 && (b & 3) < 2) col = C.amb7;
     put(sx0 + a, sy0 - 29 + b, col, x, y, Z2 + 29, NBILL);
   }
-}, { outline: .85, shadow: 1, level: 2 });
+}, { outline: .85, shadow: 1, level: 2, furn: 'lemon' });
+
+/* the puppy's own round mat: the one thing on this floor from the first */
+O('pupMat', [62, 58, Z2, 86, 82, Z2 + 1], () => {
+  top(62, 58, Z2 + 1, 24, 24, (i, j) => {
+    const d = Math.hypot(i - 11.5, j - 11.5);
+    if (d > 11.5) return -1;
+    return d > 10 ? C.ter4 : d > 8.5 ? C.crm7 : (Math.floor(d) % 3 === 0 ? C.ter5 : C.ter6);
+  });
+}, { outline: 0, level: 2 });
 
 light(TABLE2.x, TABLE2.y, Z2 + 60, '#fff0c8', .34, 70, 'B');
 light(30, 80, Z2 + 44, '#dcefff', .3, 56, 'B');
-light(worldAt(OVEN.s + 13, OVEN.t + 4)[0], worldAt(OVEN.s + 13, OVEN.t + 4)[1], Z2 + 8, '#ff9848', 1.05, 42, 'B', { fire: 1, level: 2 });
+light(worldAt(OVEN.s + 13, OVEN.t + 4)[0], worldAt(OVEN.s + 13, OVEN.t + 4)[1], Z2 + 8, '#ff9848', 1.05, 42, 'B', { fire: 1, level: 2, furn: 'oven' });
 
 /* ═══════════════════════════════════════════════════════════════════════
    Third floor: the bedroom nearest the sky. Pale blue walls full of little
@@ -1246,7 +1264,7 @@ const WIN3B = archWindow('winF3B', -61, Z3 + 28, 16, 26, 3);
 /* the bookcase along the back wall */
 O('bookcaseF3', [-100, -100, Z3, -99, -99, Z3 + 20], () => {
   frontBox(-4, 34, -29, Z3, 20, 6, bookFace(34, 20, 23, ['sea4', 'pin4', 'amb6', 'lef4', 'crm7', 'ter5', 'azu3', 'pin5', 'sea5']), (u, e) => e === 0 ? C.hon7 : C.hon6);
-}, { level: 3, layer: L_BACK(3), outline: .85 });
+}, { level: 3, layer: L_BACK(3), outline: .85, furn: 'bookcase' });
 
 /* the crescent-moon rug */
 const RUG3 = { x: 76, y: 68, r: 17 };
@@ -1261,7 +1279,7 @@ O('rugF3', [RUG3.x - RUG3.r, RUG3.y - RUG3.r, Z3, RUG3.x + RUG3.r, RUG3.y + RUG3
     if (hsh(i >> 1, j >> 1, 5) > .97) return C.crm7;
     return C.azu2;
   });
-}, { outline: 0, level: 3 });
+}, { outline: 0, level: 3, furn: 'rug3' });
 
 /* the great big bed, its head to the left under the little window */
 const BED3 = { x: 20, y: 50, w: 32, d: 24, z: Z3 + 10 };
@@ -1278,11 +1296,11 @@ O('bedF3', [20, 50, Z3, 52, 74, Z3 + 11], () => {
   top(29, 50, Z3 + 10, 23, 24, quilt3);
   fy(20, 73, Z3 + 3, 32, 7, (i, k) => k < 1 ? C.crm7 : i < 9 ? C.cld5 : quilt3(i, k * 2));
   fx(51, 50, Z3 + 3, 24, 7, (j, k) => k < 1 ? C.crm5 : lite(quilt3(j, k * 2), .86));
-}, { shadow: 1, level: 3 });
+}, { shadow: 1, level: 3, furn: 'bed3' });
 O('bedPillows', [21, 51, Z3 + 10, 30, 73, Z3 + 17], () => {
   soft(21, 51, Z3 + 10, 8, 10, 4, 'cld', 6);
   soft(21, 62, Z3 + 10, 8, 10, 5, 'pin', 5);
-}, { level: 3 });
+}, { level: 3, furn: 'bed3' });
 O('bedHead', [18, 49, Z3, 20, 75, Z3 + 24], () => {
   fx(19, 49, Z3, 26, 24, (j, k) => {
     const peak = 20 + Math.sin((j / 25) * Math.PI) * 4;
@@ -1290,7 +1308,7 @@ O('bedHead', [18, 49, Z3, 20, 75, Z3 + 24], () => {
     if (k > peak - 2) return C.hon6;
     return (j + 2) % 8 < 1 ? C.hon3 : C.hon4;
   });
-}, { outline: .85, level: 3 });
+}, { outline: .85, level: 3, furn: 'bed3' });
 
 /* telescope on a tripod, aimed out of the big window */
 O('telescope', [68, 20, Z3, 80, 32, Z3 + 26], () => {
@@ -1300,18 +1318,18 @@ O('telescope', [68, 20, Z3, 80, 32, Z3 + 26], () => {
   spr(74, 26, Z3 + 10, 'o:mid1 a:amb6 b:amb4 c:amb7 d:sea2', [
     '...........oo', '........oocco', '.....ooccaabo', '..ooccaaabbo.', 'ooccaaabdoo..', 'oaaabdoo.....', '.oodoo.......',
   ], { ax: 6 });
-}, { outline: 0, level: 3 });
+}, { outline: 0, level: 3, furn: 'telescope' });
 
 /* the bedside table and its shell lamp */
 const LAMP3 = { x: 27, y: 80, z: Z3 + 16 };
 O('nightstand', [22, 76, Z3, 32, 84, Z3 + 14], () => {
   box(22, 76, Z3, 10, 8, 14, { t: grain('hon', 6), l: (i, k) => (k === 7 || i === 0 || i === 9 || k === 13 || k === 0) ? C.hon5 : (i === 5 && (k === 4 || k === 10)) ? C.amb7 : C.hon4, r: C.hon3 });
-}, { shadow: 1, level: 3 });
+}, { shadow: 1, level: 3, furn: 'lamp' });
 O('shellLamp', [23, 77, Z3 + 14, 31, 83, Z3 + 30], () => {
   spr(LAMP3.x, LAMP3.y, Z3 + 14, 'c:pin6 d:pin4 e:gld1 f:gld2 g:amb7 s:hon4', [
     '...eeee...', '..effffe..', '.effffffe.', 'gefffffffg', 'geeeeeeeeg', '....ss....', '....ss....', '...cddc...', '..cddddc..',
   ], { n: NEMIT });
-}, { outline: 0, level: 3 });
+}, { outline: 0, level: 3, furn: 'lamp' });
 
 /* the rabbit's own small basket */
 const RABBITBED = { x: 75, y: 89, z: Z3 + 4 };
@@ -1322,7 +1340,7 @@ O('rabbitBed', [66, 82, Z3, 84, 96, Z3 + 5], () => {
   } });
 }, { shadow: 1, level: 3 });
 
-light(27, 80, Z3 + 26, '#ffe6b0', .5, 40, 'A');
+light(27, 80, Z3 + 26, '#ffe6b0', .5, 40, 'A', { furn: 'lamp' });
 light(84, 24, Z3 + 42, '#dff4ff', .45, 74, 'A');
 light(66, 84, Z3 + 42, '#fff2dc', .22, 74, 'A');
 
@@ -1504,6 +1522,20 @@ O('sign', [120, 96, 0, 132, 102, 18], () => {
   fy(125, 99, 0, 2, 12, (i) => i ? C.hon3 : C.hon5);
   spr(126, 99, 10, 'o:hon1 a:hon6 b:hon5 c:hon2', ['oooooooooo', 'oaaaaaaaao', 'oaccaacaao', 'oaaaaaaabo', 'oooooooooo'], { ax: 5 });
 }, { ext: 1, outline: 0, fg: 1 });
+
+/* the long ladder up the left pillar: how the animals get between the floors, the ground and the roof */
+const LAD = { x: 25, y: 94 };
+for (let n = 1; n <= 3; n++) {
+  const z0 = n === 1 ? 0 : FLOOR_Z[n - 1] - SLAB, z1 = TOP_Z(n) + 10;
+  O('ladder' + n, [LAD.x - 3, LAD.y - 3, z0, LAD.x + 3, LAD.y + 3, z1], () => {
+    const sx0 = OX + LAD.x - LAD.y, base = OY + ((LAD.x + LAD.y) >> 1);
+    for (let k = z0; k <= z1; k++) {
+      put(sx0 - 3, base - k, C.hon3, LAD.x, LAD.y, k, NBILL);
+      put(sx0 + 3, base - k, C.hon2, LAD.x, LAD.y, k, NBILL);
+      if (k % 6 === 2) for (let a = -2; a <= 2; a++) put(sx0 + a, base - k, a < 0 ? C.hon6 : C.hon5, LAD.x, LAD.y, k, NBILL);
+    }
+  }, { ext: 1, outline: .9, level: n, layer: 96 });
+}
 
 light(120, 40, 60, '#fff2c0', .06, 200, 'E', { flat: 1 });
 
@@ -1970,9 +2002,10 @@ function drawSheet() {
 
 /* ═══════════════════════════════════════════════════════════════════════
    Behaviour. A block is 120 s long and every animal starts and ends it in its
-   own home pose, so any block can follow any other. Each animal keeps to its own
-   storey, and its timeline never depends on who else is here yet: arrivals only
-   decide who gets drawn.
+   own home pose, so any block can follow any other. Animals leave their floors
+   by the long ladder or the open front of the tower. A timeline never depends on
+   who else is here yet: arrivals only decide who gets drawn. It does depend on the
+   storeys and the furniture, read once when the block is compiled.
    ═══════════════════════════════════════════════════════════════════════ */
 const ACTOR_IDS = ['cat', 'pup', 'rabbit', 'sheep', 'dragon', 'penguin'];
 const HOME = {
@@ -1984,14 +2017,13 @@ const HOME = {
   penguin: { x: 170, y: 119, z: 5 },
 };
 const HOME_ANIM = { cat: 'curl', pup: 'curl', rabbit: 'loaf', sheep: 'float', dragon: 'perch', penguin: 'stand' };
-/* where each animal goes to eat or play: clear floor, away from the furniture */
+/* where each animal goes to eat or play in its own room: clear floor, away from the furniture */
 const SPOT = {
   cat: { x: 56, y: 64, z: Z1 },
   pup: { x: 72, y: 54, z: Z2 },
   rabbit: { x: 72, y: 60, z: Z3 },
   sheep: { x: 44, y: 62, z: Z1 + 6 },
   dragon: { x: 72, y: 72, z: Z2 },
-  penguin: { x: 140, y: 106, z: 0 },
 };
 
 class Track {
@@ -2023,7 +2055,30 @@ const at2 = (x, y, dz = 0) => ({ x, y, z: Z2 + dz });
 const at3 = (x, y, dz = 0) => ({ x, y, z: Z3 + dz });
 const atB = (x, y, z = 0) => ({ x, y, z });
 
-/* ── the cat: bed, rug, window, the top of the cat tree ───────────────── */
+/* ── the outdoors: places every animal shares ─────────────────────────── */
+const CLIMB = 26;
+const lad = z => ({ x: LAD.x, y: LAD.y, z });
+const entry = z => ({ x: 39, y: 95, z });        // the floor beside the ladder, on any storey
+const FOOT = atB(34, 104), FRONT = atB(86, 106), SAND = atB(146, 119), PIER = atB(154, 119, 5), TO_FOOT = atB(60, 118);
+/* the crab rests at its right end at 12-20 s and every 40 s after, at its left end at 32-40 s and every 40 s after */
+const CRAB_R = atB(116, 134), CRAB_L = atB(99, 151);
+const roofBase = () => TOP_Z(storeys) + 6;
+const rf = (s, t, h) => { const [x, y] = worldAt(s, t); return { x, y, z: roofBase() + h }; };
+const ROOF_WAY = () => [rf(-42, 18, 16), rf(-16, 24, 23)];
+const ladderDown = (T, z) => { T.hop(lad(z), .4, 'land').walk([lad(1)], CLIMB, 'climb').hop(FOOT, .35, 'land'); };
+const ladderUp = (T, z) => { T.hop(lad(1), .35, 'land').walk([lad(z)], CLIMB, 'climb').hop(entry(z), .4, 'land'); };
+const toRoof = (T, z, seat, v, anim) => {
+  T.hop(lad(z), .4, 'land').walk([lad(roofBase() + 2)], CLIMB, 'climb').hop(rf(-60, 7, 4), .45, 'land').walk([...ROOF_WAY(), seat], v, anim);
+};
+const fromRoof = (T, z, v, anim) => {
+  T.walk([...ROOF_WAY().reverse(), rf(-60, 7, 4)], v, anim).hop(lad(roofBase() + 2), .45, 'land').walk([lad(z)], CLIMB, 'climb').hop(entry(z), .4, 'land');
+};
+/* a palm's trunk leans on screen, so its centre has to be worked out at each height */
+const trunk = (p, f) => { const off = Math.round(p.lean * Math.pow(f, 1.7)); return { x: p.x + off / 2, y: p.y - off / 2, z: p.h * f }; };
+const trunkUp = p => [trunk(p, .33), trunk(p, .66), trunk(p, 1)];
+const trunkDown = p => [trunk(p, .66), trunk(p, .33), trunk(p, 0)];
+
+/* ── the cat: bed, rug, window, cat tree, and everywhere outside ──────── */
 const CATV = 18, catFront = at1(67, 80);
 const catOff = T => T.hop(catFront, .4, 'leap');
 const catOn = T => T.hop(HOME.cat, .4, 'leap');
@@ -2039,12 +2094,21 @@ const catDescend = T => {
   T.hop(at1(40, 86, 21), .5, 'leap').pose(.4, 'sit').hop(at1(50, 74), .5, 'leap');
   T.walk([at1(50, 58), at1(56, 58)], CATV, 'walk');
 };
+const catOut = T => T.walk([at1(77, 84), at1(78, 96)], CATV, 'walk').hop(FRONT, .5, 'land');
+const catIn = T => T.hop(at1(78, 96), .5, 'land').walk([at1(77, 84), catFront], CATV, 'walk');
+const catToLadder = T => T.walk([at1(54, 76), at1(54, 95), entry(Z1)], CATV, 'walk');
+const catFromLadder = T => T.walk([at1(54, 95), at1(54, 76), catFront], CATV, 'walk');
+const CAT_PALM = PALMS[2], CAT_PALM_ROUTE = [atB(66, 124), atB(46, 146), trunk(CAT_PALM, 0)];
 const CAT = {
+  /* the first thing anyone sees: the crab, a palm, then the rainbow from the top of it */
   show(T) {
-    T.pose(7, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
-    T.pose(3, 'sit').pose(6, 'g2').pose(1, 'sit'); catToWin(T); T.pose(16, 'window'); catFromWin(T);
-    T.pose(5, 'g4'); catClimb(T); T.pose(15, 'sit').pose(6, 'groom').pose(2, 'sit'); catDescend(T);
-    T.pose(2, 'sit'); catFromRug(T); catOn(T);
+    T.pose(2, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
+    T.walk([CRAB_R], CATV, 'walk').until(12, 'sit').until(20, 'tease').until(26, 'sit');
+    T.walk([CRAB_L], CATV, 'walk').until(32, 'sit').until(40, 'tease');
+    T.hop(atB(108, 142), .45, 'land').pose(1.2, 'sit');
+    T.walk([atB(80, 128), ...CAT_PALM_ROUTE], CATV, 'walk').pose(.5, 'crouch').walk(trunkUp(CAT_PALM), 22, 'climb');
+    T.until(72, 'sit').until(92, 'gaze');
+    T.walk(trunkDown(CAT_PALM), 26, 'climb').walk([atB(46, 146), atB(66, 124), FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   play(T, r) {
     T.pose(6 + r() * 8, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
@@ -2052,24 +2116,63 @@ const CAT = {
   },
   perch(T, r) {
     T.pose(14 + r() * 10, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
-    catClimb(T); T.pose(26 + r() * 10, 'sit').pose(6, 'groom').pose(1, 'sit'); catDescend(T); catFromRug(T); catOn(T);
-  },
-  watch(T, r) {
-    T.pose(8 + r() * 6, 'curl').pose(1, 'sit'); catOff(T); catToRug(T); catToWin(T);
-    T.pose(44 + r() * 10, 'window'); catFromWin(T); catFromRug(T); catOn(T);
+    if (own('catTree')) { catClimb(T); T.pose(26 + r() * 10, 'sit').pose(6, 'groom').pose(1, 'sit'); catDescend(T); }
+    else T.pose(14, 'sit').pose(6, 'groom').pose(1, 'sit');
+    catFromRug(T); catOn(T);
   },
   rest(T, r) { T.pose(40 + r() * 20, 'curl').pose(1, 'sit').pose(7, 'groom').pose(2, 'sit'); },
+  crab(T, r) {
+    T.pose(1 + r() * 2, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
+    T.walk([CRAB_R], CATV, 'walk').until(12, 'sit').until(20, 'tease').until(26, 'sit');
+    T.walk([CRAB_L], CATV, 'walk').until(32, 'sit').until(40, 'tease');
+    T.hop(atB(108, 142), .45, 'land').pose(2, 'sit').pose(5, 'groom').pose(1, 'sit');
+    T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
+  },
+  boat(T, r) {
+    T.pose(5 + r() * 5, 'curl').pose(1, 'sit'); catOff(T); catOut(T);
+    T.walk([atB(130, 112), SAND], CATV, 'walk').hop(PIER, .4, 'land').walk([atB(200, 116, 5)], CATV, 'walk');
+    T.pose(36 + r() * 6, 'gaze').pose(4, 'groom').walk([PIER], CATV, 'walk').hop(SAND, .4, 'land');
+    T.walk([atB(130, 112), FRONT], CATV, 'walk'); catIn(T); catOn(T);
+  },
+  /* the shower runs 30-52 s: watch it from the window, then go out for the rainbow */
+  rainbow(T, r) {
+    T.pose(6 + r() * 4, 'curl').pose(1, 'sit'); catOff(T); catToRug(T); catToWin(T);
+    T.until(49, 'window'); catFromWin(T); catFromRug(T); catOut(T);
+    T.walk([atB(118, 116)], CATV, 'walk').until(82, 'gaze').pose(4, 'groom').walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
+  },
+  palm(T, r) {
+    T.pose(6 + r() * 6, 'curl').pose(1, 'sit'); catOff(T); catOut(T);
+    T.walk(CAT_PALM_ROUTE, CATV, 'walk').pose(.5, 'crouch').walk(trunkUp(CAT_PALM), 22, 'climb');
+    T.pose(20 + r() * 8, 'sit').pose(5, 'groom').pose(14, 'gaze').pose(1, 'sit');
+    T.walk(trunkDown(CAT_PALM), 26, 'climb').walk([atB(46, 146), atB(66, 124), FRONT], CATV, 'walk'); catIn(T); catOn(T);
+  },
+  roof(T, r) {
+    T.pose(3 + r() * 4, 'curl').pose(1, 'sit'); catOff(T); catToLadder(T);
+    toRoof(T, Z1, rf(-6, 14, 31), CATV, 'walk');
+    T.pose(24 + r() * 8, 'sit').pose(6, 'groom').pose(12, 'gaze').pose(1, 'sit');
+    fromRoof(T, Z1, CATV, 'walk'); catFromLadder(T); catOn(T);
+  },
+  lounge(T, r) {
+    T.pose(5 + r() * 6, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catOut(T);
+    T.walk([atB(82, 136)], CATV, 'walk').hop(atB(70, 150, 5), .6, 'land').pose(1, 'sit');
+    T.pose(36 + r() * 12, 'curl').pose(1, 'sit').pose(2.4, 'stretch').hop(atB(82, 136), .6, 'land');
+    T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
+  },
 };
 
 /* ── the puppy: never sits still for long ─────────────────────────────── */
-const PUPV = 21;
+const PUPV = 21, PUPR = PUPV + 4;
+const pupToLadder = T => T.walk([at2(66, 80), at2(56, 88), at2(42, 88), entry(Z2)], PUPR, 'walk');
+const pupFromLadder = T => T.walk([at2(42, 88), at2(56, 88), at2(66, 80), at2(74, 70)], PUPR, 'walk').pose(.8, 'stand');
+const pupDown = T => { pupToLadder(T); ladderDown(T, Z2); };
+const pupUp = T => { T.walk([FOOT], PUPR, 'walk'); ladderUp(T, Z2); pupFromLadder(T); };
 const PUP = {
   show(T) {
     T.pose(5, 'curl').pose(1.2, 'stand').pose(2.4, 'stretch').pose(.6, 'stand');
-    T.walk([at2(74, 42), at2(50, 42)], PUPV, 'walk').pose(4, 'sniff').pose(5, 'sitWag').pose(4, 'g2');
-    T.walk([at2(84, 42), at2(84, 58)], PUPV, 'walk').pose(5, 'sniff').pose(5, 'g4').pose(6, 'sitWag');
-    T.walk([at2(84, 42), at2(74, 42), at2(74, 62), at2(62, 84)], PUPV, 'walk').pose(8, 'sitWag');
-    T.walk([at2(74, 84), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
+    T.walk([at2(74, 42), at2(50, 42)], PUPV, 'walk').pose(4, 'sniff').pose(3, 'sitWag');
+    T.walk([at2(74, 42), at2(74, 70)], PUPV, 'walk'); pupDown(T);
+    T.walk([TO_FOOT, CRAB_R], PUPR, 'walk').until(52, 'sitWag').until(60, 'tease').pose(1.5, 'stand');
+    T.walk([atB(112, 118)], PUPR, 'walk').until(72, 'sitWag').until(92, 'gaze').pose(4, 'sitWag').walk([TO_FOOT], PUPR, 'walk'); pupUp(T);
   },
   play(T, r) {
     T.pose(4 + r() * 6, 'curl').pose(1.2, 'stand').pose(.6, 'stretch');
@@ -2083,29 +2186,66 @@ const PUP = {
   },
   bowls(T, r) {
     T.pose(8 + r() * 8, 'curl').pose(1.2, 'stand');
-    T.walk([at2(74, 58), at2(84, 58)], PUPV, 'walk').pose(8, 'sniff').pose(8, 'sitWag');
+    T.walk([at2(74, 58), at2(84, 58)], PUPV, 'walk').pose(own('bowls') ? 8 : 3, 'sniff').pose(8, 'sitWag');
     T.walk([at2(74, 58), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
   },
   rest(T, r) { T.pose(44 + r() * 20, 'curl').pose(1.2, 'stand').pose(2.4, 'stretch').pose(.6, 'stand').pose(10, 'sitWag'); },
+  crab(T, r) {
+    T.pose(20 + r() * 6, 'curl').pose(1.2, 'stand'); pupDown(T);
+    T.walk([TO_FOOT, CRAB_R], PUPR, 'walk').until(52, 'sitWag').until(60, 'tease').pose(1.5, 'stand').pose(3, 'sitWag');
+    T.walk([TO_FOOT], PUPR, 'walk'); pupUp(T);
+  },
+  boat(T, r) {
+    T.pose(6 + r() * 6, 'curl').pose(1.2, 'stand'); pupDown(T);
+    T.walk([TO_FOOT, atB(130, 112), SAND], PUPR, 'walk').hop(PIER, .4, 'land').walk([atB(190, 122, 5)], PUPR, 'walk');
+    T.pose(28 + r() * 8, 'gaze').pose(5, 'sitWag').walk([PIER], PUPR, 'walk').hop(SAND, .4, 'land');
+    T.walk([atB(130, 112), TO_FOOT], PUPR, 'walk'); pupUp(T);
+  },
+  rainbow(T, r) {
+    T.pose(14 + r() * 6, 'curl').pose(1.2, 'stand').walk([at2(74, 58), at2(84, 58)], PUPV, 'walk').pose(6, 'sniff').until(41, 'sitWag');
+    T.walk([at2(74, 58), at2(74, 70)], PUPV, 'walk'); pupDown(T);
+    T.walk([TO_FOOT, atB(96, 124)], PUPR, 'walk').until(80, 'gaze').pose(5, 'sitWag').walk([TO_FOOT], PUPR, 'walk'); pupUp(T);
+  },
+  /* it would like to climb the palm as well, and can't */
+  palm(T, r) {
+    T.pose(8 + r() * 6, 'curl').pose(1.2, 'stand'); pupDown(T);
+    T.walk([trunk(PALMS[0], 0)], PUPR, 'walk').pose(3, 'sniff').pose(7, 'bark').pose(4, 'sitWag');
+    T.walk([atB(22, 134), atB(2, 124), atB(14, 108), trunk(PALMS[0], 0)], PUPR, 'walk').pose(6, 'bark').pose(3, 'sitWag'); pupUp(T);
+  },
+  beach(T, r) {
+    T.pose(5 + r() * 5, 'curl').pose(1.2, 'stand'); pupDown(T);
+    T.walk([TO_FOOT, atB(122, 106)], PUPR, 'walk').pose(6, 'sniff').pose(3, 'sitWag');
+    T.walk([atB(100, 150)], PUPR, 'walk').pose(14 + r() * 6, 'sitWag').walk([atB(58, 120)], PUPR, 'walk').pose(5, 'sniff');
+    pupUp(T);
+  },
+  roof(T, r) {
+    T.pose(14 + r() * 8, 'curl').pose(1.2, 'stand'); pupToLadder(T);
+    toRoof(T, Z2, rf(12, 18, 27), PUPV, 'walk');
+    T.pose(22 + r() * 8, 'sitWag').pose(8, 'gaze');
+    fromRoof(T, Z2, PUPV, 'walk'); pupFromLadder(T);
+  },
 };
 
-/* ── the rabbit: basket, rug, and the big bed when no one is looking ──── */
-const RABV = 13, rabDoor = at3(75, 78);
+/* ── the rabbit: basket, rug, the big bed, and the sky just above ─────── */
+const RABV = 13, RABR = RABV + 4, rabDoor = at3(75, 78);
 const rabOff = T => T.hop(rabDoor, .45, 'hop');
 const rabOn = T => T.hop(HOME.rabbit, .45, 'hop');
 const rabToBed = T => T.walk([at3(75, 62), at3(58, 62)], RABV, 'hop').hop(at3(44, 62, 10), .55, 'hop');
 const rabFromBed = T => T.hop(at3(58, 62), .5, 'hop').walk([at3(75, 62), rabDoor], RABV, 'hop');
+const rabToLadder = T => { rabOff(T); T.walk([at3(60, 80), at3(42, 90), entry(Z3)], RABR, 'hop'); };
+const rabFromLadder = T => { T.walk([at3(42, 90), at3(60, 80), rabDoor], RABR, 'hop'); rabOn(T); };
+const RAB_SEAT = () => rf(-26, 18, 24);
 const RAB = {
   show(T) {
-    T.pose(9, 'loaf').pose(1.4, 'sit'); rabOff(T);
-    T.walk([at3(75, 62)], RABV, 'hop').pose(3, 'sit').pose(5, 'g2').pose(1, 'sit');
-    T.walk([at3(62, 62), at3(62, 36)], RABV, 'hop').pose(9, 'look').walk([at3(62, 62)], RABV, 'hop');
-    T.walk([at3(58, 62)], RABV, 'hop').hop(at3(44, 62, 10), .55, 'hop');
-    T.pose(3, 'sit').pose(16, 'loaf').pose(5, 'g4').pose(1, 'sit'); rabFromBed(T); rabOn(T);
+    T.pose(5, 'loaf').pose(1.4, 'sit'); rabToLadder(T); toRoof(T, Z3, RAB_SEAT(), RABR, 'hop');
+    T.pose(5, 'sit').pose(5, 'g2').until(72, 'sit').until(92, 'gaze').pose(4, 'g4').pose(1, 'sit');
+    fromRoof(T, Z3, RABR, 'hop'); rabFromLadder(T);
   },
   bed(T, r) {
-    T.pose(12 + r() * 10, 'loaf').pose(1.4, 'sit'); rabOff(T); rabToBed(T);
-    T.pose(2, 'sit').pose(40 + r() * 10, 'loaf').pose(5, 'g4').pose(1, 'sit'); rabFromBed(T); rabOn(T);
+    T.pose(12 + r() * 10, 'loaf').pose(1.4, 'sit'); rabOff(T);
+    if (own('bed3')) { rabToBed(T); T.pose(2, 'sit').pose(40 + r() * 10, 'loaf').pose(5, 'g4').pose(1, 'sit'); rabFromBed(T); }
+    else T.walk([at3(75, 62)], RABV, 'hop').pose(8, 'look').pose(5, 'g4').walk([rabDoor], RABV, 'hop');
+    rabOn(T);
   },
   rug(T, r) {
     T.pose(6 + r() * 10, 'loaf').pose(1.4, 'sit'); rabOff(T);
@@ -2114,35 +2254,69 @@ const RAB = {
     T.walk([rabDoor], RABV, 'hop'); rabOn(T);
   },
   rest(T, r) { T.pose(36 + r() * 20, 'loaf').pose(2, 'sit').pose(5, 'g4').pose(2, 'sit'); },
+  roof(T, r) {
+    T.pose(6 + r() * 6, 'loaf').pose(1.4, 'sit'); rabToLadder(T); toRoof(T, Z3, RAB_SEAT(), RABR, 'hop');
+    T.pose(34 + r() * 8, 'gaze').pose(4, 'g4').pose(1, 'sit');
+    fromRoof(T, Z3, RABR, 'hop'); rabFromLadder(T);
+  },
+  rainbow(T, r) {
+    T.pose(14 + r() * 6, 'loaf').pose(1.4, 'sit'); rabToLadder(T); toRoof(T, Z3, RAB_SEAT(), RABR, 'hop');
+    T.until(50, 'sit').until(80, 'gaze').pose(4, 'g2').pose(1, 'sit');
+    fromRoof(T, Z3, RABR, 'hop'); rabFromLadder(T);
+  },
+  /* all the way down, to nibble among the sunflowers */
+  flowers(T, r) {
+    T.pose(4 + r() * 6, 'loaf').pose(1.4, 'sit'); rabToLadder(T); ladderDown(T, Z3);
+    const v = RABV + 7;
+    T.walk([TO_FOOT, atB(108, 108), atB(126, 60)], v, 'hop').pose(2, 'sit').pose(7, 'nibble').pose(3, 'look');
+    T.walk([atB(124, 40)], v, 'hop').pose(6, 'nibble').pose(3, 'sit');
+    T.walk([atB(108, 108), TO_FOOT, FOOT], v, 'hop'); ladderUp(T, Z3); rabFromLadder(T);
+  },
 };
 
-/* ── the cloud sheep: drifts about the playroom, in no hurry ─────────── */
-const SHV = 7;
+/* ── the cloud sheep: drifts about, in no hurry, and sometimes with the clouds ─ */
+const SHV = 7, SHR = SHV + 5;
+const shOut = T => T.walk([at1(68, 75, 18), at1(84, 100, 24), atB(104, 118, 44)], SHR, 'drift');
+const shIn = T => T.walk([at1(84, 100, 24), at1(68, 75, 18), at1(40, 60, 16)], SHR, 'drift');
 const SHEEP = {
-  show(T) {
-    T.pose(8, 'float').walk([at1(68, 60, 22), at1(68, 75, 16)], SHV, 'drift').pose(6, 'g2').pose(1, 'float');
-    T.walk([at1(40, 75, 22), at1(40, 60, 16)], SHV, 'drift').pose(5, 'g4').pose(10, 'snooze').pose(2, 'float');
-  },
+  show(T, r) { SHEEP.sunny(T, r); },
   drift(T, r) {
     T.pose(5 + r() * 8, 'float');
     for (let n = 0; n < 2; n++) T.walk([at1(68, 60, 18 + r() * 8), at1(68, 75, 16), at1(40, 75, 18 + r() * 8), at1(40, 60, 16)], SHV, 'drift').pose(2 + r() * 3, 'float');
   },
   rain(T, r) { T.pose(10 + r() * 10, 'float').pose(9, 'g2').pose(16, 'snooze').pose(2, 'float'); },
   rest(T, r) { T.pose(14 + r() * 10, 'float').pose(30 + r() * 20, 'snooze').pose(2, 'float'); },
+  /* waters the sunflowers */
+  sunny(T, r) {
+    T.pose(6 + r() * 6, 'float'); shOut(T);
+    T.walk([atB(124, 58, 40)], SHR, 'drift').pose(12, 'rainy').pose(6, 'float').walk([atB(132, 42, 40)], SHV, 'drift').pose(8, 'rainy');
+    T.walk([atB(104, 118, 44)], SHR, 'drift'); shIn(T);
+  },
+  /* goes up to be a cloud for a while */
+  sky(T, r) {
+    T.pose(4 + r() * 6, 'float'); shOut(T);
+    T.walk([atB(118, 140, Math.min(300, roofBase() + 30))], SHR, 'drift').pose(14 + r() * 6, 'snooze').pose(4, 'float');
+    T.walk([atB(104, 118, 44)], SHR, 'drift'); shIn(T);
+  },
+  /* out into the rain, then a small rainbow of its own under the big one */
+  arc(T, r) {
+    T.pose(10 + r() * 6, 'float'); shOut(T);
+    T.until(40, 'rainy').until(54, 'float').pose(20, 'arc').pose(3, 'float'); shIn(T);
+  },
 };
 
 /* ── the little dragon: minds the oven; flies badly, and often ────────── */
-const DRV = 14, ovenFront = at2(34, 51, 9);
+const DRV = 14, DRR = DRV + 7, ovenFront = at2(34, 51, 9), DR_GATE = atB(98, 112, 90);
 const dragonToOven = T => T.walk([at2(32, 58, 16), ovenFront], DRV, 'fly');
 const dragonHome = T => T.walk([at2(32, 58, 16), HOME.dragon], DRV, 'fly');
+const drOut = T => T.walk([at2(60, 84, 18), DR_GATE], DRR, 'fly');
+const drIn = T => T.walk([DR_GATE, at2(60, 84, 18), HOME.dragon], DRR, 'fly');
+const atCrown = p => { const c = trunk(p, 1); return { x: c.x, y: c.y, z: c.z + 2 }; };
 const DRAGON = {
-  show(T) {
-    T.pose(10, 'perch'); dragonToOven(T); T.pose(5, 'light').pose(2, 'hover');
-    T.walk([at2(34, 42, 18), at2(74, 42, 18), at2(74, 84, 18), at2(34, 84, 18)], DRV, 'fly').pose(6, 'g2');
-    T.walk([at2(34, 66, 18)], DRV, 'fly').pose(5, 'g4').hop(HOME.dragon, .5, 'fly').pose(24, 'sleep').pose(2, 'perch');
-  },
+  show(T, r) { DRAGON.crab(T, r); },
   oven(T, r) {
-    T.pose(12 + r() * 12, 'perch'); dragonToOven(T); T.pose(5, 'light').pose(3, 'hover'); dragonHome(T);
+    T.pose(12 + r() * 12, 'perch');
+    if (own('oven')) { dragonToOven(T); T.pose(5, 'light').pose(3, 'hover'); dragonHome(T); }
     T.pose(5, 'perch').pose(5, 'g2').pose(14, 'sleep').pose(2, 'perch');
   },
   loop(T, r) {
@@ -2150,6 +2324,32 @@ const DRAGON = {
     T.walk([at2(74, 84, 18), at2(74, 42, 18), at2(34, 42, 18)], DRV, 'fly').pose(5, 'g2').walk([at2(32, 58, 18), HOME.dragon], DRV, 'fly').pose(2, 'perch');
   },
   rest(T, r) { T.pose(10 + r() * 8, 'perch').pose(44 + r() * 20, 'sleep').pose(2, 'perch'); },
+  crab(T, r) {
+    T.pose(36 + r() * 10, 'perch'); drOut(T);
+    T.walk([atB(150, 130, 70), atB(120, 136, 18)], DRR, 'fly').until(92, 'hover').until(100, 'tease').pose(1, 'hover');
+    T.walk([DR_GATE], DRR, 'fly'); drIn(T);
+  },
+  /* sits in the crown of the tall palm */
+  palm(T, r) {
+    T.pose(10 + r() * 10, 'perch'); drOut(T);
+    T.walk([atCrown(PALMS[0])], DRR, 'fly').pose(30 + r() * 8, 'perch').pose(5, 'g2').pose(1, 'hover');
+    T.walk([DR_GATE], DRR, 'fly'); drIn(T);
+  },
+  roof(T, r) {
+    T.pose(8 + r() * 10, 'perch'); drOut(T);
+    T.walk([atB(100, 110, roofBase() + 30), rf(6, 10, 37)], DRR, 'fly').pose(30 + r() * 8, 'perch').pose(8, 'sleep').pose(3, 'perch');
+    T.walk([atB(100, 110, roofBase() + 30), DR_GATE], DRR, 'fly'); drIn(T);
+  },
+  boat(T, r) {
+    T.pose(8 + r() * 8, 'perch'); drOut(T);
+    T.walk([atB(190, 104, 34)], DRR, 'fly').pose(32 + r() * 8, 'gaze').pose(5, 'g4');
+    T.walk([DR_GATE], DRR, 'fly'); drIn(T);
+  },
+  rainbow(T, r) {
+    T.pose(36 + r() * 6, 'perch'); drOut(T);
+    T.walk([atB(100, 110, roofBase() + 30), rf(6, 10, 37)], DRR, 'fly').until(82, 'gaze').pose(2, 'perch');
+    T.walk([atB(100, 110, roofBase() + 30), DR_GATE], DRR, 'fly'); drIn(T);
+  },
 };
 
 /* ── the penguin: paces the jetty, then the sand, with great seriousness ─ */
@@ -2157,33 +2357,59 @@ const PGV = 7, deckEnd = atB(154, 119, 5), sand = atB(146, 119, 0);
 const pgOff = T => T.walk([deckEnd], PGV + 2, 'waddle').hop(sand, .5, 'flap');
 const pgOn = T => T.hop(deckEnd, .55, 'flap').walk([HOME.penguin], PGV + 2, 'waddle');
 const PENGUIN = {
-  show(T) {
-    T.pose(6, 'stand').pose(3, 'flap'); pgOff(T);
-    T.walk([atB(146, 92), atB(130, 92)], PGV, 'waddle').pose(5, 'g4').pose(3, 'stand');
-    T.walk([atB(146, 92)], PGV, 'waddle').pose(1, 'flap').pose(3.5, 'g2', { to: sand });
-    T.p = sand; T.pose(3, 'stand'); pgOn(T);
-  },
+  show(T, r) { PENGUIN.crab(T, r); },
   beach(T, r) {
     T.pose(10 + r() * 10, 'stand'); pgOff(T);
     T.walk([atB(146, 100), atB(132, 100)], PGV, 'waddle').pose(10 + r() * 10, 'stand').pose(4, 'flap');
     T.walk([atB(146, 100), sand], PGV, 'waddle'); pgOn(T);
   },
+  slide(T) {
+    T.pose(6, 'stand').pose(3, 'flap'); pgOff(T);
+    T.walk([atB(146, 92), atB(130, 92)], PGV, 'waddle').pose(5, 'g4').pose(3, 'stand');
+    T.walk([atB(146, 92)], PGV, 'waddle').pose(1, 'flap').pose(3.5, 'g2', { to: sand });
+    T.p = sand; T.pose(3, 'stand'); pgOn(T);
+  },
   rest(T, r) { T.pose(24 + r() * 16, 'stand').pose(30 + r() * 10, 'nap').pose(3, 'flap'); },
+  crab(T, r) {
+    T.pose(36 + r() * 8, 'stand'); pgOff(T);
+    T.walk([atB(120, 135), CRAB_L], PGV + 2, 'waddle').until(72, 'stand').until(80, 'tease').pose(1.5, 'flap');
+    T.walk([atB(120, 135), sand], PGV + 2, 'waddle'); pgOn(T);
+  },
+  jetty(T, r) {
+    T.pose(8 + r() * 8, 'stand').walk([atB(204, 122, 5)], PGV, 'waddle');
+    T.pose(34 + r() * 8, 'gaze').pose(3, 'flap').pose(4, 'g4').walk([HOME.penguin], PGV, 'waddle');
+  },
+  pool(T, r) {
+    T.pose(6 + r() * 6, 'stand'); pgOff(T);
+    T.walk([atB(110, 122), atB(56, 124)], PGV + 3, 'waddle').pose(6, 'peck').pose(8, 'stand').pose(6, 'peck').pose(2, 'flap');
+    T.walk([atB(110, 122), sand], PGV + 3, 'waddle'); pgOn(T);
+  },
+  rainbow(T, r) {
+    T.pose(12 + r() * 8, 'stand'); pgOff(T);
+    T.walk([atB(140, 100)], PGV, 'waddle').until(50, 'stand').until(80, 'gaze').pose(3, 'flap').walk([sand], PGV, 'waddle'); pgOn(T);
+  },
 };
 
 const SCRIPTS = {
   /* everyone's best moment in one loop */
   showcase: { cat: CAT.show, pup: PUP.show, rabbit: RAB.show, sheep: SHEEP.show, dragon: DRAGON.show, penguin: PENGUIN.show, shower: [58, 74] },
+  /* everyone has a go at the crab, one at a time */
+  crab: { cat: CAT.crab, pup: PUP.crab, rabbit: RAB.rug, sheep: SHEEP.sunny, dragon: DRAGON.crab, penguin: PENGUIN.crab },
+  /* a sail on the horizon: the jetty fills up */
+  boat: { cat: CAT.boat, pup: PUP.boat, rabbit: RAB.roof, sheep: SHEEP.drift, dragon: DRAGON.boat, penguin: PENGUIN.jetty },
+  /* a sun shower, then everyone comes out for the rainbow */
+  rainbow: { cat: CAT.rainbow, pup: PUP.rainbow, rabbit: RAB.rainbow, sheep: SHEEP.arc, dragon: DRAGON.rainbow, penguin: PENGUIN.rainbow, shower: [30, 52] },
+  palm: { cat: CAT.palm, pup: PUP.palm, rabbit: RAB.flowers, sheep: SHEEP.rain, dragon: DRAGON.palm, penguin: PENGUIN.pool },
+  roof: { cat: CAT.roof, pup: PUP.roof, rabbit: RAB.bed, sheep: SHEEP.sky, dragon: DRAGON.roof, penguin: PENGUIN.rest },
+  beach: { cat: CAT.lounge, pup: PUP.beach, rabbit: RAB.flowers, sheep: SHEEP.sunny, dragon: DRAGON.loop, penguin: PENGUIN.slide },
   play: { cat: CAT.play, pup: PUP.play, rabbit: RAB.rug, sheep: SHEEP.drift, dragon: DRAGON.loop, penguin: PENGUIN.beach },
   perch: { cat: CAT.perch, pup: PUP.bowls, rabbit: RAB.bed, sheep: SHEEP.rain, dragon: DRAGON.oven, penguin: PENGUIN.rest },
   snack: { cat: CAT.rest, pup: PUP.beg, rabbit: RAB.bed, sheep: SHEEP.drift, dragon: DRAGON.oven, penguin: PENGUIN.beach },
-  /* a sun shower: the sky keeps shining and the cat goes to the window */
-  shower: { cat: CAT.watch, pup: PUP.bowls, rabbit: RAB.rest, sheep: SHEEP.rain, dragon: DRAGON.rest, penguin: PENGUIN.beach, shower: [30, 52] },
   /* the tower simply breathes */
   quiet: { cat: CAT.rest, pup: PUP.rest, rabbit: RAB.rest, sheep: SHEEP.rest, dragon: DRAGON.rest, penguin: PENGUIN.rest },
 };
 const SCRIPT_NAMES = Object.keys(SCRIPTS);
-const SCRIPT_WEIGHTS = [['showcase', 1], ['play', 2], ['perch', 2], ['snack', 2], ['shower', 2], ['quiet', 3]];
+const SCRIPT_WEIGHTS = [['showcase', 1], ['crab', 2], ['boat', 2], ['rainbow', 2], ['palm', 2], ['roof', 2], ['beach', 2], ['play', 1], ['perch', 1], ['snack', 1], ['quiet', 1]];
 
 /* face: 0 SE, 1 SW, 2 NE, 3 NW. Poses keep the facing of the walk before them. */
 function assignFaces(segs) {
@@ -2230,7 +2456,8 @@ function storyAt(k) {
 }
 const blockCache = new Map();
 function blockFor(k) {
-  const key = (CFG.loop ? 'L' : 'F') + CFG.seed + ':' + k;
+  // furniture is left out on purpose: a purchase changes the next block, not the one playing
+  const key = (CFG.loop ? 'L' : 'F') + CFG.seed + ':' + storeys + ':' + k;
   let b = blockCache.get(key);
   if (b) return b;
   const name = CFG.loop ? SCRIPT_NAMES[((k % SCRIPT_NAMES.length) + SCRIPT_NAMES.length) % SCRIPT_NAMES.length] : storyAt(k);
@@ -2659,11 +2886,18 @@ function fxBee(t) {
 const CRAB = [
   mk(['o.....o', 'oo.w.oo', '.orrrro', 'o.rrr.o', '.o...o.'], 'o:ter3 r:ter5 w:cld7'),
   mk(['o.....o', 'oo.w.oo', 'orrrro.', '.orrr.o', 'o...o..'], 'o:ter3 r:ter5 w:cld7'),
+  mk(['oo...oo', 'oo.w.oo', '.orrro.', 'o.rrr.o', '.o...o.'], 'o:ter3 r:ter5 w:cld7'),
 ];
-function fxCrab(t) {
+/* some animal is pestering the crab: read from the timelines, so the loop stays pure */
+function crabTeased(b, local) {
+  for (const id of ACTOR_IDS) if (present(id) && findSeg(b[id], local).anim === 'tease') return true;
+  return false;
+}
+function fxCrab(t, b, local) {
   const c = cyc(t, 3), walk = c < .3 ? c / .3 : c < .5 ? 1 : c < .8 ? 1 - (c - .5) / .3 : 0;
-  const moving = (c < .3 || (c >= .5 && c < .8));
-  sblit(CRAB[moving ? fr(t, 6, 2) : 0], 112 + Math.round(walk * 34), 528);
+  const moving = (c < .3 || (c >= .5 && c < .8)), x = 112 + Math.round(walk * 34);
+  if (!moving && crabTeased(b, local)) sblit(CRAB[fr(t, 5, 2) ? 2 : 0], x, 528 - fr(t, 5, 2));
+  else sblit(CRAB[moving ? fr(t, 6, 2) : 0], x, 528);
 }
 function fxPool(t) {
   const sx = iX(POOL.x, POOL.y), sy = iY(POOL.x, POOL.y, 0), id = NAMED.tidePool.id;
@@ -2787,7 +3021,7 @@ function fxMobile(t) {
 const OVENPX = { xs: null, bottom: 0, x0: 0, x1: 0 };
 function initOven() {
   OVENPX.xs = null;
-  if (storeys < 2) return;
+  if (storeys < 2 || !own('oven')) return;
   const id = NAMED.ovenF2.id, list = [];
   let bottom = 0, x0 = W, x1 = 0;
   for (let i = 0; i < N; i++) if (gId[i] === id && RAMP_OF[baseIdx[i]] === RAMP_OF[P.ink1]) {
@@ -2920,6 +3154,9 @@ const POSE = {
       case 'walk': SHOT.s = (face >= 2 ? K.walkNE : K.walkSE)[fr(t, 10, 4)]; SHOT.flip = side; break;
       case 'leap': case 'land': SHOT.s = K.leap[face >= 2 ? 1 : 0]; SHOT.flip = side; break;
       case 'crouch': SHOT.s = K.leap[0]; SHOT.flip = side; break;
+      case 'climb': SHOT.s = K.walkNE[fr(t, 10, 4)]; break;
+      case 'gaze': SHOT.s = K.back[earS]; SHOT.tail = 'window'; break;
+      case 'tease': SHOT.s = A.local % 1 < .25 ? K.bat[0] : A.local % 1 < .5 ? K.bat[1] : K.sitWide; SHOT.flip = true; SHOT.tail = 'sit'; break;
       case 'stretch': SHOT.s = K.stretch[A.local > .6 && A.local < 1.8 ? 1 : 0]; SHOT.flip = true; break;
       case 'groom': SHOT.s = K.groom[A.local % 2.4 < 1.8 ? fr(t, 5, 2) : 2]; SHOT.tail = 'sit'; break;
       case 'window': SHOT.s = K.back[earS]; SHOT.tail = 'window'; break;
@@ -2948,6 +3185,9 @@ const POSE = {
       case 'stand': SHOT.s = D.standSE[fr(t, 7, 4)]; SHOT.flip = true; break;
       case 'stretch': SHOT.s = D.stretch[A.local > .7 && A.local < 1.9 ? 1 : 0]; SHOT.flip = true; break;
       case 'sniff': case 'eat': SHOT.s = D.sniff[fr(t, 5, 2)]; break;
+      case 'climb': SHOT.s = D.walkNE[fr(t, 13, 4)]; break;
+      case 'gaze': SHOT.s = D.walkNE[0]; break;
+      case 'tease': case 'bark': SHOT.s = D.stretch[fr(t, 4, 2)]; SHOT.flip = true; SHOT.oz = fr(t, 4, 2) * 2; break;
       case 'g2': SHOT.s = D.sitTilt[tail]; SHOT.flip = A.local % 3 > 1.5; break;
       case 'g4': {
         const q = fr(t, 6, 4);
@@ -2968,6 +3208,9 @@ const POSE = {
         SHOT.s = (face >= 2 ? R.hopNE : R.hopSE)[j > .35 ? 1 : 0]; SHOT.flip = side; SHOT.oz = A.moving ? Math.round(j * 4) : 0;
         break;
       }
+      case 'climb': SHOT.s = R.hopNE[fr(t, 5, 2)]; break;
+      case 'gaze': SHOT.s = R.hopNE[0]; break;
+      case 'nibble': SHOT.s = R.eat[fr(t, 5, 2)]; break;
       case 'look': SHOT.s = cyc(t, 12, .1) < .2 ? R.earsDown : blinkAt(t, 20) ? R.blink : R.sit; SHOT.flip = A.local % 4 > 2; break;
       case 'g2': { // a binky: straight up and a kick
         const u = A.local % 1.25 / 1.25, j = Math.sin(u * Math.PI);
@@ -2987,7 +3230,8 @@ const POSE = {
     switch (an) {
       case 'drift': SHOT.s = (A.face >= 2 ? S.back : S.front)[f]; break;
       case 'snooze': SHOT.s = S.blink; SHOT.oz = Math.round(osc(t, 20, .15) * 1); SHOT.sleep = true; break;
-      case 'g2': SHOT.s = S.blink; SHOT.effect = 'rain'; break;
+      case 'g2': case 'rainy': SHOT.s = S.blink; SHOT.effect = 'rain'; break;
+      case 'arc': SHOT.s = S.happy[f]; SHOT.effect = 'bow'; break;
       case 'g4': SHOT.s = S.happy[f]; SHOT.effect = 'bow'; break;
       case 'eat': SHOT.s = S.eat[fr(t, 4, 2)]; break;
       case 'happy': case 'play': SHOT.s = S.happy[fr(t, 4, 2)]; SHOT.oz = Math.round(Math.abs(Math.sin(t * 5)) * 4); break;
@@ -3000,6 +3244,8 @@ const POSE = {
     switch (an) {
       case 'fly': case 'land': SHOT.s = (A.face >= 2 ? Y.back : Y.fly)[fr(t, 8, 4)]; SHOT.floats = true; SHOT.oz = Math.round(osc(t, 60) * 1); break;
       case 'hover': SHOT.s = Y.fly[fr(t, 8, 4)]; SHOT.floats = true; SHOT.oz = Math.round(osc(t, 40) * 2); break;
+      case 'gaze': SHOT.s = Y.back[fr(t, 8, 4)]; SHOT.flip = false; SHOT.floats = hexAt(A.x, A.y) >= 1.1; break;
+      case 'tease': SHOT.s = Y.puff; SHOT.floats = true; SHOT.effect = 'ring'; SHOT.flip = true; break;
       case 'light': SHOT.s = Y.back[fr(t, 8, 4)]; SHOT.floats = true; SHOT.flip = false; SHOT.effect = 'breath'; break;
       case 'sleep': SHOT.s = Y.sleep[Math.sin(TAU * 26 * t / LOOP) > 0 ? 1 : 0]; SHOT.h = 8; SHOT.sleep = true; break;
       case 'g2': SHOT.s = Y.puff; SHOT.effect = 'ring'; break;
@@ -3020,7 +3266,9 @@ const POSE = {
     SHOT.h = 14;
     switch (an) {
       case 'waddle': SHOT.s = (A.o && A.o.to ? Q.walk : face >= 2 ? Q.back : Q.walk)[fr(t, 6, 4)]; SHOT.flip = A.o && A.o.to ? true : side; break;
-      case 'flap': case 'land': SHOT.s = Q.flap[fr(t, 6, 2)]; break;
+      case 'flap': case 'land': case 'tease': SHOT.s = Q.flap[fr(t, 6, 2)]; break;
+      case 'gaze': SHOT.s = Q.back[1]; break;
+      case 'peck': SHOT.s = Q.eat[fr(t, 4, 2)]; break;
       case 'g2': SHOT.s = Q.slide[0]; SHOT.flip = true; SHOT.h = 7; break;
       case 'g4': SHOT.s = Q.happy[fr(t, 5, 2)]; SHOT.flip = fr(t, 2, 2) === 1; SHOT.oz = fr(t, 5, 2); break;
       case 'nap': SHOT.s = Q.nap[Math.sin(TAU * 24 * t / LOOP) > 0 ? 1 : 0]; SHOT.sleep = true; break;
@@ -3042,10 +3290,16 @@ function applyReact(A, time) {
   const R_ = WORLD.react[A.id];
   if (!R_) return null;
   const e = time - R_.t0;
-  if (R_.fx === undefined) { R_.fx = A.x; R_.fy = A.y; R_.fz = A.z; }
-  const end = R_.dur + (R_.stay ? .35 : .6), sp = R_.stay ? { x: R_.fx, y: R_.fy, z: R_.fz } : SPOT[A.id];
+  if (R_.fx === undefined) {
+    R_.fx = A.x; R_.fy = A.y; R_.fz = A.z;
+    const home = inOwnRoom(A);
+    R_.sp = !R_.stay && home ? SPOT[A.id] : { x: A.x, y: A.y, z: A.z };
+    R_.moves = !R_.stay && home;
+    R_.flat = home || A.z <= 5;                  // somewhere a dish can stand: not a ladder, a roof or a palm
+  }
+  const end = R_.dur + (R_.stay ? .35 : .6), sp = R_.sp;
   if (e >= end || e < 0) { delete WORLD.react[A.id]; return null; }
-  const lead = R_.stay ? 0 : .5;
+  const lead = R_.moves ? .5 : 0;
   if (e < lead) {
     const u = e / lead;
     A.x = lerp(R_.fx, sp.x, u); A.y = lerp(R_.fy, sp.y, u); A.z = lerp(R_.fz, sp.z, u) + Math.sin(u * Math.PI) * 7;
@@ -3060,8 +3314,8 @@ function applyReact(A, time) {
   return R_;
 }
 function drawItem(R_, A, t, e) {
-  if (e < .45 || !R_.item) return;
-  const sp = SPOT[A.id], floorZ = FLOOR_OF[A.id];
+  if (e < .45 || !R_.item || !R_.flat) return;
+  const sp = R_.sp, floorZ = R_.moves ? FLOOR_OF[A.id] : sp.z;
   const x0 = sp.x + 9, y0 = sp.y + 3;
   if (e > R_.dur - .1) { // put away: a little puff where it stood
     const u = (e - R_.dur + .1) / .6;
@@ -3082,6 +3336,8 @@ function drawItem(R_, A, t, e) {
   } else blit(ITEM.wheel[fr(t, 6, 2)], x0, y0, floorZ, false, lut);
 }
 const FLOOR_OF = { cat: Z1, pup: Z2, rabbit: Z3, sheep: Z1, dragon: Z2, penguin: 0 };
+const isOutdoors = A => hexAt(A.x, A.y) >= 1 || A.z >= TOP_Z(storeys);
+const inOwnRoom = A => A.id !== 'penguin' && !isOutdoors(A) && roomZone(A.z) === roomZone(FLOOR_OF[A.id] + 1);
 const drawOrder = [];
 function drawActors(t, b, local) {
   drawOrder.length = 0;
@@ -3098,12 +3354,15 @@ function drawActors(t, b, local) {
     SHOT.s = null; SHOT.flip = false; SHOT.h = 14; SHOT.ox = 0; SHOT.oy = 0; SHOT.oz = 0;
     SHOT.tail = null; SHOT.sleep = false; SHOT.floats = false; SHOT.effect = null;
     POSE[A.id](A, t);
-    const lut = actorLut(A.x, A.y, A.z, A.id === 'penguin' ? 'E' : null);
+    const lut = actorLut(A.x, A.y, A.z, isOutdoors(A) ? 'E' : null);
     const Rx = A.react, e = Rx ? WORLD.now - Rx.t0 : 0;
     if (Rx) drawItem(Rx, A, t, e);
     if (SHOT.floats || A.id === 'sheep') { // a soft shadow says how far off the floor it is
-      const fz = FLOOR_OF[A.id], sx = iX(A.x, A.y), sy = iY(A.x, A.y, fz);
-      for (let a = -7; a <= 7; a++) for (let c = -2; c <= 2; c++) if ((a * a) / 49 + (c * c) / 6 < 1) shiftAt(sx + a, sy + c, DOWNP);
+      const outside = hexAt(A.x, A.y) >= 1.1, onRoof = !outside && A.z >= TOP_Z(storeys);
+      if (!onRoof) {
+        const fz = outside ? 0 : FLOOR_OF[A.id], sx = iX(A.x, A.y), sy = iY(A.x, A.y, fz);
+        for (let a = -7; a <= 7; a++) for (let c = -2; c <= 2; c++) if ((a * a) / 49 + (c * c) / 6 < 1) shiftAt(sx + a, sy + c, DOWNP);
+      }
     }
     const z = A.z + SHOT.oz;
     markFront(A.x - 3, A.y - 3, z, A.x + 3, A.y + 3, z + SHOT.h);
@@ -3160,25 +3419,25 @@ function drawDynamic(t, st) {
   if (FX.grass) fxGrass(t);
   if (FX.pool) fxPool(t);
   if (FX.paperBoat) fxPaperBoat(t);
-  if (FX.prism && storeys >= 3) fxPrism(t);
+  if (FX.prism && storeys >= 3 && own('lantern')) fxPrism(t);
   // standing things
   drawGameGround(t);
   drawPalms(t, FX.palms);
   drawSunflowers(t, FX.sunflowers);
-  if (FX.crab) fxCrab(t);
+  if (FX.crab) fxCrab(t, b, local);
   if (FX.pennant) fxPennant(t);
   if (FX.flames && storeys >= 2) fxFlames(t);
-  if (storeys >= 2) fxBowl(t, FX.fish);
-  if (FX.candle && storeys >= 2) fxCandle(t);
-  if (FX.lamp && storeys >= 3) fxLamp(t);
-  if (FX.ball) fxBall(t);
+  if (storeys >= 2 && own('stoolB')) fxBowl(t, FX.fish);
+  if (FX.candle && storeys >= 2 && own('table')) fxCandle(t);
+  if (FX.lamp && storeys >= 3 && own('lamp')) fxLamp(t);
+  if (FX.ball && own('basket')) fxBall(t);
   if (FX.actors) drawActors(t, b, local);
   // hanging and flying things pass in front of the animals
-  if (FX.chime) fxChime(t);
-  if (FX.mobile) fxMobile(t);
-  if (FX.lantern && storeys >= 3) fxLantern(t);
-  if (FX.book && storeys >= 3) fxBook(t);
-  if (FX.potSteam && storeys >= 2) fxPotSteam(t);
+  if (FX.chime && own('chime')) fxChime(t);
+  if (FX.mobile && own('mobile')) fxMobile(t);
+  if (FX.lantern && storeys >= 3 && own('lantern')) fxLantern(t);
+  if (FX.book && storeys >= 3 && own('bookcase')) fxBook(t);
+  if (FX.potSteam && storeys >= 2 && own('counter')) fxPotSteam(t);
   if (FX.dust) fxDust(t);
   if (FX.butterflies) fxButter(t);
   if (FX.bee) fxBee(t);
@@ -3212,7 +3471,7 @@ let panelEl = null, panelStats = null, panelTick = 0, scrubEl = null;
 function buildPanel() {
   panelEl = document.getElementById('panel');
   panelEl.innerHTML = '';
-  const h = document.createElement('h1'); h.textContent = '夏の塔の箱庭'; panelEl.appendChild(h);
+  const h = document.createElement('h1'); h.textContent = 'Little Island Tower'; panelEl.appendChild(h);
   panelStats = document.createElement('div'); panelEl.appendChild(panelStats);
   const addRow = (label, el) => { const r = document.createElement('div'); r.className = 'row'; const s = document.createElement('span'); s.textContent = label; r.appendChild(s); r.appendChild(el); panelEl.appendChild(r); return r; };
   const speed = document.createElement('input'); speed.type = 'range'; speed.min = 0; speed.max = 8; speed.step = .05; speed.value = CFG.speed;
@@ -3267,7 +3526,7 @@ function togglePanel(force) {
    ═══════════════════════════════════════════════════════════════════════ */
 const SAVE_KEY = 'summer-tower-save-v1';
 const RULES = {
-  floorCost: { 2: 120, 3: 300 },
+  floorCost: { 2: 50, 3: 300 },
   spawnEvery: 10,          // a new piece of glass, seconds
   beachCap: 12,            // never more than this lying about
   bottleEvery: 45,         // while closed: one piece per this many seconds
@@ -3287,18 +3546,41 @@ const GOODS = {
   wheel: { name: 'かざぐるま', type: 'おもちゃ', price: 15, gain: 3, dur: 9 },
 };
 const ANIMALS = {
-  cat: { name: 'ねこ', room: '1階の遊び部屋', gest: ['まりをちょいちょい', 'おなかを見せてごろん'], hint: '最初からいます' },
-  pup: { name: 'こいぬ', room: '2階の台所', gest: ['首をかしげる', 'くるくる回る'], hint: '2階ができると来ます' },
-  rabbit: { name: 'うさぎ', room: '3階の寝室', gest: ['うれしくて跳ねる', '耳のおていれ'], hint: '3階ができると来ます' },
-  dragon: { name: 'ちびドラゴン', room: '2階の台所', gest: ['けむりの輪', 'ふらふら宙返り'], hint: '塔が完成したら、窓辺におやつを' },
-  sheep: { name: 'くものひつじ', room: '1階の遊び部屋', gest: ['小さな雨', '小さな虹'], hint: '塔が完成したら、窓辺におやつを' },
-  penguin: { name: 'ペンギン', room: '桟橋と砂浜', gest: ['おなかすべり', 'ごきげんダンス'], hint: '塔が完成したら、窓辺におやつを' },
+  cat: { name: 'ねこ' }, pup: { name: 'こいぬ' }, rabbit: { name: 'うさぎ' },
+  dragon: { name: 'ちびドラゴン' }, sheep: { name: 'くものひつじ' }, penguin: { name: 'ペンギン' },
 };
+/* Each floor starts with its animal's bed. Everything here is bought, and at: is where the sparkle goes. */
+const FURNITURE = {
+  doorMat: { floor: 1, name: 'ドアマット', price: 4, at: [69, 26, Z1] },
+  blocks: { floor: 1, name: '積み木', price: 6, at: [46, 28, Z1 + 8] },
+  chime: { floor: 1, name: '風鈴', price: 6, at: [...worldAt(53, -8), Z1 + 56] },
+  rug1: { floor: 1, name: '丸いラグ', price: 8, at: [56, 58, Z1] },
+  basket: { floor: 1, name: 'まりのかご', price: 10, at: [86, 80, Z1 + 6] },
+  mobile: { floor: 1, name: '星のモビール', price: 10, at: [...worldAt(-6, -9), Z1 + 36] },
+  shelf1: { floor: 1, name: '絵本の棚', price: 12, at: [...worldAt(-15, -29), Z1 + 10] },
+  tent: { floor: 1, name: 'テント', price: 20, at: [82, 54, Z1 + 10] },
+  catTree: { floor: 1, name: 'キャットタワー', price: 25, at: [43, 85, Z1 + 22] },
+  bowls: { floor: 2, name: 'ごはん皿', price: 6, at: [93, 55, Z2] },
+  stoolA: { floor: 2, name: 'きのこのいす', price: 6, at: [32, 66, Z2 + 6] },
+  stoolB: { floor: 2, name: '金魚ばち', price: 12, at: [78, 84, Z2 + 8] },
+  counter: { floor: 2, name: '調理台', price: 15, at: [...worldAt(0, -28), Z2 + 8] },
+  lemon: { floor: 2, name: 'レモンの木', price: 15, at: [46, 96, Z2 + 20] },
+  icebox: { floor: 2, name: '冷蔵庫', price: 18, at: [63, 21, Z2 + 16] },
+  table: { floor: 2, name: 'テーブル', price: 20, at: [52, 62, Z2 + 14] },
+  oven: { floor: 2, name: 'れんが窯', price: 25, at: [...worldAt(-17, -25), Z2 + 10] },
+  lantern: { floor: 3, name: '星のランタン', price: 8, at: [...worldAt(-30, 4), Z3 + 44] },
+  rug3: { floor: 3, name: '三日月のラグ', price: 10, at: [76, 68, Z3] },
+  lamp: { floor: 3, name: '貝のランプ', price: 12, at: [27, 80, Z3 + 14] },
+  bookcase: { floor: 3, name: '本棚', price: 14, at: [...worldAt(13, -29), Z3 + 10] },
+  telescope: { floor: 3, name: '望遠鏡', price: 18, at: [74, 26, Z3 + 12] },
+  bed3: { floor: 3, name: '大きなベッド', price: 30, at: [36, 62, Z3 + 8] },
+};
+const FURN_KEYS = Object.keys(FURNITURE);
 const PET_ORDER = ['dragon', 'sheep', 'penguin'];
 const newState = () => ({
   v: 1, glass: 0, stash: 0, total: 0, storeys: 1, pets: [],
   aff: { cat: 0, pup: 0, rabbit: 0, sheep: 0, dragon: 0, penguin: 0 },
-  beach: [], n: 0, spawnIn: 6, sill: false, played: 0, doneAt: 0, lastSeen: 0, tips: {},
+  beach: [], n: 0, spawnIn: 6, sill: false, played: 0, doneAt: 0, lastSeen: 0, furn: [],
 });
 let GS = newState();
 let gameOn = false;
@@ -3333,7 +3615,9 @@ function readSave() {
   s.played = cleanNum(o.played, 0, 1e10, 0);
   s.doneAt = cleanNum(o.doneAt, 0, 1e10, 0);
   s.lastSeen = cleanNum(o.lastSeen, 0, 1e15, 0);
-  s.tips = o.tips && typeof o.tips === 'object' ? o.tips : {};
+  // a save from before furniture could be bought keeps its progress and starts with the beds
+  s.furn = Array.isArray(o.furn) ? FURN_KEYS.filter(k => o.furn.includes(k)) : [];
+  if (s.pets.includes('dragon') && !s.furn.includes('stoolA')) s.furn.push('stoolA');
   return s;
 }
 
@@ -3395,6 +3679,7 @@ function spark(x, y, col = 'sea6', r = 9, life = .55) {
 
 /* ── the rules: pure state changes, no drawing ───────────────────────── */
 function pushWorld() {
+  OWNED.set = new Set(GS.furn);
   WORLD.pets.dragon = GS.pets.includes('dragon');
   WORLD.pets.sheep = GS.pets.includes('sheep');
   WORLD.pets.penguin = GS.pets.includes('penguin');
@@ -3438,7 +3723,11 @@ function settleAbsence(sec) {
   out.glass = GS.stash - before;
   if (GS.sill) {
     const next = PET_ORDER.find(p => !GS.pets.includes(p));
-    if (next) { GS.pets.push(next); out.pet = next; }
+    if (next) {
+      GS.pets.push(next); out.pet = next;
+      // the dragon brings the stool it perches on, if there isn't one yet
+      if (next === 'dragon' && !GS.furn.includes('stoolA')) { GS.furn.push('stoolA'); out.rebake = true; }
+    }
     GS.sill = false;
   }
   return out;
@@ -3468,6 +3757,16 @@ function placeSill() {
 }
 function rebake() {
   paintAll(); computeLight(); bakeLayers(); afterBake();
+}
+const canFurnish = key => { const f = FURNITURE[key]; return !!f && f.floor <= GS.storeys && !GS.furn.includes(key) && GS.glass >= f.price; };
+const furnitureLeft = () => FURN_KEYS.filter(k => FURNITURE[k].floor <= GS.storeys && !GS.furn.includes(k));
+function furnish(key) {
+  if (!canFurnish(key)) return false;
+  GS.glass -= FURNITURE[key].price;
+  GS.furn.push(key);
+  pushWorld();
+  rebake();
+  return true;
 }
 function growNow() {
   const cost = nextFloorCost();
@@ -3499,7 +3798,16 @@ function stepCamera(dt) {
   }
   if (moved || CFG.zoom.length !== 4) CFG.zoom = CAM.cur.map(v => v);
 }
-const FLOOR_VIEW = { cat: 1, sheep: 1, pup: 2, dragon: 2, rabbit: 3, penguin: 'beach' };
+/* the room it's in, the beach it's on, or the whole picture if it has gone up a palm or onto the roof */
+function viewFor(id) {
+  const A = ACTOR[id];
+  if (!isOutdoors(A)) return roomZone(A.z) === 'G' ? 1 : roomZone(A.z) === 'B' ? 2 : 3;
+  return A.z <= 5 && A.x > 110 ? 'beach' : 'all';
+}
+function lookAt(id) {
+  const v = viewFor(id);
+  if (v !== CAM.name && (CAM.name !== 'all' || v !== 'beach')) setView(v);
+}
 
 /* ── the screen ───────────────────────────────────────────────────────── */
 const UI = {};
@@ -3516,16 +3824,11 @@ function spriteCanvas(s, scale = 2, u = 1) {
 }
 const FACE = () => ({ cat: K.sit, pup: D.sit[0], rabbit: R.sit, sheep: S.front[0], dragon: Y.sit, penguin: Q.stand });
 const ITEM_ICON = () => ({ cookie: ITEM.cookie, ice: ITEM.ice, ball: ITEM.ball[0], wheel: ITEM.wheel[0] });
-let toastTimer = 0, cardFor = null, menuOpen = false, growing = false;
+let toastTimer = 0, cardFor = null, menuOpen = false, shopOpen = false, helpOpen = false, growing = false;
 function toast(text, sec = 4.5) {
   UI.toast.textContent = text;
   UI.toast.classList.add('on');
   toastTimer = sec;
-}
-function tip(key, text, sec) {
-  if (GS.tips[key]) return;
-  GS.tips[key] = 1;
-  toast(text, sec);
 }
 function floatNumber(ix, iy, text) {
   const e = document.createElement('div');
@@ -3538,7 +3841,7 @@ function floatNumber(ix, iy, text) {
 }
 function buildUI() {
   UI.ui = $('ui'); UI.ui.hidden = false;
-  for (const k of ['glassN', 'bottleBtn', 'bottleN', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'menu', 'puff', 'unhide']) UI[k] = $(k);
+  for (const k of ['glassN', 'bottleBtn', 'bottleN', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
   $('glassIcon').appendChild(spriteCanvas(GLASS_SPR[0], 2));
   $('bottleIcon').appendChild(spriteCanvas(BOTTLE, 2));
   UI.faceBtns = {};
@@ -3550,8 +3853,7 @@ function buildUI() {
     const q = document.createElement('span'); q.className = 'qm'; q.textContent = '？';
     b.append(img, q);
     b.onclick = () => {
-      if (present(id)) { petAnimal(id); openCard(id); if (FLOOR_VIEW[id] !== CAM.name) setView(FLOOR_VIEW[id]); }
-      else toast(`まだ会っていない動物です。${ANIMALS[id].hint}`);
+      if (present(id)) { petAnimal(id); lookAt(id); openCard(id); }
     };
     UI.faces.appendChild(b); UI.faceBtns[id] = b;
   }
@@ -3564,10 +3866,11 @@ function buildUI() {
   }
   UI.growBtn.onclick = onMainButton;
   UI.bottleBtn.onclick = () => {
-    const v = emptyBottle();
-    if (v) { toast(`小びんから ${v} 個のシーグラスを取り出しました`); saveGame(); refreshUI(); }
+    if (emptyBottle()) { saveGame(); refreshUI(); }
   };
-  UI.menuBtn.onclick = () => { menuOpen = !menuOpen; closeCard(); renderMenu(); };
+  UI.shopBtn.onclick = () => { const on = !shopOpen; closeSheets(); shopOpen = on; renderShop(); };
+  UI.helpBtn.onclick = () => { const on = !helpOpen; closeSheets(); helpOpen = on; renderHelp(); };
+  UI.menuBtn.onclick = () => { const on = !menuOpen; closeSheets(); menuOpen = on; renderMenu(); };
   UI.unhide.onclick = () => { UI.ui.classList.remove('hide'); };
   display.addEventListener('pointerup', onCanvasTap);
   refreshUI();
@@ -3576,22 +3879,16 @@ const BOTTLE = mk(['..oo..', '..cc..', '.oWao.', '.oaao.', 'oWaaao', 'oaabao', '
 function onMainButton() {
   if (growing) return;
   if (!towerDone()) {
-    const cost = nextFloorCost();
-    if (GS.glass < cost) { toast(`あと ${cost - GS.glass} 個のシーグラスで、${GS.storeys + 1}階を建てられます`); return; }
-    growAnimated();
+    if (GS.glass >= nextFloorCost()) growAnimated();
     return;
   }
-  if (allPets()) { toast('みんなそろいました。のんびり眺めましょう'); return; }
-  if (GS.sill) { toast('おやつを置きました。次に開いたとき、だれか来ているかもしれません'); return; }
-  if (GS.glass < RULES.sillPrice) { toast(`窓辺のおやつには ${RULES.sillPrice} 個のシーグラスが必要です`); return; }
-  placeSill();
-  toast('窓辺におやつを置きました。次に開いたとき、だれか来ているかもしれません', 6);
+  if (!placeSill()) return;
   setView(2);
   saveGame(); refreshUI();
 }
 function growAnimated() {
   growing = true;
-  closeCard();
+  closeSheets();
   setView('all');
   UI.puff.classList.add('on');
   setTimeout(() => {
@@ -3600,17 +3897,23 @@ function growAnimated() {
     for (let i = 0; i < 14; i++) spark(180 + hsh(i, 171) * 120 - 60, 150 + hsh(i, 172) * 280, 'amb7', 16, 1.2);
     UI.puff.classList.remove('on');
     growing = false;
-    const n = GS.storeys, who = n === 2 ? 'こいぬ' : 'うさぎ';
-    if (n === 3) toast(`3階ができて、${who}がやってきました。塔の完成です。ここからは眺めモードです`, 8);
-    else toast(`${n}階ができて、${who}がやってきました`, 6);
+    toast(GS.storeys === 3 ? '塔が完成！ うさぎがやってきました' : 'こいぬがやってきました', 5);
     saveGame(); refreshUI();
   }, 650);
 }
 function closeCard() { cardFor = null; UI.card.classList.remove('on'); }
+function closeSheets() {
+  closeCard();
+  menuOpen = shopOpen = helpOpen = false;
+  renderMenu(); renderShop(); renderHelp();
+}
 function openCard(id) {
-  cardFor = id; menuOpen = false; renderMenu();
+  closeSheets();
+  cardFor = id;
   renderCard();
-  UI.card.classList.toggle('top', id === 'penguin');
+  // keep the sheet off the animal: it goes on top when the animal is low on the screen
+  const v = CAM.to;
+  UI.card.classList.toggle('top', (ACTOR[id].sy - v[1]) / v[3] > .5);
   UI.card.classList.add('on');
 }
 function hearts(n) {
@@ -3618,19 +3921,13 @@ function hearts(n) {
   for (let i = 1; i <= 5; i++) h += `<i class="${n >= i * 2 ? 'full' : n === i * 2 - 1 ? 'half' : ''}">♥</i>`;
   return h;
 }
-function nextGesture(id) {
-  const a = GS.aff[id], g = ANIMALS[id].gest;
-  if (a >= 8) return `「${g[0]}」と「${g[1]}」を見せてくれます`;
-  if (a >= 4) return `「${g[0]}」を覚えました。♥4つで次のしぐさ`;
-  return '♥2つで新しいしぐさを覚えます';
-}
 function renderCard() {
   const id = cardFor;
   if (!id) return;
   const a = ANIMALS[id], c = UI.card, icons = ITEM_ICON();
   c.innerHTML = `<button class="x" aria-label="とじる">×</button>
-    <div class="head"><span class="ic"></span><div><b>${a.name}</b><small>${a.room}</small><div class="hearts">${hearts(GS.aff[id])}</div></div></div>
-    <p class="note">${nextGesture(id)}</p><div class="goods"></div>`;
+    <div class="head"><span class="ic"></span><div><b>${a.name}</b><div class="hearts">${hearts(GS.aff[id])}</div></div></div>
+    <div class="goods"></div>`;
   c.querySelector('.ic').appendChild(spriteCanvas(FACE()[id], 2));
   c.querySelector('.x').onclick = closeCard;
   const box = c.querySelector('.goods'), busy = !!WORLD.react[id] && WORLD.react[id].anim !== 'happy';
@@ -3639,7 +3936,7 @@ function renderCard() {
     b.className = 'good'; b.dataset.good = key;
     const afford = GS.glass >= g.price;
     b.disabled = !afford || busy;
-    b.innerHTML = `<span class="gi"></span><span class="gt">${g.name}<small>${g.type} ・ ♥+${g.gain / 2}</small></span><span class="gp ${afford ? '' : 'no'}">${g.price}<small>個</small></span>`;
+    b.innerHTML = `<span class="gi"></span><span class="gt">${g.name}</span><span class="gp ${afford ? '' : 'no'}">${g.price}</span>`;
     b.querySelector('.gi').appendChild(spriteCanvas(icons[key], 2));
     b.onclick = () => {
       delete WORLD.react[id]; // a pat should never block a treat
@@ -3648,13 +3945,59 @@ function renderCard() {
     box.appendChild(b);
   }
 }
+function renderShop() {
+  const m = UI.shop;
+  m.classList.toggle('on', shopOpen);
+  if (!shopOpen) return;
+  m.innerHTML = '<button class="x" aria-label="とじる">×</button>';
+  m.querySelector('.x').onclick = closeSheets;
+  const left = furnitureLeft();
+  for (let n = 1; n <= GS.storeys; n++) {
+    const keys = left.filter(k => FURNITURE[k].floor === n);
+    if (!keys.length) continue;
+    const h = document.createElement('h3'); h.textContent = n + '階';
+    const box = document.createElement('div'); box.className = 'goods';
+    for (const key of keys) {
+      const f = FURNITURE[key], b = document.createElement('button'), afford = GS.glass >= f.price;
+      b.className = 'good'; b.dataset.furn = key; b.disabled = !afford;
+      b.innerHTML = `<span class="gt">${f.name}</span><span class="gp ${afford ? '' : 'no'}">${f.price}</span>`;
+      b.onclick = () => placeFurniture(key);
+      box.appendChild(b);
+    }
+    m.append(h, box);
+  }
+}
+function placeFurniture(key) {
+  if (!furnish(key)) return;
+  const f = FURNITURE[key], sx = iX(f.at[0], f.at[1]), sy = iY(f.at[0], f.at[1], f.at[2]);
+  closeSheets();
+  setView(f.floor);
+  for (let i = 0; i < 7; i++) spark(sx + hsh(i, 173) * 24 - 12, sy + hsh(i, 174) * 18 - 9, 'amb7', 11, .9);
+  // whoever lives on this floor comes over to see
+  for (const id of ACTOR_IDS) if (present(id) && inOwnRoom(ACTOR[id]) && FLOOR_OF[id] === FLOOR_Z[f.floor - 1]) petAnimal(id);
+  saveGame(); refreshUI();
+}
+const HELP = [
+  '波打ち際に光るシーグラスをタップして集めます。閉じている間も、小びんに少したまります。',
+  '集めたシーグラスで塔を建て増しします。階が増えると動物がやってきます。',
+  '「家具」から家具を買うと、部屋に置かれます。動物たちも使います。',
+  '動物をタップすると、おやつやおもちゃをあげられます。なつくと新しいしぐさを見せてくれます。',
+  '動物たちは、はしごで屋根や浜辺にも出かけます。',
+  '3階まで建ったら、窓辺におやつを置きましょう。次に開いたとき、新しい動物が来ているかもしれません。',
+  '進み具合はこのブラウザの中に自動で保存されます。',
+];
+function renderHelp() {
+  const m = UI.help;
+  m.classList.toggle('on', helpOpen);
+  if (!helpOpen) return;
+  m.innerHTML = `<button class="x" aria-label="とじる">×</button><h3>遊び方</h3><ul>${HELP.map(s => `<li>${s}</li>`).join('')}</ul>`;
+  m.querySelector('.x').onclick = closeSheets;
+}
 function renderMenu() {
   const m = UI.menu;
   m.classList.toggle('on', menuOpen);
   if (!menuOpen) return;
-  const min = Math.round(GS.played / 60);
-  m.innerHTML = `<button class="x" aria-label="とじる">×</button><h3>夏の塔の箱庭</h3>
-    <p class="note">遊んだ時間 ${min} 分 ・ 集めたシーグラス ${GS.total} 個<br>進み具合はこのブラウザの中に自動で保存されます。別の端末には引き継げません。</p>
+  m.innerHTML = `<button class="x" aria-label="とじる">×</button><h3>Little Island Tower</h3>
     <button id="hideBtn" class="wide">文字を隠して眺める</button>
     <button id="resetBtn" class="wide danger">最初からやり直す</button>`;
   m.querySelector('.x').onclick = () => { menuOpen = false; renderMenu(); };
@@ -3670,21 +4013,22 @@ function refreshUI() {
   UI.glassN.textContent = GS.glass;
   UI.bottleBtn.hidden = !GS.stash;
   UI.bottleN.textContent = '+' + GS.stash;
+  UI.shopBtn.hidden = !furnitureLeft().length;
+  if (shopOpen) renderShop();
   for (const b of UI.floors.children) {
     const v = b.dataset.view;
     b.hidden = v !== 'all' && +v > storeys;
     b.classList.toggle('sel', v === String(CAM.name));
   }
   for (const id in UI.faceBtns) UI.faceBtns[id].classList.toggle('known', present(id));
-  let label, frac = 1, ready = true;
+  let label = '', frac = 1, ready = true;
   if (!towerDone()) {
     const cost = nextFloorCost();
-    label = `${GS.storeys + 1}階を建てる<small>${Math.min(GS.glass, cost)} / ${cost}</small>`;
+    label = `${GS.storeys + 1}階 ${Math.min(GS.glass, cost)}/${cost}`;
     frac = Math.min(1, GS.glass / cost); ready = GS.glass >= cost;
-  } else if (allPets()) { label = '眺めモード<small>みんなそろいました</small>'; ready = false; }
-  else if (GS.sill) { label = '眺めモード<small>次に開くのが楽しみ</small>'; ready = false; }
-  else { label = `窓辺におやつ<small>${RULES.sillPrice} 個</small>`; ready = GS.glass >= RULES.sillPrice; }
-  UI.growLabel.innerHTML = label;
+  } else if (!allPets() && !GS.sill) { label = `おやつ ${RULES.sillPrice}`; ready = GS.glass >= RULES.sillPrice; }
+  UI.growBtn.hidden = !label;
+  UI.growLabel.textContent = label;
   UI.growFill.style.width = frac * 100 + '%';
   UI.growBtn.classList.toggle('ready', ready);
   if (cardFor) refreshCardPrices();
@@ -3720,19 +4064,18 @@ function hitTest(ix, iy) {
 }
 function onCanvasTap(e) {
   if (growing) return;
-  if (menuOpen) { menuOpen = false; renderMenu(); return; }
+  if (menuOpen || shopOpen || helpOpen) { closeSheets(); return; }
   const [ix, iy] = toInternal(e), hit = hitTest(ix, iy);
   if (!hit) { closeCard(); return; }
   if (hit.kind === 'glass') {
     const s = SLOTS[GS.beach[hit.n].slot], k = GS.beach[hit.n].kind, v = collectAt(hit.n);
     spark(s.x, s.y, ['sea6', 'lef6', 'amb7'][k]);
     floatNumber(s.x, s.y, '+' + v);
-    tip('animal', '動物をタップすると、おやつやおもちゃをあげられます', 6);
     saveGame(); refreshUI();
   } else {
     petAnimal(hit.id);
+    lookAt(hit.id);
     openCard(hit.id);
-    if (FLOOR_VIEW[hit.id] !== CAM.name) setView(FLOOR_VIEW[hit.id]);
     saveGame();
   }
 }
@@ -3743,10 +4086,8 @@ function resetGame() {
   GS.lastSeen = nowMs();
   storeys = 1;
   WORLD.react = {}; WORLD.sparks.length = 0;
-  rebake(); pushWorld();
-  menuOpen = false; renderMenu(); closeCard(); setView('all');
-  toast('波打ち際のシーグラスをタップして集めましょう', 6);
-  GS.tips = {};
+  pushWorld(); rebake();
+  closeSheets(); setView('all');
   saveGame(); refreshUI();
 }
 /* an absence, whether a closed page or a long-hidden tab */
@@ -3754,10 +4095,8 @@ function comeBack() {
   const sec = (nowMs() - GS.lastSeen) / 1000;
   const r = settleAbsence(sec);
   pushWorld();
-  const msg = [];
-  if (r.pet) msg.push(`窓辺のおやつにつられて、${ANIMALS[r.pet].name}がやってきました`);
-  if (r.glass > 0) msg.push(`留守のあいだに、小びんにシーグラスが ${r.glass} 個たまりました`);
-  if (msg.length) toast(msg.join('。'), 7);
+  if (r.rebake) rebake();
+  if (r.pet) toast(`${ANIMALS[r.pet].name}がやってきました`, 5);
   saveGame(); refreshUI();
 }
 let saveEvery = 5;
@@ -3770,6 +4109,7 @@ function gameFrame(dt) {
 }
 function gameBoot() {
   gameOn = !(CFG.full || CFG.floors || CFG.sheet || CFG.loop);
+  OWNED.all = !gameOn;
   if (!gameOn) {
     storeys = CFG.full ? 3 : CFG.floors || 1;
     if (CFG.full) { WORLD.pets.dragon = WORLD.pets.sheep = WORLD.pets.penguin = true; for (const k in WORLD.aff) WORLD.aff[k] = 10; }
@@ -3791,7 +4131,7 @@ function gameStart() {
   }
   pushWorld();
   buildUI();
-  if (fresh) { GS.tips = {}; toast('波打ち際のシーグラスをタップして集めましょう', 7); saveGame(); }
+  if (fresh) saveGame();
   else comeBack();
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
@@ -3802,7 +4142,10 @@ function gameStart() {
 }
 const GAME = {
   state: () => JSON.parse(JSON.stringify(GS)),
-  rules: RULES, goods: GOODS,
+  rules: RULES, goods: GOODS, furniture: FURNITURE,
+  furnish: key => { const ok = furnish(key); if (UI.ui) refreshUI(); return ok; },
+  left: furnitureLeft,
+  painted: name => { const id = NAMED[name].id; let n = 0; for (let i = 0; i < N; i++) if (gId[i] === id) n++; return n; },
   advance: sec => { advance(sec); pushWorld(); },
   collectAll: () => { let v = 0; while (GS.beach.length) v += collectAt(0); pushWorld(); if (UI.ui) refreshUI(); return v; },
   give: (id, good) => { GS.glass += GOODS[good].price; delete WORLD.react[id]; return buyFor(id, good); },
@@ -3913,6 +4256,14 @@ const dollhouse = {
   game: GAME,
   scripts: (seed = 1) => SCRIPT_NAMES.map(n => { const b = compileBlock(n, seed); return [n, ...ACTOR_IDS.map(id => b[id].at(-1).t0)]; }),
   story: storyAt,
+  /* every script at a given height and with or without the furniture, for checking lengths and endings */
+  scriptsAt: (n, furnished, seed = 1) => {
+    const s = storeys, a = OWNED.all;
+    storeys = n; OWNED.all = furnished;
+    const out = SCRIPT_NAMES.map(name => { const b = compileBlock(name, seed); return [name, ...ACTOR_IDS.map(id => b[id].at(-1).t0)]; });
+    storeys = s; OWNED.all = a;
+    return out;
+  },
   timeline: k => { const b = blockFor(k); return ACTOR_IDS.map(w => w + ': ' + b[w].map(s => `${s.t0.toFixed(1)} ${s.anim}`).join(', ')); },
 };
 window.dollhouse = dollhouse;
