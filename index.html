@@ -22,7 +22,6 @@
   #shopBtn { margin-left: auto; font-size: calc(var(--u) * 12); }
   #helpBtn, #menuBtn { width: calc(var(--u) * 30); padding: 0; justify-content: center; }
 
-  #catArtBtn { position: absolute; left: calc(var(--u) * 8); top: calc(var(--u) * 46); font-size: calc(var(--u) * 12); }
   #floors { position: absolute; right: calc(var(--u) * 8); top: calc(var(--u) * 46); display: flex; flex-direction: column; gap: calc(var(--u) * 5); }
   #floors button { width: calc(var(--u) * 40); height: calc(var(--u) * 30); padding: 0; background: #fff8e7cc; border-radius: calc(var(--u) * 9); font-size: calc(var(--u) * 11); }
   #floors button.sel { background: #3a9fd0; color: #fff; }
@@ -142,7 +141,6 @@ window.__analytics = (function () {
     </div>
     <div id="toast"></div>
     <div id="floors"></div>
-    <button class="pill" id="catArtBtn" hidden></button>
     <div id="dock">
       <button id="growBtn"><span id="growFill"></span><span id="growLabel"></span></button>
       <div id="faces"></div>
@@ -183,7 +181,6 @@ const CFG = {
   loop: QS.get('loop') === '1',
   block: qNum('block', 0) | 0,
   debug: QS.get('debug') === '1',
-  catArt: QS.get('cat') === '1',
   speed: qNum('speed', 1),
   freeze: QS.has('t') ? qNum('t', 0) : null,
   zoom: (QS.get('zoom') || '').split(',').map(Number),
@@ -1614,6 +1611,16 @@ function stamp(dst, src, dx, dy) {
   return dst;
 }
 const stack = (parts, mapStr, ax, ay) => mk(parts.flat(), mapStr, ax, ay);
+/* cut the empty edges, so a bubble above the sprite sits right on its head */
+function trim(s) {
+  let x0 = s.w, x1 = -1, y0 = s.h, y1 = -1;
+  for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) if (s.d[y * s.w + x]) {
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  const out = blank(x1 - x0 + 1, y1 - y0 + 1, s.ax - x0, s.ay - y0);
+  stamp(out, s, -x0, -y0);
+  return out;
+}
 function shear(src, dir) { // dir 1: right side falls along the iso axis; -1: right side rises
   const ex = src.w >> 1;
   const out = blank(src.w, src.h + ex, src.ax, 0);
@@ -1643,7 +1650,7 @@ const dappleAt = (x, y) => {
   if (v < .12) return 'b';
   return w < .22 ? 'c' : w > .9 ? 'b' : 'B';
 };
-const DOG = { LEN: 15, H0: 5, X0: 7, Y0: 6, cw: 28, ch: 17, legH: 2 };
+const DOG = { LEN: 15, H0: 5, X0: 7, Y0: 6, cw: 28, ch: 18, legH: 3 };
 const dogLegPhases = [
   [[0, 2], [3, 1], [2, 2], [0, 1]],
   [[1, 2], [2, 2], [1, 2], [1, 2]],
@@ -1667,9 +1674,9 @@ function dogBody(legPhase, tailPhase, bow = 0) {
   for (const [x, y] of plume) for (const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) set(x + a, y + b, 'o');
   for (const [x, y, c] of plume) set(x, y, c);
   // legs, set behind the fringe
-  const LP = dogLegPhases[legPhase], lx = [X0 + 1, X0 + 3, X0 + LEN - 5, X0 + LEN - 3];
-  LP.forEach(([dx, h], i) => {
-    const far = i % 2 === 0, x = lx[i] + dx - 1, y = yb(x) + H0;
+  const LP = dogLegPhases[legPhase], lx = [X0 + 1, X0 + 4, X0 + LEN - 6, X0 + LEN - 3];
+  LP.forEach(([dx, h0], i) => {
+    const h = h0 + 1, far = i % 2 === 0, x = lx[i] + dx - 1, y = yb(x) + H0;
     for (let k = 0; k <= h; k++) { set(x - 1, y + k, 'o'); set(x + 2, y + k, 'o'); set(x, y + k, far ? 'T' : 't'); set(x + 1, y + k, far ? 'T' : 't'); }
     set(x - 1, y + h + 1, 'o'); set(x, y + h + 1, 'o'); set(x + 1, y + h + 1, 'o'); set(x + 2, y + h + 1, 'o');
     set(x, y + h, 'U'); set(x + 1, y + h, far ? 't' : 'U');
@@ -1689,25 +1696,26 @@ function dogBody(legPhase, tailPhase, bow = 0) {
   for (let y = 1; y < H0 - 1; y++) set(X0 - 1, Y0 + y, 'o');
   return mk(g.map(r => r.join('')), DM, X0 + 7, Y0 + H0 + DOG.legH);
 }
-function dogFrame(dir, leg, tail, head = 'front', o = {}) {
-  const sh = shear(dogBody(leg, tail, o.bow || 0), dir === 'SE' ? 1 : -1);
-  const out = blank(sh.w + 10, sh.h + 8, sh.ax + 2, sh.ay + 6);
-  stamp(out, sh, 2, 6);
-  const endX = DOG.X0 + DOG.LEN - 1;
-  const off = dir === 'SE' ? endX >> 1 : (DOG.cw - 1 - endX) >> 1;
-  const jx = 2 + endX, jy = 6 + DOG.Y0 + off + (o.bow || 0);
-  const hx = jx + (dir === 'SE' ? -4 : -5) + (o.hx || 0), hy = jy + (dir === 'SE' ? -4 : -5) + (o.hy || 0);
-  stamp(out, dogHeads[head], hx, hy);
-  return out;
+function dogFrame(leg, tail, head = 'front', o = {}) {
+  const body = dogBody(leg, tail, o.bow || 0);
+  const out = blank(body.w + 10, body.h + 8, body.ax + 2, body.ay + 6);
+  stamp(out, body, 2, 6);
+  const jx = 2 + DOG.X0 + DOG.LEN - 1, jy = 6 + DOG.Y0 + (o.bow || 0);
+  stamp(out, dogHeads[head], jx - 4 + (o.hx || 0), jy - 5 + (o.hy || 0));
+  return trim(out);
 }
 const D = {};
-D.walkSE = [0, 1, 2, 3].map(i => dogFrame('SE', i, i, 'front'));
-D.walkNE = [0, 1, 2, 3].map(i => dogFrame('NE', i, i, 'back'));
-D.standSE = [0, 1, 2, 3].map(i => dogFrame('SE', 4, i, 'front'));
-D.standBlink = dogFrame('SE', 4, 0, 'blink');
-D.tilt = [0, 1, 2, 3].map(i => dogFrame('SE', 4, i, 'tilt', { hy: -1 }));
-D.sniff = [0, 1].map(i => dogFrame('SE', 4, i, 'sniff', { hy: 3, hx: 1, bow: 1 }));
-D.stretch = [dogFrame('SE', 4, 1, 'blink', { bow: 2, hy: 2 }), dogFrame('SE', 4, 3, 'blink', { bow: 3, hy: 3 })];
+D.walk = [0, 1, 2, 3].map(i => dogFrame(i, i, 'front'));
+D.stand = [0, 1, 2, 3].map(i => dogFrame(4, i, 'front'));
+D.standBlink = dogFrame(4, 0, 'blink');
+D.tilt = [0, 1, 2, 3].map(i => dogFrame(4, i, 'tilt', { hy: -1 }));
+D.sniff = [0, 1].map(i => dogFrame(4, i, 'sniff', { hy: 3, hx: 1, bow: 1 }));
+D.stretch = [dogFrame(4, 1, 'blink', { bow: 2, hy: 2 }), dogFrame(4, 3, 'blink', { bow: 3, hy: 3 })];
+/* seen from behind: at a window, or on the ladder */
+D.back = [0, 1].map(n => mk([
+  '...oooo....', '.ooBBBBoo..', 'oEEBBBBEEo.', 'oEFEBcEFEo.', 'oEFEBBEFEo.', 'oEfFBBFfEo.', 'oEFoBBoEFo.', '.oEoBBoEo..',
+  '..oBBcBBo..', '.oBBBBBBBo.', n ? '.oBcBBBBBooo' : '.oBcBBBBBo.o', n ? '.oBBBBBcBoGGo' : '.oBBBBBcBooGo', '.oBBBBBBBoFGo', '.oUUoooUUoFo.', '..oo...oo.o..',
+], DM, 5, 14));
 const dogSit = (head, tail) => {
   const headRows = {
     open:  ['....ooooo....', '..ooBBDBBoo..', '.oEBTBBBTBEo.', 'oEFBwBBBwBFEo', 'oEFBeBTBeBFEo', 'oEfBTTTTTBfEo', 'oEFoTTNTToFEo', '.oEooTTTooEo.', '..oo.ooo.oo..'],
@@ -1743,7 +1751,7 @@ const dogCurl = rise => mk([
   '..oo.oooooUUoo.ooo..',
 ], DM, 9, 8);
 D.curl = [dogCurl(0), dogCurl(1)];
-D.flop = [0, 1].map(n => shear(mk([
+const dogFlop = n => { const s = blank(30, 12, 12, 11); stamp(s, mk([
   n ? '.....oooooooooooo..' : '...................',
   n ? '...ooBBcBDBBBdBBo..' : '....oooooooooooo...',
   'oFoBBBDBBBcBBDBBBo.',
@@ -1751,7 +1759,8 @@ D.flop = [0, 1].map(n => shear(mk([
   '.oBBdBBBBBBBcBBBBBo',
   '..oFFfFFFfFFFFFfFFo',
   '...oooooooooooooUUo',
-], DM, 9, 6), 1));
+], DM), 0, 5); stamp(s, dogHeads.blink, 17, 2); return trim(s); };
+D.flop = [dogFlop(0), dogFlop(1)];
 
 /* ── the cat: smoky fluff, white bib, amber eyes that see everything ───── */
 const CM = 'o:vio1 G:cha7 g:cha6 d:cha5 x:cha4 W:crm7 w:crm5 P:rose6 e:amb6 E:ink1 n:rose5 m:rose3 t:rose5 L:crm3';
@@ -1792,19 +1801,28 @@ K.back = [0, 1, 2].map(e => catAt([
   ...(e === 1 ? ['o........o.', 'oGo.....oGo', 'oGGoooooGGo'] : e === 2 ? ['.o........o', 'oGo.....oGo', 'oGGoooooGGo'] : ['.o.......o.', 'oGo.....oGo', 'oGGoooooGGo']),
   'oGGGGGGGGGo', 'oGGGGGGGGGo', 'oGGGGGGGGgo', 'dgGGGGGGggd', '.odGGGGgdo.', '..oGGGGgo..', '.oGGGGGGgo.', '.oGGGGGggo.', '.oggoooggo.', '..oo...oo..',
 ]));
-const catHeadSE = e => mk(['.o.....o.', 'oGo...oGo', 'oPGoooGPo', 'oGGdGdGGo', e ? 'oGxxGxxGo' : 'oGeEGeEGo', 'dGGGnGGGd', '.odWWWdo.', '..ooooo..'], CM);
-const catHeadNE = mk(['.o.....o.', 'oGo...oGo', 'oGGoooGGo', 'oGGdGdGGo', 'oGGGGGGGo', 'dGdGGGdGd', '.odGGGdo.', '..ooooo..'], CM);
-const CATB = { X0: 2, LEN: 11, Y0: 2, H0: 5, cw: 16, ch: 11 };
+const catHeadSide = mk(['..o....o..', '.oGo..oGo.', '.oPGooGPo.', 'oGGdGdGGGo.', 'oGGGGGGeEo.', 'dGGGGGGeeGo', '.oGGGGWWWno', '..odWWWWWo.', '...ooooo...'], CM);
+const CATB = { X0: 7, LEN: 11, Y0: 7, H0: 5, cw: 22, ch: 17 };
+const catLegs = [[0, 1, 2, 1], [1, 2, 1, 0], [2, 1, 0, 1], [1, 0, 1, 2]];
 function catBody(phase, stance = 0) {
   const { X0, LEN, Y0, H0, cw, ch } = CATB;
   const g = Array.from({ length: ch }, () => new Array(cw).fill('.'));
   const set = (x, y, c) => { if (x >= 0 && y >= 0 && x < cw && y < ch) g[y][x] = c; };
-  const pp = [[0, 1, 2, 1], [1, 2, 1, 0], [2, 1, 0, 1], [1, 0, 1, 2]][phase];
-  const lx = [X0 + 1, X0 + 3, X0 + LEN - 5, X0 + LEN - 3], h = stance === 2 ? 1 : 2;
+  // the tail goes up from the rump and sways; on a jump it streams out behind
+  const sway = [0, 1, 0, -1][phase];
+  const tail = stance === 2
+    ? [[-1, 1], [-2, 1], [-3, 1], [-4, 0], [-5, 0], [-6, 0], [-7, -1]]
+    : [[-1, 1], [-2, 0], [-3, -1], [-4, -2], [-4 + sway, -3], [-4 + sway, -4], [-3 + sway * 2, -5]];
+  for (const [a, b] of tail) for (const [c, e] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) set(X0 + a + c, Y0 + b + e, 'o');
+  tail.forEach(([a, b], i) => set(X0 + a, Y0 + b, i % 3 === 1 ? 'd' : 'g'));
+  // legs: the near pair is lighter, and a leg swinging forward lifts off the ground
+  const pp = catLegs[phase], next = catLegs[(phase + 1) % 4];
+  const lx = [X0 + 1, X0 + 4, X0 + LEN - 6, X0 + LEN - 2], h = stance === 2 ? 1 : 3;
   lx.forEach((x0, i) => {
     const x = x0 + (stance === 0 ? pp[i] - 1 : i < 2 ? -1 : 1), far = i % 2 === 0;
-    for (let k = 0; k <= h; k++) { set(x - 1, Y0 + H0 + k - 1, 'o'); set(x + 1, Y0 + H0 + k - 1, 'o'); set(x, Y0 + H0 + k - 1, k >= h ? 'W' : far ? 'd' : 'g'); }
-    set(x, Y0 + H0 + h, 'o');
+    const hi = stance === 0 && pp[i] === 1 && next[i] === 2 ? h - 1 : h;
+    for (let k = 0; k <= hi; k++) { set(x - 1, Y0 + H0 + k - 1, 'o'); set(x + 1, Y0 + H0 + k - 1, 'o'); set(x, Y0 + H0 + k - 1, k >= hi ? 'W' : far ? 'd' : 'g'); }
+    set(x, Y0 + H0 + hi, 'o');
   });
   for (let x = X0; x < X0 + LEN; x++) {
     const rd = x === X0 || x === X0 + LEN - 1 ? 1 : 0;
@@ -1817,20 +1835,17 @@ function catBody(phase, stance = 0) {
     }
   }
   for (let y = 1; y < H0 - 1; y++) set(X0 - 1, Y0 + y, 'o');
-  return mk(g.map(r => r.join('')), CM, X0 + 5, Y0 + H0 + 2);
+  return mk(g.map(r => r.join('')), CM, X0 + 5, Y0 + H0 + 3);
 }
-function catWalk(dir, phase, stance = 0) {
-  const sh = shear(catBody(phase, stance), dir === 'SE' ? 1 : -1);
-  const out = blank(sh.w + 8, sh.h + 6, sh.ax, sh.ay + 6);
-  stamp(out, sh, 0, 6);
-  const endX = CATB.X0 + CATB.LEN - 1, off = dir === 'SE' ? endX >> 1 : (CATB.cw - 1 - endX) >> 1;
-  const hy = 6 + CATB.Y0 + off + (dir === 'SE' ? -3 : -5), hx = endX - 3;
-  stamp(out, dir === 'SE' ? catHeadSE(0) : catHeadNE, hx, hy);
-  return out;
+function catWalk(phase, stance = 0) {
+  const body = catBody(phase, stance);
+  const out = blank(body.w + 6, body.h + 4, body.ax, body.ay + 4);
+  stamp(out, body, 0, 4);
+  stamp(out, catHeadSide, CATB.X0 + CATB.LEN - 5, 4 + CATB.Y0 - 6);
+  return trim(out);
 }
-K.walkSE = [0, 1, 2, 3].map(i => catWalk('SE', i));
-K.walkNE = [0, 1, 2, 3].map(i => catWalk('NE', i));
-K.leap = [catWalk('SE', 0, 2), catWalk('NE', 0, 2)];
+K.walk = [0, 1, 2, 3].map(i => catWalk(i));
+K.leap = catWalk(0, 2);
 K.stretch = [
   mk(['...........o...o.', '..........oGo.oGo', 'ooo.......oGGGGGo', 'oGGoo.....oGxGxGo', '.ogGGooooooGGnGGo', '..oGGGdGGGGGWWGo.', '...oGGdGGdGGWWo..', '...oWooWooWWWWo..', '...oo.oo..oooo...'], CM, 8, 8),
   mk(['o..........o...o.', 'oGo.......oGo.oGo', '.oGo......oGGGGGo', '.oGGooo...oGxGxGo', '..ogGGGoooGGGnGGo', '..oGGGdGGGGGWWGo.', '...oGGGdGGdGWWo..', '...oWooWooWWWWWo.', '...oo.oo..ooooo..'], CM, 8, 8),
@@ -2026,8 +2041,8 @@ const ITEM = {
 /* ── sprite sheet for review ──────────────────────────────────────────── */
 function drawSheet() {
   const items = [
-    K.sit, K.sitBlink, K.sitHappy, ...K.bat, ...K.groom, K.back[0], ...K.walkSE.slice(0, 2), ...K.walkNE.slice(0, 2), K.leap[0], K.stretch[0], ...K.curl.slice(0, 2), ...K.eat, ...K.roll,
-    ...D.walkSE.slice(0, 2), ...D.walkNE.slice(0, 2), D.standSE[0], D.tilt[0], D.sniff[0], D.stretch[0], D.sit[0], D.sitBlink, D.sitTilt[0], D.sitHappy[0], ...D.curl,
+    K.sit, K.sitBlink, K.sitHappy, ...K.bat, ...K.groom, K.back[0], ...K.walk, K.leap, K.stretch[0], ...K.curl.slice(0, 2), ...K.eat, ...K.roll,
+    ...D.walk, ...D.back, D.stand[0], D.tilt[0], D.sniff[0], D.stretch[0], ...D.flop, D.sit[0], D.sitBlink, D.sitTilt[0], D.sitHappy[0], ...D.curl,
     R.sit, R.blink, R.happy, R.earsDown, ...R.eat, ...R.wash, ...R.hopSE, ...R.hopNE, ...R.loaf,
     ...S.front, S.blink, S.happy[0], S.back[0],
     Y.fly[0], Y.fly[1], Y.fly[2], Y.flyBlink, Y.sit, Y.happy[0], Y.puff, Y.back[0], ...Y.sleep,
@@ -2047,42 +2062,6 @@ function drawSheet() {
     }
     x += s.w * Sc + 10; rowH = Math.max(rowH, s.h * Sc);
   }
-}
-
-/* Generated by tools/import_art.py from art/final/cat. Edit the source art, not this file. */
-const ART_CAT = {"colors":[4076089,12162932,5523792,8813696,14400655,7103080,8950581,14211957,16773328,11778900,10787737,16113072,15114902,12354170],"states":{"sit":[[17,24,8,23,"010000000001100001231000000144000015561111016540000155233111655600001566361316666000001663616666610000066666666666100001617166612763000016387956aa43600000146b9999666100000036b59cbb61000000031161b111000000001399599910000000016c99992100000001662999266100130016165956161014b101663696616101631161666966616163b116666696666613bb1166636961666436311166369616311bb10013959595911bb100001c595955131100000011111110000000"],[15,24,8,23,"01000000000110012310000001440015561111016540015523611165560015663613166660001663616666610006666666666610016171666127660016387956aa436000146b99996661000036b59cbb610000031131411100000011995999100000016599992100000136499926610000161659561610000166369661611101616669666161b11666669666661111666369616661b11166369616331b1011959595911b31001c59595513110000111111100000"],[17,24,8,23,"0000010000000001100001531000000144000015510111016540000155613111655600001566161316666000001661616666610000066666666666100001631166612763000016677956aa636000001469999966610000003bbc9cbb61000000031131b1110000000019995999100000000129999921000000016659992661000000166659561610011001616696616101bb316166696661611333166666966666116bb166166961666101633161669616161001bb6659959591100001113559595513000000001111111000"],[14,24,6,23,"00100000000011015610000001440155601110165401552161116556015661613166660016616166666100666666666661016171666127660163879567a43600146c9999666100036b59cbb61000031131b1110000011995999100000169999921000013659992661000161659561610011666696616101b131669666161131666696666611b1666696166311b13666961613103b199959591100111c59595513000001111111000"]],"sitBlink":[[17,24,8,23,"010000000001100001231000000144000015561111016540000155233111655600001566361316666000001663616666610000066666666666600001617111612111000016386666aa66600000146b9999666100000036b59cbb61000000031161b111000000001399599910000000016c99992100000001662999266100130016165956161014b101663696616101631161666966616163b116666696666613bb1166636961666436311166369616311bb10013959595911bb100001c595955131100000011111110000000"]],"sitLeft":[[17,24,8,23,"0100000000011000012310000001440000155611110165400001552331116556000015663613166660000016636166666100000666666666666000016171aa6121aa000016381aa6aa1aa00000146b9999666100000036b59cbb61000000031161b111000000001399599910000000016c99992100000001662999266100130016165956161014b101663696616101631161666966616163b116666696666613bb1166636961666436311166369616311bb10013959595911bb100001c595955131100000011111110000000"]],"sitWide":[[17,24,8,23,"0100000000011000012310000001440000155611110165400001552331116556000015663613166660000016636166666100000666aa9666aa900001617a1a612a1a00001638aaa6aaaaa00000146b9999666100000036b59cbb61000000031161b111000000001399599910000000016c99992100000001662999266100130016165956161014b101663696616101631161666966616163b116666696666613bb1166636961666436311166369616311bb10013959595911bb100001c595955131100000011111110000000"]],"sitHappy":[[17,24,8,23,"010000000001100001231000000144000015561111016540000155233111655600001566361316666000001663616666610000066666666666600001617616612616000016381616aa16100000146b9999666100000036b591b161000000031161b111000000001399599910000000016c99992100000001662999266100130016165956161014b101663696616101631161666966616163b116666696666613bb1166636961666436311166369616311bb10013959595911bb100001c595955131100000011111110000000"]],"earL":[[17,24,8,23,"010000000001100001200000000144000013100001016540000156111011655600001523311316666000001663616666610000066666666666100001617166612763000016387956aa43600000146b9999666100000036b59cbb61000000031161b111000000001399599910000000016c99992100000001662999266100130016165956161014b101663696616101631161666966616163b116666696666613bb1166636961666436311166369616311bb10013959595911bb100001c595955131100000011111110000000"]],"earR":[[17,24,8,23,"010000000000000001231000000101100015561111016044000155233111650540001566361316665600001663616666610000066666666666100001617166612763000016387956aa43600000146b9999666100000036b59cbb61000000031161b111000000001399599910000000016c99992100000001662999266100130016165956161014b101663696616101631161666966616163b116666696666613bb1166636961666436311166369616311bb10013959595911bb100001c595955131100000011111110000000"]],"bat":[[17,24,9,23,"01100000000001100166100000001666101de6100000116d6101ddd61636116dd6101d46616363666d6101644466343664461006b664664666641001661116666116661013311966631713310144a11666a1a64610113646c594446311003bb64999964bb1000114bbb9cbb46100000011bbbbbb1100000011195555966000000c9919999566100001cc21c99963613100161165c556361eb00133133556633333101461369661666bb10136613c6616133310013311199c13be3100025311ecc433b1000000000111111000"],[19,24,11,23,"00110000000000011000166410000000166610016d61100000114d610016dde6163616ddd610016d46636363666d61001644663636366446100014666663666664100014661166666116661001331a1166611a1331001444a1a666a1a646100131644695944431110001bb669999966bb100000146bbb9bbb6610000000115bbbbb111000009c116995559961000019991659999956110000221636599956163610000133665c566661bb000011336555666313310004663369661661bb10001366339661613331000133611199133bb300000155311ee1b3bb100000000001111111000"]],"groom":[[17,24,9,23,"01000000000001100146100000001164101d46100000116d4101dd661616116dd4101dd661616166ed61014666361616666610064641416166441001664444366646661013611364461161310134a1164411a64610141a11666a1a3331001bb6cc5c44bb310001b4599999b6b1000001ec91bbbbb100000011999559c6100000116251999561b11001366199956161bb006331659566411311066616254611116410166666c661641bb1011166666616161110111666199111bb300015c231551b1b11000011100111111000"],[17,23,9,22,"01000000000001100166100000001166101dd6101111166d6101ddd61616166dd6101dd661616166dd61001466161616444100064641434144661001664644444466661011344444444441110144444444444144100336114566116110001bb6c999944bb000001611999bbb100000011995deb6610000016699cdc956111000116e24995613361003166199956661b40063316555664111110666166c661661bb1011366666616131310111666199131bb3000155431551b3b11000011100111111000"],[17,24,9,23,"01000000000001100166100000001166101dd6101111066d4101ddd61616166dd6101d66616161666d610114641416166441100666466366666610016611666661166610113a1b66611a11110144a11666a1a646101316669594666111001bb6c999c66bb1000016bbb95bb66100000011bbbbb5110000001699c59996100000136599995561111001416599c56161bb00141665c566631431011166c55663111310666666c661441bb1011666696616111110135c99199111bb100015c951551b1b11000001110111111000"]],"back":[[16,24,8,23,"01100000000001000661000000016610064460000016441004444111116444100444416161144410066443616114461001644341413446000444434166444410136443414664633013444443444443301444444644444460033444444466331000366666633641000013333333331000001359c5c9c31000001633393333610001346333333613300113444644661bb00663344444631311014633333333bbb10134463311163331011344663333b310001333333bb334100001111111111000"],[16,24,8,23,"00000000000001000110000000016610166610000014441014444111116444101444436161144410064443616114461001444341411446000444434166444410134443434444433013444443444443301444444644444460033464444466331000466666663641000013333333331000001359ccccc31000006633393333610001646333333613300133444644431bb006333444444111310143333333334b410144463311163311011144663313b310003133313bb334100001111111111000"],[16,24,8,23,"01100000000000000661000000001110044460000016446004444111113444400444416161144410064441616114461001444341411446000444434146644410136443414644431013444463444443301444446646444440033464444466331000466666633641000013333333331000001359ccccc31000006633393333610001666333333613100133444644431bb00633344444611111014633333331bbb10144463311163311011344463333b130001333313bb334100001111111111000"]],"walkSE":[[23,24,15,23,"0011110000000000000000001bb411000000000000000014bbb11000000000000000013311100111000000001441133410001441000000144411b41110014d630111144d410133611114dd6163636dd410016144314dd661636666410001343614446666166441000014341314b66666666631000363411646411666611610014444311111a9166617110014441616444a116661a3101334414111164469d64b1001636164611bb64c999541001cce011e63164c9999910001ccc01313664c11111000000111011cc11659c130000000000011221166cc16000000000000011001662110000000000000000001441100000000000000000001c9c100000000000000000015521000000000000000000011100000"],[22,22,11,21,"001111000000000000000001bb31000000000000000014b4b3000000000000011013311100641000000164401343100044411000164d401b1331114dd4611614dd40011311614ddd6161366d4000116416624463636664100001433136b466616666100014b646166666666611610013463366117116669111001446641144a116661a61001441431411aa1656a611000341b3314bb699c96610000133166116699cc9c10000013551164211c991110000011cc11345cc5310000000001ccc14415533000000000001c11461133100000000000000039ccc510000000000000001c992100000000000000000111000000000"],[23,24,14,23,"0011110000000000000000001bb11000000000000000001b4b43000000000000000001631110011100000000144013340000144100000014d401b41310014d46011114ed400113311116dd6163636dd400013144314dd661631666400001441614446616366641000014343114b6666166666000134363166661166661661001444661113379166717110134444616444a1166a131103364156111164469d36b101e131155611bb45999cc31015c10001661111c999910001521000111664c111110000000000015516349c310000000000000551144c210000000000000011114415000000000000000000034610000000000000000000169c10000000000000000000152100000000000000000000111000000"],[22,22,11,21,"0001110000000000000000014463000000000000000014b443000000000000011013311100441000000144411344000044410000134d411b1111004dd6113614dd41011631116ddd6163364d41001334316d44616166643100014411614466636664100004444316666666666661001343316661a116639111001444161144a116641861001441631411a71656a61100044143113b449cc96b1100011156613449999cc61000016c15144411cc93110000013c116645cc51100000000035211446c16100000000001521146613310000000000000001c9c1c100000000000000009251510000000000000000111000000000"]],"walkNE":[[22,24,8,23,"00000000000110000001100000000000166100001640000000000016661111666000000000001661141666600000000000131131666660000000000006116166661000000000001631616666410000000000166166666131000000000011666666663100110000001666666116c103b4100000013666666c60166bb1001111631414c600166b14011164114161100001111b16341141441400000001b46144414444640000000046b41444164343c100000011366464144166cc100001111466461b1016c5000003463164411100001100001cc41014611000000000006dc10016610000000000001d2000cc40000000000000011000ccc100000000000000000011110000000000"],[22,24,9,23,"00000000000110000001100000000000166100006610000000000016661111664100000000001661161666410000000000111141666661000000000016116166661000000000001661616664410000000001166166661141000000000111666666641100000000001666666116c101e4100000011666666c30166b41001111611361c100166b11111114114163100016631b161641414611100000014b61444144143410000001466414446466611000000011661443144144000000001316344112114c000000001331166112d1cc10000000026163410111110000000009c14661000000000000000111cc10000000000000000001cc1000000000000000000111100000000000"],[22,24,7,23,"000000000000000000011000000000001610000066100000000000166100016640000000000016611616666000000000001611116666600000000000161161666610000000000016116666664100000000011661666411410011000001366666666631166bb10000166666644bc0166b610000011666666c10166411100111661161510001111b41111411416610000001b461344141446110000000366434416434461000000003b414441443614100000003114444146164cc10000003343444111001cc1000001133164110000011000001663116410000000000000cc630164c1000000000000cc10001110000000000000cc100000000000000000001100000000000000000"],[22,24,10,23,"000000000001100000011000000000001661000016400000000000166611116641000000000016611616664100000000001111136666410000000000061141646610000000000016314164464100000000001661666631610000000000166666666461001100000016666631165101bb100000016646666cc0166b41000111311161c100166b11011164144166100001111b36344341441140000001bb61444143146660000000666414444444111000000001b4144414436610000000111664411b316c00000000133164411111cc1000000003311361155011000000000c216661011000000000000111cc10000000000000000001cc0000000000000000000111000000000000"]],"leap":[[19,13,15,12,"164100000000000000014343000016100011400113440001dd1114d600000431101d6433363000113443314b436441001963434364411441600015464461348744130009913244133469c61000000009c4166595500000000001c6461563000000000000064413641000000000000149112c0000000000000121000"],[20,16,6,15,"000000000031000140000000000000641114400000000000006363644100000000000011434b6100000000000043144441000000000000164431139c00000000001114311410011410001141413411001434341143343444100014361443343441110000010004143435510000000000111144510000000000054144310000000000000c46361000000000000001991000000000000000005200000000000000"]],"stretch":[[21,20,12,19,"001111100000000000000013334b000000000000001bb334100000000000000133e100000000000000001331000000000000000001b41114311000000000001e3141333110000001110131443344141000016d600134334431d4111136d600144444331dd643634d300134444641d6443436410013343443144444444410014331543146119441a30003441c44144a11441a60003331154133466c5c410014413313314645ccc10001cc1551013443121611000c2c5510016364134cc100111000000115ccc1cc1000000000000011110000"],[21,24,12,23,"0001110000000000000000013b40000000000000000143310000000000000000bee100000000000000001331000000000000000001331000000000000000001441000000000000000000631000000000000000000134110000000000000000114413100000000000000144334410000000000001443344460000000110001443443331100001441001344433414410016451001344434414d46343151001434444314d64343461001444c4331444444334100133425344444114441100144115441333714413100155001c44433aa9dc61001cc1001c464462ccc61001cc20001164464451499101110000011164ccc1cc1000000000000011110111"]],"curl":[[19,15,10,14,"011000000001100000014410000011641000001dd41316114d61000001ddd633616dd61610001d6663363666613310006444336364414663101444466464641133311144446664666614444111111166111111433410444445544444144331014449999444133443100114599c411433443000399c99343344314100011c125144334111000000000011111110000"],[19,16,10,15,"010000000001100000014110000001441000001d661113166dd1000001dd6113636ddd1610001d6633163666e163100064643361646144441006466636364411433301646666666664133331136666664641114444114444656644441411410114499994431344331011649999b313334431003611631114431443000399999141344114100011c125144334111000000000011111110000"],[19,15,10,14,"010000000001110000014410000001644000001dd41111116d61000001ddd633616ed61100001d66633616666143000164663141446166661016466664666431333111666466666666134441111444664411114444114444455444441443310134499994431364331001165999411433443100399c991413441141000139e25144334111000000000011111110000"]],"eat":[[20,24,11,23,"11100000000000011100144100000000001344001d46110000001164d4001ddd6111111116edd4001dddd611316164ddd4001ddd66113163666dd4001646661111636666e10001666611136366661100164466333361664466001664666331436446640011666446636464661100063411646666116161000161a11666611a1610000011a11666611861100000144aa6556aa4411100016114c9cc9941116b10016616111111616113100113166555566111113106661166cc6613661bb1016661669966166133b1003161c5cc55113bb1100013c1999c991131bb100001115c99c51b13b10000000111111111111000"],[20,23,11,22,"01100000000000011100144100000000001444001d46110000001164d4001ddd6111116166ddd4001dddd613316166ddd4001edd66133363666dd6000666661333636666610001666613316366466100164466613163444466001666664631666666660011666666666664461100046611666666116661000136a1c666611a6310000014411666611841110001114446dd6444416b10016614999999611111100111161cee916111111106663161111611661bb1016661669966166111b1003361cc995c113bb3300011c19999991133be100001115999951b13b10000000111111111111000"]],"roll":[[22,17,15,16,"0000000011000000000000000000004410000000000000000004dd10000000000011100143664000000000006d411341444100000000006dd66334413310000000001dd4444441a4111110000006b441444a6b1333440000004331a259b1663433300000134a499b39611334410000113ebbbbc9599143311000011114c912c91c633bb100000141991999e293133300000041615c951113bb310000001163555554b13b3000000000001115953411100000000000000111111000"],[24,17,15,16,"00000001100000000000000000000004d10000000000000000000006dd100000000000000000001664100000000000000100113344440000000000006d44143441a64000000000001dd6614441a110001910000014d4441444641911c910000001db4a1499cb92133130000000143aa699b5119996611bb10011434b19c999999961133600011b4bce2999999c910331000001116359c1999cc21b4100000001664959995331b341000000016363365556134310000000001161663661411100000000000011111111110000"]]}};
-
-/* ═══════════════════════════════════════
-   Debug only (?cat=1): swap the hand-made cat for the one drawn with Codex, to compare them in play.
-   Nothing here runs on the plain URL, so the picture there stays the same. That includes pidx:
-   it remembers what it finds, so looking these colours up early would shift colours elsewhere.
-   ═══════════════════════════════════════ */
-const CAT_OLD = Object.assign({}, K);
-let catNew = null, catArtOn = false;
-function buildCatNew() {
-  const palette = ART_CAT.colors.map(pidx), out = {};
-  const sprite = ([w, h, ax, ay, data]) => {
-    const d = new Uint8Array(w * h);
-    for (let i = 0; i < d.length; i++) { const v = parseInt(data[i], 16); if (v) d[i] = palette[v - 1]; }
-    return { w, h, d, ax, ay };
-  };
-  for (const name in ART_CAT.states) {
-    const frames = ART_CAT.states[name].map(sprite);
-    out[name] = frames.length > 1 ? frames : frames[0];
-  }
-  out.sitSway = out.sit;     // the tail is part of this drawing: it sways with the frames
-  out.sit = out.sitSway[0];
-  return out;
-}
-function useCatArt(on) {
-  catArtOn = on;
-  if (on && !catNew) catNew = buildCatNew();
-  Object.assign(K, on ? catNew : CAT_OLD);
-}
-function catArtPose(t) {
-  SHOT.tail = null;
-  if (SHOT.s === K.sit) SHOT.s = K.sitSway[fr(t, 9, 4)];
-  SHOT.h = Math.round(SHOT.h * 1.5);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -3580,12 +3559,11 @@ const POSE = {
     SHOT.h = 14; SHOT.tail = null;
     const ear = cyc(t, 15, .2), earS = ear < .012 ? 1 : ear > .5 && ear < .512 ? 2 : 0;
     switch (an) {
-      case 'walk': SHOT.s = (face >= 2 ? K.walkNE : K.walkSE)[fr(t, 10, 4)]; SHOT.flip = side; break;
-      case 'leap': case 'land': SHOT.s = K.leap[face >= 2 ? 1 : 0]; SHOT.flip = side; break;
-      case 'crouch': SHOT.s = K.leap[0]; SHOT.flip = side; break;
-      case 'climb': SHOT.s = K.walkNE[fr(t, 10, 4)]; break;
+      case 'walk': SHOT.s = K.walk[fr(t, 10, 4)]; SHOT.flip = side; break;
+      case 'leap': case 'land': case 'crouch': SHOT.s = K.leap; SHOT.flip = side; break;
+      case 'climb': SHOT.s = K.back[0]; SHOT.ox = fr(t, 10, 2); break;
       case 'gaze': SHOT.s = K.back[earS]; SHOT.tail = 'window'; break;
-      case 'nose': SHOT.s = K.walkSE[0]; SHOT.flip = !!(A.o && A.o.flip); break;
+      case 'nose': SHOT.s = K.walk[0]; SHOT.flip = !!(A.o && A.o.flip); break;
       case 'tease': SHOT.s = A.local % 1 < .25 ? K.bat[0] : A.local % 1 < .5 ? K.bat[1] : K.sitWide; SHOT.flip = true; SHOT.tail = 'sit'; break;
       case 'stretch': SHOT.s = K.stretch[A.local > .6 && A.local < 1.8 ? 1 : 0]; SHOT.flip = true; break;
       case 'groom': SHOT.s = K.groom[A.local % 2.4 < 1.8 ? fr(t, 5, 2) : 2]; SHOT.tail = 'sit'; break;
@@ -3611,18 +3589,18 @@ const POSE = {
     const tail = fr(t, 9, 4);
     SHOT.h = 16;
     switch (an) {
-      case 'walk': case 'land': SHOT.s = (face >= 2 ? D.walkNE : D.walkSE)[fr(t, 13, 4)]; SHOT.flip = side; break;
-      case 'stand': SHOT.s = D.standSE[fr(t, 7, 4)]; SHOT.flip = true; break;
+      case 'walk': case 'land': SHOT.s = D.walk[fr(t, 13, 4)]; SHOT.flip = side; break;
+      case 'stand': SHOT.s = D.stand[fr(t, 7, 4)]; SHOT.flip = true; break;
       case 'stretch': SHOT.s = D.stretch[A.local > .7 && A.local < 1.9 ? 1 : 0]; SHOT.flip = true; break;
       case 'sniff': case 'eat': SHOT.s = D.sniff[fr(t, 5, 2)]; break;
-      case 'climb': SHOT.s = D.walkNE[fr(t, 13, 4)]; break;
-      case 'gaze': SHOT.s = D.walkNE[0]; break;
-      case 'nose': SHOT.s = D.standSE[fr(t, 7, 4)]; SHOT.flip = !!(A.o && A.o.flip); break;
+      case 'climb': SHOT.s = D.back[fr(t, 13, 2)]; SHOT.ox = fr(t, 13, 2); break;
+      case 'gaze': SHOT.s = D.back[fr(t, 7, 2)]; break;
+      case 'nose': SHOT.s = D.stand[fr(t, 7, 4)]; SHOT.flip = !!(A.o && A.o.flip); break;
       case 'tease': case 'bark': SHOT.s = D.stretch[fr(t, 4, 2)]; SHOT.flip = true; SHOT.oz = fr(t, 4, 2) * 2; break;
       case 'g2': SHOT.s = D.sitTilt[tail]; SHOT.flip = A.local % 3 > 1.5; break;
       case 'g4': {
         const q = fr(t, 6, 4);
-        SHOT.s = q === 0 || q === 3 ? D.standSE[0] : D.walkNE[1]; SHOT.flip = q >= 2; SHOT.oz = q === 1 || q === 2 ? 2 : 0;
+        SHOT.s = q === 0 || q === 3 ? D.stand[0] : D.walk[1]; SHOT.flip = q >= 2; SHOT.oz = q === 1 || q === 2 ? 2 : 0;
         break;
       }
       case 'happy': case 'play': SHOT.s = D.sitHappy[fr(t, 9, 2)]; SHOT.oz = Math.round(Math.abs(Math.sin(t * 7)) * 3); break;
@@ -3795,7 +3773,6 @@ function drawActors(t, b, local) {
     SHOT.s = null; SHOT.flip = false; SHOT.h = 14; SHOT.ox = 0; SHOT.oy = 0; SHOT.oz = 0;
     SHOT.tail = null; SHOT.sleep = false; SHOT.floats = false; SHOT.effect = null;
     POSE[A.id](A, t);
-    if (catArtOn && A.id === 'cat') catArtPose(t);
     const lut = actorLut(A.x, A.y, A.z, isOutdoors(A) ? 'E' : null);
     const Rx = A.react, e = Rx ? WORLD.now - Rx.t0 : 0;
     if (Rx) drawItem(Rx, A, t, e);
@@ -4597,19 +4574,6 @@ function floatNumber(ix, iy, text) {
   UI.ui.appendChild(e);
   setTimeout(() => e.remove(), 900);
 }
-/* ?cat=1 only: compare the two cats */
-function setCatArt(on) {
-  const before = K.sit;
-  useCatArt(on);
-  const icon = UI.icons.find(e => e[1] === before);
-  if (icon) {
-    const [c] = icon, s = K.sit, scale = on ? 1 : 1.5;
-    icon[1] = s; c.width = s.w; c.height = s.h;
-    c.style.width = `calc(var(--u) * ${s.w * scale})`; c.style.height = `calc(var(--u) * ${s.h * scale})`;
-    paintSprite(c, s);
-  }
-  $('catArtBtn').textContent = on ? 'ねこ：新しい絵' : 'ねこ：今の絵';
-}
 function buildUI() {
   UI.ui = $('ui'); UI.ui.hidden = false;
   for (const k of ['glassN', 'reloadBox', 'consent', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
@@ -4698,7 +4662,7 @@ function renderCard() {
   c.innerHTML = `<button class="x" aria-label="とじる">×</button>
     <div class="head"><span class="ic"></span><div><b>${a.name}</b><div class="hearts">${hearts(GS.aff[id])}</div><div class="hunger"><i></i></div></div></div>
     <div class="goods"></div>`;
-  c.querySelector('.ic').appendChild(spriteCanvas(FACE()[id], catArtOn && id === 'cat' ? 1.25 : 2));
+  c.querySelector('.ic').appendChild(spriteCanvas(FACE()[id], 2));
   c.querySelector('.x').onclick = closeCard;
   showHunger();
   const box = c.querySelector('.goods'), busy = !!WORLD.react[id] && WORLD.react[id].anim !== 'happy';
@@ -5054,11 +5018,6 @@ function gameStart() {
   if (fresh) saveGame();
   else comeBack();
   startAnalytics();
-  if (CFG.catArt) {
-    $('catArtBtn').hidden = false;
-    $('catArtBtn').onclick = () => setCatArt(!catArtOn);
-    setCatArt(true);
-  }
   $('reloadBtn').onclick = () => { saveGame(); location.reload(); };
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
@@ -5074,7 +5033,6 @@ function gameStart() {
   for (const c of [display, frame, dynCanvas]) c.addEventListener('contextrestored', () => { if (!document.hidden) returnToPage(RULES.repaintAfter); });
 }
 const GAME = {
-  catArt: on => setCatArt(on),
   state: () => JSON.parse(JSON.stringify(GS)),
   rules: RULES, goods: GOODS, furniture: FURNITURE,
   furnish: key => { const ok = furnish(key); if (UI.ui) refreshUI(); return ok; },
