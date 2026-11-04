@@ -21,6 +21,33 @@ check('stories fit the block', seeds <= 120, `longest timeline ${seeds.toFixed(1
 const combos = await page.evaluate(`(() => { let m = 0, who = ''; for (const n of [1, 2, 3]) for (const f of [false, true]) for (let s = 1; s <= 60; s++) for (const r of dollhouse.scriptsAt(n, f, s)) { const v = Math.max(...r.slice(1)); if (v > m) { m = v; who = r[0] + ' at ' + n + ' floors'; } } return { m, who }; })()`);
 check('stories fit at every height', combos.m <= 120, `longest ${combos.m.toFixed(1)} s (${combos.who}), 3 heights, with and without furniture`);
 
+const alone = await page.evaluate(`(() => { let m = 0, who = ''; for (const n of [1, 2, 3]) for (const f of [false, true]) for (let s = 1; s <= 60; s++) for (const r of dollhouse.scriptsAt(n, f, s, false)) { const v = Math.max(...r.slice(1)); if (v > m) { m = v; who = r[0] + ' at ' + n + ' floors'; } } return { m, who }; })()`);
+check('stories fit with no visitors yet', alone.m <= 120, `longest ${alone.m.toFixed(1)} s (${alone.who})`);
+
+/* the rain: who runs, who stays, and where the rainbow is watched from */
+const rain = await page.evaluate(`(() => {
+  const n = 400, S = 28, E = 68, pets = ['cat', 'pup', 'rabbit', 'sheep', 'dragon'], out = {}, bad = [], won = { penguin: 0 };
+  for (const id of pets) out[id] = 0;
+  for (let s = 1; s <= n; s++) {
+    const mid = dollhouse.poseIn('rainbow', s, E - 4);
+    for (const id of pets) if (mid[id].out) out[id]++;
+    if (Math.hypot(mid.penguin.x - 98, mid.penguin.y - 128) < 1) won.penguin++;
+    const after = dollhouse.poseIn('rainbow', s, 90);
+    for (const id in after) {
+      const a = after[id];
+      if (a.out && !a.roof && a.anim !== 'land' && !(a.sx < 105 || a.sx > 255)) bad.push(id + ' seed ' + s + ' at ' + Math.round(a.sx));
+    }
+  }
+  for (const id of pets) out[id] = Math.round(out[id] / n * 100);
+  return { out, bad: bad.slice(0, 5), bads: bad.length, penguin: won.penguin / n };
+})()`);
+console.log('INFO  outdoors in the middle of the rain, %:', JSON.stringify(rain.out));
+check('the dragon loves the rain', rain.out.dragon >= 72 && rain.out.dragon <= 88, rain.out.dragon + '%');
+check('the others mostly run indoors', ['cat', 'pup', 'rabbit', 'sheep'].every(id => rain.out[id] >= 8 && rain.out[id] <= 22), JSON.stringify(rain.out));
+check('the penguin shelters under the parasol', rain.penguin === 1, rain.penguin * 100 + '%');
+check('the rainbow is watched from where it can be seen', rain.bads === 0, rain.bads ? rain.bad.join(', ') : 'never in front of or behind the tower');
+const shower = await page.evaluate(`(() => { const C = dollhouse.CFG, b = dollhouse.SCRIPT_NAMES.indexOf('rainbow'); return b; })()`);
+
 const boundary = await page.evaluate('dollhouse.boundaryCheck(40)');
 check('endless boundaries', !boundary.bad.length, boundary.bad.length ? `blocks ${boundary.bad}` : `${boundary.blocks} boundaries identical`);
 

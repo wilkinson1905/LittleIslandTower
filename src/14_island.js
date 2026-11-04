@@ -64,7 +64,7 @@ function frondPixels(lean, h, seed = lean + h) {
         const cut = Math.floor(s + Math.abs(w)) % 3 === 2 && Math.abs(w) > .8;
         if (cut) continue;
         const lit = sinA < 0 ? (w < 0 ? 'lef5' : 'lef4') : (w < 0 ? 'lef3' : 'lef2');
-        out.push([Math.round(px), Math.round(py + w), C[Math.abs(w) < .6 ? 'lef6' : lit]]);
+        out.push([Math.round(px), Math.round(py + w), C[Math.abs(w) < .6 ? 'lef6' : lit], f, u]);
       }
     }
   }

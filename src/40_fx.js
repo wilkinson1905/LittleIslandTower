@@ -26,6 +26,7 @@ const WORLD = {
   pets: { dragon: false, sheep: false, penguin: false },
   aff: { cat: 0, pup: 0, rabbit: 0, sheep: 0, dragon: 0, penguin: 0 },
   beach: [],
+  presents: [],
   sillTreat: false,
   react: {},
   sparks: [],
@@ -322,27 +323,36 @@ const FROND = [];
 function initFronds() {
   FROND.length = 0;
   for (const p of PALMS) {
-    const px = frondPixels(p.lean, p.h), map = new Map();
-    for (const [dx, dy, col] of px) map.set(dx * 4096 + dy, col);
-    const xs = [], ys = [], cs = [], us = [];
-    const push = (dx, dy, pi) => { xs.push(dx); ys.push(dy); cs.push(pi); us.push(Math.min(1, Math.hypot(dx, dy * 1.4) / 26)); };
-    for (const key of map.keys()) {
-      const dx = Math.round(key / 4096), dy = key - dx * 4096;
-      for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const k2 = (dx + a) * 4096 + dy + b;
-        if (!map.has(k2)) push(dx + a, dy + b, P.lef1);
-      }
+    // each frond keeps its own pixels and moves alone; outlines go first so they only show at the edge of the crown
+    const parts = new Map(), line = [], fill = [];
+    for (const [dx, dy, col, f, u] of frondPixels(p.lean, p.h)) {
+      if (!parts.has(f)) parts.set(f, new Map());
+      const m = parts.get(f), key = dx * 4096 + dy, old = m.get(key);
+      if (!old || u > old.u) m.set(key, { col, u });
     }
-    for (const [key, col] of map) { const dx = Math.round(key / 4096), dy = key - dx * 4096; push(dx, dy, PIDX.get(col)); }
-    FROND.push({ tx: OX + p.x - p.y + p.lean, ty: OY + ((p.x + p.y) >> 1) - p.h, xs: Int16Array.from(xs), ys: Int16Array.from(ys), cs: Uint8Array.from(cs), us: Float32Array.from(us), seed: p.h });
+    for (const [f, m] of parts) for (const [key, { col, u }] of m) {
+      const dx = Math.round(key / 4096), dy = key - dx * 4096;
+      fill.push([dx, dy, PIDX.get(col), u, f]);
+      for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!m.has((dx + a) * 4096 + dy + b)) line.push([dx + a, dy + b, P.lef1, u, f]);
+    }
+    const all = line.concat(fill);
+    FROND.push({
+      tx: OX + p.x - p.y + p.lean, ty: OY + ((p.x + p.y) >> 1) - p.h, seed: p.h,
+      xs: Int16Array.from(all, a => a[0]), ys: Int16Array.from(all, a => a[1]), cs: Uint8Array.from(all, a => a[2]),
+      us: Float32Array.from(all, a => a[3] * a[3]), fs: Uint8Array.from(all, a => a[4]),   // the base of a frond stays put
+    });
   }
 }
+const frondDX = new Float32Array(8), frondDY = new Float32Array(8);
 function drawPalms(t, on) {
   for (const f of FROND) {
-    const a = on ? osc(t, 9, f.seed * .01) * 1.3 + (pnoise(t, 30, f.seed) - .5) * 2.4 : 0, b = on ? osc(t, 14, f.seed * .03) * .9 : 0;
-    const { xs, ys, cs, us, tx, ty } = f;
+    for (let k = 0; k < 8; k++) {
+      frondDX[k] = on ? osc(t, 4 + k % 2, f.seed * .01 + k * .29) * .9 : 0;
+      frondDY[k] = on ? osc(t, 5 + k % 3, f.seed * .03 + k * .41) * 1.6 : 0;
+    }
+    const { xs, ys, cs, us, fs, tx, ty } = f;
     for (let n = 0; n < xs.length; n++) {
-      const u = us[n], sx = tx + xs[n] + Math.round(a * u), sy = ty + ys[n] + Math.round(b * u);
+      const u = us[n], k = fs[n], sx = tx + xs[n] + Math.round(frondDX[k] * u), sy = ty + ys[n] + Math.round(frondDY[k] * u);
       if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
       dyn[sy * W + sx] = PAL32[cs[n]];
     }
@@ -664,6 +674,7 @@ const POSE = {
       case 'crouch': SHOT.s = K.leap[0]; SHOT.flip = side; break;
       case 'climb': SHOT.s = K.walkNE[fr(t, 10, 4)]; break;
       case 'gaze': SHOT.s = K.back[earS]; SHOT.tail = 'window'; break;
+      case 'nose': SHOT.s = K.walkSE[0]; SHOT.flip = !!(A.o && A.o.flip); break;
       case 'tease': SHOT.s = A.local % 1 < .25 ? K.bat[0] : A.local % 1 < .5 ? K.bat[1] : K.sitWide; SHOT.flip = true; SHOT.tail = 'sit'; break;
       case 'stretch': SHOT.s = K.stretch[A.local > .6 && A.local < 1.8 ? 1 : 0]; SHOT.flip = true; break;
       case 'groom': SHOT.s = K.groom[A.local % 2.4 < 1.8 ? fr(t, 5, 2) : 2]; SHOT.tail = 'sit'; break;
@@ -695,6 +706,7 @@ const POSE = {
       case 'sniff': case 'eat': SHOT.s = D.sniff[fr(t, 5, 2)]; break;
       case 'climb': SHOT.s = D.walkNE[fr(t, 13, 4)]; break;
       case 'gaze': SHOT.s = D.walkNE[0]; break;
+      case 'nose': SHOT.s = D.standSE[fr(t, 7, 4)]; SHOT.flip = !!(A.o && A.o.flip); break;
       case 'tease': case 'bark': SHOT.s = D.stretch[fr(t, 4, 2)]; SHOT.flip = true; SHOT.oz = fr(t, 4, 2) * 2; break;
       case 'g2': SHOT.s = D.sitTilt[tail]; SHOT.flip = A.local % 3 > 1.5; break;
       case 'g4': {
@@ -737,6 +749,7 @@ const POSE = {
     SHOT.h = 12; SHOT.flip = side; SHOT.oz = Math.round(osc(t, 30, .15) * 1.5); SHOT.floats = true;
     switch (an) {
       case 'drift': SHOT.s = (A.face >= 2 ? S.back : S.front)[f]; break;
+      case 'gaze': SHOT.s = S.back[f]; break;
       case 'snooze': SHOT.s = S.blink; SHOT.oz = Math.round(osc(t, 20, .15) * 1); SHOT.sleep = true; break;
       case 'g2': case 'rainy': SHOT.s = S.blink; SHOT.effect = 'rain'; break;
       case 'arc': SHOT.s = S.happy[f]; SHOT.effect = 'bow'; break;
@@ -754,6 +767,8 @@ const POSE = {
       case 'hover': SHOT.s = Y.fly[fr(t, 8, 4)]; SHOT.floats = true; SHOT.oz = Math.round(osc(t, 40) * 2); break;
       case 'gaze': SHOT.s = Y.back[fr(t, 8, 4)]; SHOT.flip = false; SHOT.floats = hexAt(A.x, A.y) >= 1.1; break;
       case 'tease': SHOT.s = Y.puff; SHOT.floats = true; SHOT.effect = 'ring'; SHOT.flip = true; break;
+      case 'blow': SHOT.s = Y.puff; SHOT.floats = true; SHOT.effect = 'flame'; SHOT.flip = true; break;
+      case 'rainy': SHOT.s = Y.happy[fr(t, 6, 2)]; SHOT.floats = true; SHOT.oz = Math.round(Math.abs(Math.sin(t * 5)) * 3); break;
       case 'light': SHOT.s = Y.back[fr(t, 8, 4)]; SHOT.floats = true; SHOT.flip = false; SHOT.effect = 'breath'; break;
       case 'sleep': SHOT.s = Y.sleep[Math.sin(TAU * 26 * t / LOOP) > 0 ? 1 : 0]; SHOT.h = 8; SHOT.sleep = true; break;
       case 'g2': SHOT.s = Y.puff; SHOT.effect = 'ring'; break;
@@ -895,6 +910,16 @@ function drawActors(t, b, local) {
       const c = cyc(t, 60, i / 6);
       spx(sx - Math.round(c * 8), sy - 7 - Math.round(c * 4 * (i % 2 ? 1 : -1)), c < .5 ? P.amb7 : P.ter5);
     }
+    /* the sheep's rain reaches it at 4 s, and it's out by 7 */
+    if (SHOT.effect === 'flame') {
+      const g = A.local < 4 ? smooth(A.local / 1.5) : 1 - smooth((A.local - 4) / 3), len = Math.round(g * 11), f = fr(t, 12, 8);
+      for (let k = 0; k < len; k++) {
+        const w = Math.round((1 - k / len) * 2.4 + hsh(k, f, 143) * .9);
+        for (let v = -w; v <= w; v++) spx(sx - 9 - k, sy - 8 + v, Math.abs(v) < w * .5 && k < len * .55 ? P.amb7 : k < len * .8 ? P.amb5 : P.ter5);
+      }
+      if (A.local > 4.5) wisps(sx - 13, sy - 10, 5, 48, 12, 144, t, P.cld7, P.cld5);
+    }
+    if (A.o && A.o.hearts && !Rx) drawHearts(sx + 10, sy - SHOT.s.h - 2, A.local);
     if (Rx && Rx.anim !== 'land' && e > .3) drawHearts(sx, sy - SHOT.s.h - 2, e);
   }
 }

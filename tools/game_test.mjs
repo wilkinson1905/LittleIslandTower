@@ -77,13 +77,23 @@ check('only the bed is in the room', bare === 0 && await painted('tent') === 0 &
 await ev('dollhouse.game.advance(5000); dollhouse.game.collectAll(); 1');
 await tapEl('#shopBtn');
 check('the shop opens', await ev(`document.getElementById('shop').classList.contains('on')`), `${await ev(`document.querySelectorAll('#shop .good').length`)} things for sale`);
-check('only floors that exist are for sale', await ev(`[...document.querySelectorAll('#shop .good')].every(b => dollhouse.game.furniture[b.dataset.furn].floor === 1)`), 'floor 1 only');
+check('only floors that exist are for sale', await ev(`[...document.querySelectorAll('#shop .good[data-furn]')].every(b => dollhouse.game.furniture[b.dataset.furn].floor === 1)`), 'floor 1 only');
+check('every item for sale has a picture', await ev(`[...document.querySelectorAll('#shop .good')].every(b => { const c = b.querySelector('.gi canvas'); return c && c.width > 2 && c.height > 2; })`), 'pictures in the catalog');
+const art = await ev(`Object.keys(dollhouse.game.furniture).map(k => [k, ...dollhouse.game.art(k)]).filter(a => a[3] < 12)`);
+check('all 23 pictures have something in them', art.length === 0, art.length ? JSON.stringify(art) : 'no empty pictures');
+check('the bottle comes first in the shop', await ev(`document.querySelector('#shop .good').dataset.bottle === '1'`), 'top of the list');
 const beforeRug = await ev('dollhouse.game.state()');
 await tapEl('#shop .good[data-furn="rug1"]');
 const afterRug = await ev('dollhouse.game.state()');
 check('buying furniture costs glass', afterRug.glass === beforeRug.glass - 8 && afterRug.furn.includes('rug1'), `glass ${beforeRug.glass} to ${afterRug.glass}`);
 const withRug = await painted('rugF1');
 check('it appears in the room', withRug > 100, `${withRug} px`);
+const lit = await ev('dollhouse.game.highlight()');
+check('the new furniture glows', lit && lit.key === 'rug1' && lit.px > 100 && lit.ring > 20, JSON.stringify(lit));
+check('the camera goes to its floor', await ev('dollhouse.game.view()') === '1' || await ev('dollhouse.game.view()') === 1, String(await ev('dollhouse.game.view()')));
+await sleep(3800);
+check('the glow stops by itself', await ev('dollhouse.game.highlight()') === null, 'gone after about 3 s');
+
 check('it cannot be bought twice', !(await ev(`dollhouse.game.furnish('rug1')`)), 'refused');
 check('nor for a floor not built', !(await ev(`dollhouse.game.furnish('oven')`)), 'refused');
 
@@ -107,16 +117,77 @@ check('save and resume', loaded.glass === saved.glass && loaded.aff.cat === save
 
 /* ── while it is closed ───────────────────────────────────────────────── */
 const st0 = (await ev('dollhouse.game.state()')).stash;
-let r = await ev('dollhouse.game.comeBack(45 * 10)');
-check('absence fills the bottle', r.stash === st0 + 10, `ten bottle periods gives ${r.stash}`);
+let r = await ev('dollhouse.game.comeBack(45 * 5)');
+check('absence fills the bottle', r.stash === st0 + 5, `five bottle periods gives ${r.stash}`);
 r = await ev('dollhouse.game.comeBack(3600 * 24 * 7)');
-check('the bottle has a small cap', r.stash === 30, `a week away gives ${r.stash}`);
+check('the bottle starts small', r.stash === 10, `a week away gives ${r.stash}`);
 r = await ev('dollhouse.game.comeBack(-5000)');
-check('a clock turned back gives nothing', r.stash === 30, `${r.stash}`);
+check('a clock turned back gives nothing', r.stash === 10, `${r.stash}`);
 const g0 = r.glass;
 await tapEl('#bottleBtn');
 r = await ev('dollhouse.game.state()');
-check('opening the bottle', r.glass === g0 + 30 && r.stash === 0, `${g0} to ${r.glass}`);
+check('opening the bottle', r.glass === g0 + 10 && r.stash === 0, `${g0} to ${r.glass}`);
+
+/* ── a bigger bottle ──────────────────────────────────────────────────── */
+for (let i = 0; i < 40 && (await ev('dollhouse.game.state()')).glass < 180; i++) await ev('dollhouse.game.advance(200); dollhouse.game.collectAll(); 1');
+const caps = [], paid = [];
+for (let i = 0; i < 5; i++) {
+  const a = await ev('dollhouse.game.state()');
+  const ok = await ev('dollhouse.game.bottle()');
+  const b = await ev('dollhouse.game.state()');
+  paid.push(ok ? a.glass - b.glass : 0);
+  caps.push(await ev('dollhouse.game.bottleCap()'));
+}
+check('the bottle grows in steps', caps.join() === '20,30,45,60,60' && paid.join() === '15,30,50,80,0', `sizes ${caps}, prices ${paid}`);
+r = await ev('dollhouse.game.comeBack(3600 * 24 * 7)');
+check('a bigger bottle holds more', r.stash === 60, `a week away gives ${r.stash}`);
+await tapEl('#shopBtn');
+check('a full-size bottle is off the list', await ev(`!document.querySelector('#shop .good[data-bottle]')`), 'gone');
+await tapEl('#shop .x');
+await tapEl('#bottleBtn');
+await ev(`(() => { const s = JSON.parse(localStorage.getItem('summer-tower-save-v1')); s.stash = 30; delete s.bottleLv; delete s.presents; delete s.balloonIn; delete s.bn; s.storeys = 2; localStorage.setItem('summer-tower-save-v1', JSON.stringify(s)); })(); 1`);
+const old = await ev('dollhouse.game.read()');
+check('an old save keeps what it has', old.stash === 30 && old.bottleLv === 0 && old.storeys === 2 && Array.isArray(old.presents), `stash ${old.stash}, bottle level ${old.bottleLv}, floors ${old.storeys}`);
+await ev('dollhouse.game.reset(); dollhouse.game.fillBottle(30); 1');
+r = await ev('dollhouse.game.comeBack(3600)');
+check('an old stash above the size is not cut', r.stash === 30, `stash ${r.stash} after an hour with a bottle of ${await ev('dollhouse.game.bottleCap()')}`);
+await ev('dollhouse.game.reset(); 1');
+
+/* ── a balloon with a present ─────────────────────────────────────────── */
+check('no balloon at first', await ev('dollhouse.game.balloon()') === null, 'none');
+await ev('dollhouse.game.advance(181); 1');
+let flying = await ev('dollhouse.game.balloon()');
+check('the first balloon comes along', !!flying, flying ? `at ${flying.map(Math.round)}` : 'none');
+await ev('dollhouse.game.advance(31); 1');
+check('a missed balloon is gone', await ev('dollhouse.game.balloon()') === null && (await ev('dollhouse.game.state()')).presents.length === 0, 'nothing on the beach');
+const gaps = await ev(`(() => { const G = dollhouse.game, out = []; let last = 0, n = 0; for (let t = 1; t < 3600; t++) { const before = G.state().bn; G.advance(1); if (G.state().bn !== before) { out.push(t - last); last = t; } } return out; })()`);
+const mean = gaps.slice(1).reduce((a, b) => a + b, 0) / (gaps.length - 1);
+check('about one every five minutes', mean > 270 && mean < 330, `${gaps.length} in an hour, every ${Math.round(mean)} s`);
+await ev('dollhouse.game.collectAll(); 1');
+await ev('dollhouse.game.launch(); 1');
+await ev('dollhouse.game.advance(13); 1');
+flying = await ev('dollhouse.game.balloon()');
+const seen = await ev(`(() => { const b = dollhouse.game.balloon(), out = {}; for (const [n, v] of Object.entries({ 1: [90, 320, 180, 320], 2: [90, 235, 180, 320], 3: [90, 135, 180, 320], beach: [110, 320, 180, 320] })) out[n] = b[1] > v[1] && b[1] < v[1] + v[3]; return out; })()`);
+check('its height is in view from every camera', Object.values(seen).every(Boolean), JSON.stringify(seen));
+const [bx, by] = await toClient(flying[0], flying[1]);
+const before = await ev('dollhouse.game.state()');
+await tap(bx, by);
+let got = await ev('dollhouse.game.state()');
+check('a tap brings the present down', got.presents.length === 1 && await ev('dollhouse.game.balloon()') === null && got.glass === before.glass, JSON.stringify(got.presents));
+check('what is inside is a fair amount', [15, 25, 50].includes(got.presents[0].value), `${got.presents[0].value}`);
+await ev('dollhouse.game.advance(1200); dollhouse.game.collectAll(); 1');
+check('glass never lands on a present', !(await ev('dollhouse.game.state()')).beach.some(g => g.slot === got.presents[0].slot), 'separate spots');
+await ev('dollhouse.game.collectAll(); dollhouse.game.save()');
+got = await ev('dollhouse.game.state()');
+const kept = await ev('dollhouse.game.read()');
+check('an unopened present is saved', kept.presents.length === got.presents.length && kept.presents[0].value === got.presents[0].value, `${kept.presents.length} kept`);
+await sleep(1100);
+const slot = (await ev('dollhouse.game.slots()'))[got.presents[0].slot], g1 = got.glass, val = got.presents[0].value;
+const [px, py] = await toClient(slot[0], slot[1] - 3);
+await tap(px, py);
+got = await ev('dollhouse.game.state()');
+check('opening it pays out', got.glass === g1 + val && got.presents.length === 0, `${g1} to ${got.glass}`);
+await ev('dollhouse.game.reset(); 1');
 
 /* ── a bad save must not break the game ───────────────────────────────── */
 await ev(`localStorage.setItem('summer-tower-save-v1', '{"v":1,"glass":"lots","storeys":99,"beach":[{"slot":999,"kind":8}],"aff":{"cat":-4}}'); 1`);
@@ -137,6 +208,8 @@ const play = (name, every, spendShare) => ev(`(() => {
     if (t - last >= ${every}) {
       last = t;
       G.collectAll();
+      if (G.balloon()) G.catchBalloon();
+      G.openPresents();
       let s = G.state();
       // spend part of what comes in on the animals, as a player does between floors
       while (s.total * ${spendShare} > spent) {
@@ -156,15 +229,19 @@ const play = (name, every, spendShare) => ev(`(() => {
         if (s.total * ${spendShare} <= spent || s.glass < G.furniture[key].price) break;
         if (G.furnish(key)) spent += G.furniture[key].price;
       }
+      s = G.state();
+      const bottlePrice = [15, 30, 50, 80][s.bottleLv];
+      if (bottlePrice && s.total * ${spendShare} > spent && s.glass >= bottlePrice && G.bottle()) spent += bottlePrice;
     }
   }
   return { name: ${JSON.stringify(name)}, floor2: +(floor2 / 60).toFixed(1), floor3: +(floor3 / 60).toFixed(1), spent, s: G.state() };
 })()`);
 const fast = await play('collects constantly, buys nothing', 5, 0);
-const usual = await play('collects often, spends a third on animals and furniture', 8, .33);
-const slow = await play('checks back every minute, spends a third', 60, .33);
-for (const p of [fast, usual, slow]) console.log(`INFO  ${p.name}: floor 2 at ${p.floor2} min, floor 3 at ${p.floor3} min, spent ${p.spent}`);
-check('about an hour', usual.floor3 >= 50 && usual.floor3 <= 72, `the usual player finishes at ${usual.floor3} min`);
+const third = await play('collects often, spends a third', 8, .33);
+const usual = await play('collects often, spends just under half on animals, furniture and the bottle', 8, .45);
+const slow = await play('checks back every minute, spends just under half', 60, .45);
+for (const p of [fast, third, usual, slow]) console.log(`INFO  ${p.name}: floor 2 at ${p.floor2} min, floor 3 at ${p.floor3} min, spent ${p.spent}`);
+check('about an hour', usual.floor3 >= 50 && usual.floor3 <= 70, `the usual player finishes at ${usual.floor3} min`);
 check('rabbit arrives with the top floor', await ev(`dollhouse.game.present('rabbit')`), 'present');
 check('the picture grew', await ev('dollhouse.game.storeys()') === 3, '3 floors');
 check('finish recorded', slow.s.doneAt > 0, `at ${(slow.s.doneAt / 60).toFixed(1)} min of play`);
@@ -184,7 +261,7 @@ check('all six present', await ev(`['cat','pup','rabbit','sheep','dragon','pengu
 
 /* ── the real buttons: build a floor, put out a treat ───────────────── */
 await ev('dollhouse.game.reset(); dollhouse.game.advance(5000); dollhouse.game.collectAll(); dollhouse.game.advance(5000); dollhouse.game.collectAll(); dollhouse.game.advance(5000); dollhouse.game.collectAll(); 1');
-for (let i = 0; i < 30 && (await ev('dollhouse.game.state()')).glass < 50; i++) await ev('dollhouse.game.advance(200); dollhouse.game.collectAll(); 1');
+for (let i = 0; i < 30 && (await ev('dollhouse.game.state()')).glass < 120; i++) await ev('dollhouse.game.advance(200); dollhouse.game.collectAll(); 1');
 await tapEl('#growBtn');
 await sleep(1100);
 check('the build button grows the tower', await ev('dollhouse.game.storeys()') === 2 && await ev(`dollhouse.game.present('pup')`), 'floor 2 and the puppy');
@@ -219,6 +296,23 @@ check('animals tease the crab', where.crab.teased > 20, `${where.crab.teased} s`
 check('animals go on the roof', where.roof.roof > 20, `${where.roof.roof} s`);
 check('animals climb', where.palm.tree > 0, `${where.palm.tree} s`);
 check('animals go outside', where.beach.ground > 20 && where.boat.ground > 5 && where.rainbow.ground > 20, `${where.beach.ground} / ${where.boat.ground} / ${where.rainbow.ground} s`);
+
+/* ── early on, with only the cat and the puppy, they already play together ── */
+const pair = await ev(`(() => {
+  const out = {};
+  for (const name of dollhouse.SCRIPT_NAMES) {
+    let met = 0;
+    const here = ['cat', 'pup', 'rabbit', 'sheep', 'dragon', 'penguin'].filter(dollhouse.game.present);
+    for (let seed = 1; seed <= 6; seed++) for (let t = 0; t < 120; t += 1) {
+      const p = dollhouse.poseIn(name, seed, t);
+      for (const a of here) for (const b of here) if (a < b && Math.hypot(p[a].sx - p[b].sx, (p[a].x + p[a].y) / 2 - p[a].z - (p[b].x + p[b].y) / 2 + p[b].z) < 52) { met++; }
+    }
+    out[name] = met;
+  }
+  return out;
+})()`);
+const together = Object.entries(pair).filter(([, v]) => v >= 12).map(([k]) => k);
+check('the first animals meet in nearly every story', together.length >= 10 && !pair.quiet, `${together.length} of 11: ${JSON.stringify(pair)}`);
 await tapEl('#growBtn');
 check('the same button sets out a treat', (await ev('dollhouse.game.state()')).sill === true, 'on the sill');
 const hashA = await ev('(() => { const a = dollhouse.frameHash(33.3), b = dollhouse.frameHash(33.3 + 120 * 40); return [a, b]; })()');

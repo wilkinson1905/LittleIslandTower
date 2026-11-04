@@ -66,6 +66,9 @@
   .good .gt { flex: 1 1 auto; min-width: 0; font-size: calc(var(--u) * 11); line-height: 1.25; font-weight: 700; }
   .good .gp { flex: none; font-weight: 700; font-size: calc(var(--u) * 13); color: #2b7fae; }
   .good .gp.no { color: #b98a8a; }
+  .good.pic { min-height: calc(var(--u) * 58); padding: calc(var(--u) * 5) calc(var(--u) * 6); }
+  .good.pic .gi { width: calc(var(--u) * 48); height: calc(var(--u) * 48); align-items: center; background: #fff8e7; border-radius: calc(var(--u) * 8); }
+  .good .gc { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: calc(var(--u) * 2); }
   .wide { display: block; width: 100%; min-height: calc(var(--u) * 42); margin-top: calc(var(--u) * 6); background: #e2f6fb; border-radius: calc(var(--u) * 10); font-weight: 700; }
   .wide.danger { background: #fbe3df; color: #9c4a3f; }
 
@@ -96,7 +99,7 @@
     <div id="topbar">
       <div class="pill"><span id="glassIcon"></span><span id="glassN">0</span></div>
       <button class="pill" id="bottleBtn" hidden aria-label="小びんを開ける"><span id="bottleIcon"></span><span id="bottleN"></span></button>
-      <button class="pill" id="shopBtn">家具</button>
+      <button class="pill" id="shopBtn">おみせ</button>
       <button class="pill" id="helpBtn" aria-label="遊び方">？</button>
       <button class="pill" id="menuBtn" aria-label="メニュー">≡</button>
     </div>

@@ -346,19 +346,20 @@ let storeys = 1;
 const OWNED = { all: true, set: new Set() };
 const own = key => OWNED.all || OWNED.set.has(key);
 const onNow = o => (o.level === undefined || storeys >= o.level) && (o.only === undefined || storeys === o.only) && (o.furn === undefined || own(o.furn));
-function paintAll() {
-  gCol.fill(-1); gId.fill(0); gN.fill(0);
-  // painted storey by storey: the plan isn't axis-aligned, so boxes alone can't order the walls
+/* painted storey by storey: the plan isn't axis-aligned, so boxes alone can't order the walls */
+function paintOrder(list) {
   const layerOf = o => o.layer !== undefined ? o.layer : o.fg ? 100 : o.level !== undefined ? 10 * o.level + 2 : 0;
   const groups = new Map();
-  for (const ob of OBJ.slice(1)) {
-    if (!onNow(ob.o)) continue;
+  for (const ob of list) {
     const l = layerOf(ob.o);
     if (!groups.has(l)) groups.set(l, []);
     groups.get(l).push(ob);
   }
-  const sorted = [...groups.keys()].sort((a, b) => a - b).flatMap(l => topoSort(groups.get(l)));
-  for (const ob of sorted) {
+  return [...groups.keys()].sort((a, b) => a - b).flatMap(l => topoSort(groups.get(l)));
+}
+function paintAll() {
+  gCol.fill(-1); gId.fill(0); gN.fill(0);
+  for (const ob of paintOrder(OBJ.slice(1).filter(ob => onNow(ob.o)))) {
     tCur = ++paintSerial; tCount = 0;
     ob.paint(ob);
     const outl = ob.o.outline === undefined ? .7 : ob.o.outline;

@@ -37,6 +37,7 @@ function renderFrame(time) {
   drawDynamic(t, st);
   dynCtx.putImageData(dynImg, 0, 0);
   fctx.drawImage(dynCanvas, 0, 0);
+  drawHighlight(t);
   const z = CFG.zoom;
   if (z.length === 4 && z.every(Number.isFinite)) dctx.drawImage(frame, z[0], z[1], z[2], z[3], 0, 0, DW, DH);
   else dctx.drawImage(frame, 0, 0, DW, DH);
@@ -94,11 +95,18 @@ const dollhouse = {
   scripts: (seed = 1) => SCRIPT_NAMES.map(n => { const b = compileBlock(n, seed); return [n, ...ACTOR_IDS.map(id => b[id].at(-1).t0)]; }),
   story: storyAt,
   /* every script at a given height and with or without the furniture, for checking lengths and endings */
-  scriptsAt: (n, furnished, seed = 1) => {
-    const s = storeys, a = OWNED.all;
+  scriptsAt: (n, furnished, seed = 1, pets = true) => {
+    const s = storeys, a = OWNED.all, p = { ...WORLD.pets };
     storeys = n; OWNED.all = furnished;
+    for (const k in WORLD.pets) WORLD.pets[k] = pets;
     const out = SCRIPT_NAMES.map(name => { const b = compileBlock(name, seed); return [name, ...ACTOR_IDS.map(id => b[id].at(-1).t0)]; });
-    storeys = s; OWNED.all = a;
+    storeys = s; OWNED.all = a; Object.assign(WORLD.pets, p);
+    return out;
+  },
+  /* everyone's place at one moment of a story, without drawing it */
+  poseIn: (name, seed, t) => {
+    const b = compileBlock(name, seed), out = {};
+    for (const id of ACTOR_IDS) { const A = ACTOR[id]; sampleActor(A, b[id], t); out[id] = { x: A.x, y: A.y, z: A.z, anim: A.anim, sx: 180 + A.x - A.y, out: isOutdoors(A), roof: A.z >= TOP_Z(storeys) }; }
     return out;
   },
   timeline: k => { const b = blockFor(k); return ACTOR_IDS.map(w => w + ': ' + b[w].map(s => `${s.t0.toFixed(1)} ${s.anim}`).join(', ')); },
