@@ -66,6 +66,9 @@
   .good .gt { flex: 1 1 auto; min-width: 0; font-size: calc(var(--u) * 11); line-height: 1.25; font-weight: 700; }
   .good .gp { flex: none; font-weight: 700; font-size: calc(var(--u) * 13); color: #2b7fae; }
   .good .gp.no { color: #b98a8a; }
+  .good.pic { min-height: calc(var(--u) * 58); padding: calc(var(--u) * 5) calc(var(--u) * 6); }
+  .good.pic .gi { width: calc(var(--u) * 48); height: calc(var(--u) * 48); align-items: center; background: #fff8e7; border-radius: calc(var(--u) * 8); }
+  .good .gc { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: calc(var(--u) * 2); }
   .wide { display: block; width: 100%; min-height: calc(var(--u) * 42); margin-top: calc(var(--u) * 6); background: #e2f6fb; border-radius: calc(var(--u) * 10); font-weight: 700; }
   .wide.danger { background: #fbe3df; color: #9c4a3f; }
 
@@ -96,7 +99,7 @@
     <div id="topbar">
       <div class="pill"><span id="glassIcon"></span><span id="glassN">0</span></div>
       <button class="pill" id="bottleBtn" hidden aria-label="小びんを開ける"><span id="bottleIcon"></span><span id="bottleN"></span></button>
-      <button class="pill" id="shopBtn">家具</button>
+      <button class="pill" id="shopBtn">おみせ</button>
       <button class="pill" id="helpBtn" aria-label="遊び方">？</button>
       <button class="pill" id="menuBtn" aria-label="メニュー">≡</button>
     </div>
@@ -465,19 +468,20 @@ let storeys = 1;
 const OWNED = { all: true, set: new Set() };
 const own = key => OWNED.all || OWNED.set.has(key);
 const onNow = o => (o.level === undefined || storeys >= o.level) && (o.only === undefined || storeys === o.only) && (o.furn === undefined || own(o.furn));
-function paintAll() {
-  gCol.fill(-1); gId.fill(0); gN.fill(0);
-  // painted storey by storey: the plan isn't axis-aligned, so boxes alone can't order the walls
+/* painted storey by storey: the plan isn't axis-aligned, so boxes alone can't order the walls */
+function paintOrder(list) {
   const layerOf = o => o.layer !== undefined ? o.layer : o.fg ? 100 : o.level !== undefined ? 10 * o.level + 2 : 0;
   const groups = new Map();
-  for (const ob of OBJ.slice(1)) {
-    if (!onNow(ob.o)) continue;
+  for (const ob of list) {
     const l = layerOf(ob.o);
     if (!groups.has(l)) groups.set(l, []);
     groups.get(l).push(ob);
   }
-  const sorted = [...groups.keys()].sort((a, b) => a - b).flatMap(l => topoSort(groups.get(l)));
-  for (const ob of sorted) {
+  return [...groups.keys()].sort((a, b) => a - b).flatMap(l => topoSort(groups.get(l)));
+}
+function paintAll() {
+  gCol.fill(-1); gId.fill(0); gN.fill(0);
+  for (const ob of paintOrder(OBJ.slice(1).filter(ob => onNow(ob.o)))) {
     tCur = ++paintSerial; tCount = 0;
     ob.paint(ob);
     const outl = ob.o.outline === undefined ? .7 : ob.o.outline;
@@ -1410,7 +1414,7 @@ function frondPixels(lean, h, seed = lean + h) {
         const cut = Math.floor(s + Math.abs(w)) % 3 === 2 && Math.abs(w) > .8;
         if (cut) continue;
         const lit = sinA < 0 ? (w < 0 ? 'lef5' : 'lef4') : (w < 0 ? 'lef3' : 'lef2');
-        out.push([Math.round(px), Math.round(py + w), C[Math.abs(w) < .6 ? 'lef6' : lit]]);
+        out.push([Math.round(px), Math.round(py + w), C[Math.abs(w) < .6 ? 'lef6' : lit], f, u]);
       }
     }
   }
@@ -2003,9 +2007,9 @@ function drawSheet() {
 /* ═══════════════════════════════════════════════════════════════════════
    Behaviour. A block is 120 s long and every animal starts and ends it in its
    own home pose, so any block can follow any other. Animals leave their floors
-   by the long ladder or the open front of the tower. A timeline never depends on
-   who else is here yet: arrivals only decide who gets drawn. It does depend on the
-   storeys and the furniture, read once when the block is compiled.
+   by the long ladder or the open front of the tower. A timeline depends on the
+   storeys, the furniture and who else is here, all read once when the block is
+   compiled, so two animals can meet at an agreed moment or carry on alone.
    ═══════════════════════════════════════════════════════════════════════ */
 const ACTOR_IDS = ['cat', 'pup', 'rabbit', 'sheep', 'dragon', 'penguin'];
 const HOME = {
@@ -2062,6 +2066,18 @@ const entry = z => ({ x: 39, y: 95, z });        // the floor beside the ladder,
 const FOOT = atB(34, 104), FRONT = atB(86, 106), SAND = atB(146, 119), PIER = atB(154, 119, 5), TO_FOOT = atB(60, 118);
 /* the crab rests at its right end at 12-20 s and every 40 s after, at its left end at 32-40 s and every 40 s after */
 const CRAB_R = atB(116, 134), CRAB_L = atB(99, 151);
+/* two animals at the same time and place, if both are here */
+const both = (a, b) => present(a) && present(b);
+/* A shower: it starts, it ends, and at leave everyone heads home from the rainbow. */
+const RAIN_DAY = { start: 28, end: 68, leave: 94 }, RAIN_SHOW = { start: 42, end: 82, leave: 104 };
+const WET = { pet: .15, dragon: .8 };      // how likely each is to be out in it
+/* The tower hides the middle of the rainbow, so it's watched from off to one side: never in front of or behind the tower. */
+const JET_CAT = atB(210, 114, 5), JET_PUP = atB(194, 118, 5), PG_BOW = atB(58, 140), RAB_EAST = atB(142, 62), SH_BOW = atB(150, 70, 44), DR_BOW = atB(190, 104, 34);
+const PG_SHADE = atB(98, 128);             // under the parasol, behind where the crab walks
+const NOSE_CAT = atB(104, 122), NOSE_PUP = atB(118, 108);
+/* round the open sand, one after the other */
+const LAP = [atB(110, 100), atB(140, 96), atB(150, 118), atB(118, 128)], CHASEV = 36;
+const lapFrom = (n, dir) => [1, 2, 3, 4].map(k => LAP[(n + k * dir + 8) % 4]);
 const roofBase = () => TOP_Z(storeys) + 6;
 const rf = (s, t, h) => { const [x, y] = worldAt(s, t); return { x, y, z: roofBase() + h }; };
 const ROOF_WAY = () => [rf(-42, 18, 16), rf(-16, 24, 23)];
@@ -2099,29 +2115,78 @@ const catIn = T => T.hop(at1(78, 96), .5, 'land').walk([at1(77, 84), catFront], 
 const catToLadder = T => T.walk([at1(54, 76), at1(54, 95), entry(Z1)], CATV, 'walk');
 const catFromLadder = T => T.walk([at1(54, 95), at1(54, 76), catFront], CATV, 'walk');
 const CAT_PALM = PALMS[2], CAT_PALM_ROUTE = [atB(66, 124), atB(46, 146), trunk(CAT_PALM, 0)];
+const CATR = CATV + 12;
+const catToJetty = T => T.walk([atB(130, 112), SAND], CATV, 'walk').hop(PIER, .4, 'land').walk([JET_CAT], CATV, 'walk');
+const catFromJetty = T => { T.walk([PIER], CATV, 'walk').hop(SAND, .4, 'land').walk([atB(130, 112), FRONT], CATV, 'walk'); catIn(T); catOn(T); };
+/* up the ladder to the puppy's floor */
+const catToPup = T => { catToLadder(T); T.hop(lad(Z1), .4, 'land').walk([lad(Z2)], CLIMB, 'climb').hop(entry(Z2), .4, 'land').walk([at2(56, 88), at2(54, 82)], CATV, 'walk'); };
+/* out on the sand when it starts: runs for the door, or sits it out; afterwards the door or the jetty */
+function catCaught(T, r, ctx, day, always) {
+  const { start: S, end: E, leave } = day, stays = r() < WET.pet, pick = r() < .5, duo = present('pup') && ctx.duoOut, out = always || stays || duo || pick;
+  T.until(S + 1, 'sit');
+  if (stays) T.until(E - 1, 'sit');
+  else {
+    T.walk([FRONT], CATR, 'walk').hop(at1(78, 96), .4, 'land').walk([at1(77, 84), at1(68, 58), at1(68, 30), at1(74, 22)], CATR, 'walk').until(E - 1, 'window');
+    if (out) T.walk([at1(68, 30), at1(68, 58), at1(77, 84), at1(78, 96)], CATV, 'walk').hop(FRONT, .5, 'land');
+  }
+  if (out) {
+    catToJetty(T);
+    if (duo) T.until(E + 14, 'gaze').pose(3, 'gaze', { hearts: 1 });
+    T.until(leave, 'gaze');
+    catFromJetty(T);
+    return;
+  }
+  T.until(leave, 'window').walk([at1(68, 30), at1(68, 58), catFront], CATV, 'walk'); catOn(T);
+}
 const CAT = {
-  /* the first thing anyone sees: the crab, a palm, then the rainbow from the top of it */
-  show(T) {
+  /* the first thing anyone sees: the crab, then a shower, then the rainbow */
+  show(T, r, ctx) {
     T.pose(2, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
     T.walk([CRAB_R], CATV, 'walk').until(12, 'sit').until(20, 'tease').until(26, 'sit');
     T.walk([CRAB_L], CATV, 'walk').until(32, 'sit').until(40, 'tease');
-    T.hop(atB(108, 142), .45, 'land').pose(1.2, 'sit');
-    T.walk([atB(80, 128), ...CAT_PALM_ROUTE], CATV, 'walk').pose(.5, 'crouch').walk(trunkUp(CAT_PALM), 22, 'climb');
-    T.until(72, 'sit').until(92, 'gaze');
-    T.walk(trunkDown(CAT_PALM), 26, 'climb').walk([atB(46, 146), atB(66, 124), FRONT], CATV, 'walk'); catIn(T); catOn(T);
+    catCaught(T, r, ctx, RAIN_SHOW, true);
+  },
+  /* after the puppy, or the other way round */
+  chase(T, r) {
+    T.pose(2 + r() * 3, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
+    T.walk([LAP[0]], CATV, 'walk').until(20, 'sit');
+    for (let n = 0; n < 3; n++) T.walk(lapFrom(0, 1), CHASEV, 'walk');
+    T.pose(2, 'sit');
+    for (let n = 0; n < 2; n++) T.walk(lapFrom(0, -1), CHASEV, 'walk');
+    T.pose(3, 'sit').pose(5, 'groom').pose(1, 'sit').walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
   },
   play(T, r) {
+    if (present('pup')) { CAT.chase(T, r); return; }
     T.pose(6 + r() * 8, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
     T.pose(9, 'g2').pose(3, 'sit').pose(6, 'groom').pose(5, 'g4').pose(2, 'sit'); catFromRug(T); catOn(T);
   },
-  perch(T, r) {
+  perch(T, r, ctx) {
+    if (ctx.nap && present('pup')) { T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(84, 'curl').pose(1, 'sit').pose(6, 'groom').pose(2, 'sit'); return; }
     T.pose(14 + r() * 10, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catToRug(T);
     if (own('catTree')) { catClimb(T); T.pose(26 + r() * 10, 'sit').pose(6, 'groom').pose(1, 'sit'); catDescend(T); }
     else T.pose(14, 'sit').pose(6, 'groom').pose(1, 'sit');
     catFromRug(T); catOn(T);
   },
   rest(T, r) { T.pose(40 + r() * 20, 'curl').pose(1, 'sit').pose(7, 'groom').pose(2, 'sit'); },
+  /* up to the puppy's floor to say hello */
+  visit(T, r) {
+    T.pose(16 + r() * 6, 'curl').pose(1, 'sit'); catOff(T); catToPup(T);
+    T.until(40, 'sit').pose(5, 'nose', { hearts: 1 }).pose(2, 'sit');
+    T.walk([at2(56, 88), entry(Z2)], CATV, 'walk').hop(lad(Z2), .4, 'land').walk([lad(Z1)], CLIMB, 'climb').hop(entry(Z1), .4, 'land');
+    catFromLadder(T); catOn(T);
+  },
+  /* fetches the puppy, and they go and bother the crab together */
+  invite(T) {
+    T.pose(.6, 'curl').pose(.6, 'sit'); catOff(T); catToPup(T);
+    T.until(12, 'sit').pose(3, 'nose', { hearts: 1 });
+    T.walk([at2(56, 88), entry(Z2)], CATV + 6, 'walk'); ladderDown(T, Z2);
+    T.walk([TO_FOOT, CRAB_L], CATV + 6, 'walk').until(32, 'sit').until(40, 'tease');
+    T.hop(atB(108, 142), .45, 'land').pose(1.2, 'sit');
+    T.walk([CRAB_R], CATV, 'walk').until(52, 'sit').until(60, 'tease').until(63, 'sit');
+    T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
+  },
   crab(T, r) {
+    if (present('pup')) { CAT.invite(T); return; }
     T.pose(1 + r() * 2, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
     T.walk([CRAB_R], CATV, 'walk').until(12, 'sit').until(20, 'tease').until(26, 'sit');
     T.walk([CRAB_L], CATV, 'walk').until(32, 'sit').until(40, 'tease');
@@ -2130,15 +2195,16 @@ const CAT = {
   },
   boat(T, r) {
     T.pose(5 + r() * 5, 'curl').pose(1, 'sit'); catOff(T); catOut(T);
-    T.walk([atB(130, 112), SAND], CATV, 'walk').hop(PIER, .4, 'land').walk([atB(200, 116, 5)], CATV, 'walk');
-    T.pose(36 + r() * 6, 'gaze').pose(4, 'groom').walk([PIER], CATV, 'walk').hop(SAND, .4, 'land');
-    T.walk([atB(130, 112), FRONT], CATV, 'walk'); catIn(T); catOn(T);
+    catToJetty(T);
+    if (present('pup')) T.until(36, 'gaze').pose(3, 'gaze', { hearts: 1 }).until(56 + r() * 6, 'gaze');
+    else T.pose(36 + r() * 6, 'gaze');
+    T.pose(4, 'groom'); catFromJetty(T);
   },
-  /* the shower runs 30-52 s: watch it from the window, then go out for the rainbow */
-  rainbow(T, r) {
-    T.pose(6 + r() * 4, 'curl').pose(1, 'sit'); catOff(T); catToRug(T); catToWin(T);
-    T.until(49, 'window'); catFromWin(T); catFromRug(T); catOut(T);
-    T.walk([atB(118, 116)], CATV, 'walk').until(82, 'gaze').pose(4, 'groom').walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
+  /* out on the sand, and the first drops catch it there */
+  rainbow(T, r, ctx) {
+    T.pose(3 + r() * 3, 'curl').pose(.8, 'sit'); catOff(T); catOut(T);
+    T.walk([atB(118, 116)], CATV, 'walk').pose(3, 'sit').pose(4, 'groom');
+    catCaught(T, r, ctx, RAIN_DAY);
   },
   palm(T, r) {
     T.pose(6 + r() * 6, 'curl').pose(1, 'sit'); catOff(T); catOut(T);
@@ -2148,11 +2214,21 @@ const CAT = {
   },
   roof(T, r) {
     T.pose(3 + r() * 4, 'curl').pose(1, 'sit'); catOff(T); catToLadder(T);
-    toRoof(T, Z1, rf(-6, 14, 31), CATV, 'walk');
-    T.pose(24 + r() * 8, 'sit').pose(6, 'groom').pose(12, 'gaze').pose(1, 'sit');
+    toRoof(T, Z1, present('pup') ? rf(-14, 14, 30) : rf(-6, 14, 31), CATV, 'walk');
+    if (present('pup')) T.until(42, 'sit').pose(14, 'gaze').pose(4, 'groom').pose(1, 'sit');
+    else T.pose(24 + r() * 8, 'sit').pose(6, 'groom').pose(12, 'gaze').pose(1, 'sit');
     fromRoof(T, Z1, CATV, 'walk'); catFromLadder(T); catOn(T);
   },
+  /* meets the puppy on the sand: noses, then a lie down */
+  greet(T, r) {
+    T.pose(3 + r() * 3, 'curl').pose(1, 'sit'); catOff(T); catOut(T);
+    T.walk([NOSE_CAT], CATV, 'walk').until(26, 'sit').pose(5, 'nose', { hearts: 1 }).pose(2, 'sit');
+    T.walk([atB(82, 136)], CATV, 'walk').hop(atB(70, 150, 5), .6, 'land').pose(1, 'sit');
+    T.pose(30 + r() * 10, 'curl').pose(1, 'sit').pose(2.4, 'stretch').hop(atB(82, 136), .6, 'land');
+    T.walk([FRONT], CATV, 'walk'); catIn(T); catOn(T);
+  },
   lounge(T, r) {
+    if (present('pup')) { CAT.greet(T, r); return; }
     T.pose(5 + r() * 6, 'curl').pose(1, 'sit').pose(2.4, 'stretch'); catOff(T); catOut(T);
     T.walk([atB(82, 136)], CATV, 'walk').hop(atB(70, 150, 5), .6, 'land').pose(1, 'sit');
     T.pose(36 + r() * 12, 'curl').pose(1, 'sit').pose(2.4, 'stretch').hop(atB(82, 136), .6, 'land');
@@ -2166,18 +2242,50 @@ const pupToLadder = T => T.walk([at2(66, 80), at2(56, 88), at2(42, 88), entry(Z2
 const pupFromLadder = T => T.walk([at2(42, 88), at2(56, 88), at2(66, 80), at2(74, 70)], PUPR, 'walk').pose(.8, 'stand');
 const pupDown = T => { pupToLadder(T); ladderDown(T, Z2); };
 const pupUp = T => { T.walk([FOOT], PUPR, 'walk'); ladderUp(T, Z2); pupFromLadder(T); };
+const PUP_SAND = atB(96, 124), PUP_WIN = at2(28, 78);
+const pupToJetty = T => T.walk([TO_FOOT, atB(130, 112), SAND], PUPR, 'walk').hop(PIER, .4, 'land').walk([JET_PUP], PUPR, 'walk');
+const pupFromJetty = T => { T.walk([PIER], PUPR, 'walk').hop(SAND, .4, 'land').walk([atB(130, 112), TO_FOOT], PUPR, 'walk'); pupUp(T); };
+function pupCaught(T, r, ctx, day) {
+  const { start: S, end: E, leave } = day, stays = r() < WET.pet, pick = r() < .5, out = stays || ctx.duoOut || pick;
+  T.until(S + 1, 'sitWag');
+  if (stays) T.until(E - 1, 'sitWag');
+  else {
+    T.walk([TO_FOOT, FOOT], PUPR + 10, 'walk'); ladderUp(T, Z2);
+    T.walk([PUP_WIN], PUPV, 'walk').until(E - 1, 'gaze');
+    if (out) { T.walk([entry(Z2)], PUPV, 'walk'); ladderDown(T, Z2); }
+  }
+  if (out) { pupToJetty(T); T.until(leave, 'gaze'); pupFromJetty(T); return; }
+  T.until(leave, 'gaze').walk([entry(Z2)], PUPV, 'walk'); pupFromLadder(T);
+}
 const PUP = {
-  show(T) {
+  show(T, r, ctx) {
     T.pose(5, 'curl').pose(1.2, 'stand').pose(2.4, 'stretch').pose(.6, 'stand');
     T.walk([at2(74, 42), at2(50, 42)], PUPV, 'walk').pose(4, 'sniff').pose(3, 'sitWag');
     T.walk([at2(74, 42), at2(74, 70)], PUPV, 'walk'); pupDown(T);
-    T.walk([TO_FOOT, CRAB_R], PUPR, 'walk').until(52, 'sitWag').until(60, 'tease').pose(1.5, 'stand');
-    T.walk([atB(112, 118)], PUPR, 'walk').until(72, 'sitWag').until(92, 'gaze').pose(4, 'sitWag').walk([TO_FOOT], PUPR, 'walk'); pupUp(T);
+    T.walk([TO_FOOT, PUP_SAND], PUPR, 'walk');
+    pupCaught(T, r, ctx, RAIN_SHOW);
   },
+  /* the cat is always here too: from the door of the loop, one length behind it */
   play(T, r) {
-    T.pose(4 + r() * 6, 'curl').pose(1.2, 'stand').pose(.6, 'stretch');
-    for (let n = 0; n < 3; n++) T.walk([at2(74, 42), at2(84, 42), at2(84, 62), at2(74, 62)], PUPV + 4, 'walk').pose(2.4, 'g4');
-    T.pose(6, 'sitWag').walk([at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
+    T.pose(2 + r() * 2, 'curl').pose(1.2, 'stand'); pupDown(T);
+    T.walk([TO_FOOT, atB(96, 118), LAP[3]], PUPR, 'walk').until(20, 'sitWag');
+    for (let n = 0; n < 3; n++) T.walk(lapFrom(3, 1), CHASEV, 'walk');
+    T.pose(2, 'bark');
+    for (let n = 0; n < 2; n++) T.walk(lapFrom(3, -1), CHASEV, 'walk');
+    T.pose(3, 'bark').pose(6, 'sitWag').walk([atB(96, 118), TO_FOOT], PUPR, 'walk'); pupUp(T);
+  },
+  /* down to the cat's bed, for a nap against it */
+  nap(T, r) {
+    T.pose(4 + r() * 4, 'curl').pose(1.2, 'stand'); pupToLadder(T);
+    T.hop(lad(Z2), .4, 'land').walk([lad(Z1)], CLIMB, 'climb').hop(entry(Z1), .4, 'land').walk([at1(54, 95), at1(55, 90)], PUPR, 'walk');
+    T.until(84, 'curl').pose(1.2, 'stand').walk([at1(54, 95), entry(Z1)], PUPR, 'walk');
+    T.hop(lad(Z1), .4, 'land').walk([lad(Z2)], CLIMB, 'climb').hop(entry(Z2), .4, 'land'); pupFromLadder(T);
+  },
+  /* the cat comes up to say hello */
+  visited(T) {
+    T.until(38, 'curl').pose(1.2, 'stand').until(40, 'stand').pose(5, 'nose', { flip: true }).pose(4, 'sitWag');
+    T.walk([at2(74, 42), at2(50, 42)], PUPV, 'walk').pose(3, 'sniff').pose(8, 'sitWag');
+    T.walk([at2(74, 42), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
   },
   beg(T, r) {
     T.pose(16 + r() * 8, 'curl').pose(1.2, 'stand');
@@ -2189,39 +2297,49 @@ const PUP = {
     T.walk([at2(74, 58), at2(84, 58)], PUPV, 'walk').pose(own('bowls') ? 8 : 3, 'sniff').pose(8, 'sitWag');
     T.walk([at2(74, 58), at2(74, 70)], PUPV, 'walk').pose(.8, 'stand');
   },
-  rest(T, r) { T.pose(44 + r() * 20, 'curl').pose(1.2, 'stand').pose(2.4, 'stretch').pose(.6, 'stand').pose(10, 'sitWag'); },
-  crab(T, r) {
-    T.pose(20 + r() * 6, 'curl').pose(1.2, 'stand'); pupDown(T);
-    T.walk([TO_FOOT, CRAB_R], PUPR, 'walk').until(52, 'sitWag').until(60, 'tease').pose(1.5, 'stand').pose(3, 'sitWag');
+  rest(T, r) {
+    if (present('sheep')) T.until(30, 'curl').pose(4, 'curl', { hearts: 1 }).until(80, 'curl');   // the sheep comes to sleep beside it
+    else T.pose(44 + r() * 20, 'curl');
+    T.pose(1.2, 'stand').pose(2.4, 'stretch').pose(.6, 'stand').pose(10, 'sitWag');
+  },
+  /* the cat comes for it, and off they go to the crab */
+  crab(T) {
+    T.until(10.5, 'curl').pose(1.5, 'stand').pose(3, 'nose', { flip: true });
+    pupToLadder(T); ladderDown(T, Z2);
+    T.walk([TO_FOOT, atB(112, 140)], PUPR, 'walk').until(32, 'sitWag').until(40, 'tease').pose(1.5, 'stand');
+    T.walk([atB(128, 118)], PUPR, 'walk').until(52, 'sitWag').until(60, 'tease').pose(1.5, 'stand').pose(3, 'sitWag');
     T.walk([TO_FOOT], PUPR, 'walk'); pupUp(T);
   },
   boat(T, r) {
     T.pose(6 + r() * 6, 'curl').pose(1.2, 'stand'); pupDown(T);
-    T.walk([TO_FOOT, atB(130, 112), SAND], PUPR, 'walk').hop(PIER, .4, 'land').walk([atB(190, 122, 5)], PUPR, 'walk');
-    T.pose(28 + r() * 8, 'gaze').pose(5, 'sitWag').walk([PIER], PUPR, 'walk').hop(SAND, .4, 'land');
-    T.walk([atB(130, 112), TO_FOOT], PUPR, 'walk'); pupUp(T);
+    pupToJetty(T);
+    T.until(36, 'gaze').pose(16 + r() * 8, 'gaze').pose(5, 'sitWag');
+    pupFromJetty(T);
   },
-  rainbow(T, r) {
-    T.pose(14 + r() * 6, 'curl').pose(1.2, 'stand').walk([at2(74, 58), at2(84, 58)], PUPV, 'walk').pose(6, 'sniff').until(41, 'sitWag');
-    T.walk([at2(74, 58), at2(74, 70)], PUPV, 'walk'); pupDown(T);
-    T.walk([TO_FOOT, atB(96, 124)], PUPR, 'walk').until(80, 'gaze').pose(5, 'sitWag').walk([TO_FOOT], PUPR, 'walk'); pupUp(T);
+  rainbow(T, r, ctx) {
+    T.pose(2 + r() * 3, 'curl').pose(1.2, 'stand'); pupDown(T);
+    T.walk([TO_FOOT, PUP_SAND], PUPR, 'walk').pose(3, 'sniff');
+    pupCaught(T, r, ctx, RAIN_DAY);
   },
-  /* it would like to climb the palm as well, and can't */
+  /* the cat is up the palm; it would like to climb as well, and can't */
   palm(T, r) {
     T.pose(8 + r() * 6, 'curl').pose(1.2, 'stand'); pupDown(T);
-    T.walk([trunk(PALMS[0], 0)], PUPR, 'walk').pose(3, 'sniff').pose(7, 'bark').pose(4, 'sitWag');
-    T.walk([atB(22, 134), atB(2, 124), atB(14, 108), trunk(PALMS[0], 0)], PUPR, 'walk').pose(6, 'bark').pose(3, 'sitWag'); pupUp(T);
+    T.walk([TO_FOOT, atB(46, 146)], PUPR, 'walk').pose(3, 'sniff').pose(7, 'bark').pose(4, 'sitWag');
+    T.walk([atB(60, 138), atB(46, 146)], PUPR, 'walk').pose(6, 'bark').pose(3, 'sitWag');
+    T.walk([TO_FOOT], PUPR, 'walk'); pupUp(T);
   },
+  /* meets the cat on the sand */
   beach(T, r) {
-    T.pose(5 + r() * 5, 'curl').pose(1.2, 'stand'); pupDown(T);
-    T.walk([TO_FOOT, atB(122, 106)], PUPR, 'walk').pose(6, 'sniff').pose(3, 'sitWag');
-    T.walk([atB(100, 150)], PUPR, 'walk').pose(14 + r() * 6, 'sitWag').walk([atB(58, 120)], PUPR, 'walk').pose(5, 'sniff');
+    T.pose(3 + r() * 4, 'curl').pose(1.2, 'stand'); pupDown(T);
+    T.walk([TO_FOOT, atB(92, 100), NOSE_PUP], PUPR, 'walk').until(26, 'sitWag').pose(5, 'nose', { flip: true }).pose(2, 'g4');
+    T.walk([atB(122, 106)], PUPR, 'walk').pose(4, 'sniff').pose(3, 'sitWag');
+    T.walk([atB(100, 150)], PUPR, 'walk').pose(10 + r() * 6, 'sitWag').walk([atB(58, 120)], PUPR, 'walk').pose(5, 'sniff');
     pupUp(T);
   },
   roof(T, r) {
     T.pose(14 + r() * 8, 'curl').pose(1.2, 'stand'); pupToLadder(T);
     toRoof(T, Z2, rf(12, 18, 27), PUPV, 'walk');
-    T.pose(22 + r() * 8, 'sitWag').pose(8, 'gaze');
+    T.until(42, 'sitWag').pose(3, 'gaze', { hearts: 1 }).pose(11, 'gaze').pose(4, 'sitWag');
     fromRoof(T, Z2, PUPV, 'walk'); pupFromLadder(T);
   },
 };
@@ -2235,11 +2353,35 @@ const rabFromBed = T => T.hop(at3(58, 62), .5, 'hop').walk([at3(75, 62), rabDoor
 const rabToLadder = T => { rabOff(T); T.walk([at3(60, 80), at3(42, 90), entry(Z3)], RABR, 'hop'); };
 const rabFromLadder = T => { T.walk([at3(42, 90), at3(60, 80), rabDoor], RABR, 'hop'); rabOn(T); };
 const RAB_SEAT = () => rf(-26, 18, 24);
+const RAB_WIN = at3(27, 76), RAB_FLOWER = atB(126, 60), RABG = RABV + 7;
+const rabToFlowers = T => { rabToLadder(T); ladderDown(T, Z3); T.walk([TO_FOOT, atB(108, 108), RAB_FLOWER], RABG, 'hop'); };
+function rabCaught(T, r, day) {
+  const { start: S, end: E, leave } = day, stays = r() < WET.pet, out = r() < .5, way = [atB(108, 108), TO_FOOT, FOOT];
+  T.until(S + 1, 'nibble');
+  if (stays) {  // stays among the flowers, then finds a clear view of the sky
+    T.until(E - 1, 'nibble').walk([RAB_EAST], RABV, 'hop').until(Math.min(leave, 100), 'gaze');
+    T.walk(way, RABG, 'hop'); ladderUp(T, Z3); rabFromLadder(T);
+    return;
+  }
+  T.walk(way, RABG + 6, 'hop'); ladderUp(T, Z3);
+  T.walk([RAB_WIN], RABV, 'hop').until(E - 1, 'gaze');
+  if (out) {
+    T.walk([entry(Z3)], RABV, 'hop'); toRoof(T, Z3, RAB_SEAT(), RABR, 'hop');
+    T.until(leave, 'gaze').pose(1, 'sit'); fromRoof(T, Z3, RABR, 'hop');
+  } else T.until(leave, 'gaze').walk([entry(Z3)], RABV, 'hop');
+  rabFromLadder(T);
+}
 const RAB = {
-  show(T) {
-    T.pose(5, 'loaf').pose(1.4, 'sit'); rabToLadder(T); toRoof(T, Z3, RAB_SEAT(), RABR, 'hop');
-    T.pose(5, 'sit').pose(5, 'g2').until(72, 'sit').until(92, 'gaze').pose(4, 'g4').pose(1, 'sit');
-    fromRoof(T, Z3, RABR, 'hop'); rabFromLadder(T);
+  show(T, r) {
+    T.pose(5, 'loaf').pose(1.4, 'sit'); rabToFlowers(T);
+    rabCaught(T, r, RAIN_SHOW);
+  },
+  /* down the ladder to sleep against the cat */
+  nap(T, r) {
+    T.pose(3 + r() * 3, 'loaf').pose(1.4, 'sit'); rabToLadder(T);
+    T.hop(lad(Z3), .4, 'land').walk([lad(Z1)], CLIMB, 'climb').hop(entry(Z1), .4, 'land').walk([at1(54, 95), at1(56, 92)], RABR, 'hop');
+    T.until(84, 'loaf').pose(1.4, 'sit').walk([at1(54, 95), entry(Z1)], RABR, 'hop');
+    T.hop(lad(Z1), .4, 'land').walk([lad(Z3)], CLIMB, 'climb').hop(entry(Z3), .4, 'land'); rabFromLadder(T);
   },
   bed(T, r) {
     T.pose(12 + r() * 10, 'loaf').pose(1.4, 'sit'); rabOff(T);
@@ -2260,9 +2402,8 @@ const RAB = {
     fromRoof(T, Z3, RABR, 'hop'); rabFromLadder(T);
   },
   rainbow(T, r) {
-    T.pose(14 + r() * 6, 'loaf').pose(1.4, 'sit'); rabToLadder(T); toRoof(T, Z3, RAB_SEAT(), RABR, 'hop');
-    T.until(50, 'sit').until(80, 'gaze').pose(4, 'g2').pose(1, 'sit');
-    fromRoof(T, Z3, RABR, 'hop'); rabFromLadder(T);
+    T.pose(2 + r() * 2, 'loaf').pose(1.4, 'sit'); rabToFlowers(T);
+    rabCaught(T, r, RAIN_DAY);
   },
   /* all the way down, to nibble among the sunflowers */
   flowers(T, r) {
@@ -2278,14 +2419,40 @@ const RAB = {
 const SHV = 7, SHR = SHV + 5;
 const shOut = T => T.walk([at1(68, 75, 18), at1(84, 100, 24), atB(104, 118, 44)], SHR, 'drift');
 const shIn = T => T.walk([at1(84, 100, 24), at1(68, 75, 18), at1(40, 60, 16)], SHR, 'drift');
+const SH_WIN = at1(26, 68, 20), SH_FLOWER = atB(124, 58, 40);
+function sheepCaught(T, r, day) {
+  const { start: S, end: E, leave } = day, stays = r() < WET.pet, out = r() < .5;
+  T.until(S + 1, 'rainy');
+  if (stays) T.until(E - 1, 'rainy').walk([SH_BOW], SHR, 'drift');
+  else {
+    T.walk([atB(104, 118, 44), at1(84, 100, 24), at1(68, 75, 18), SH_WIN], SHR + 6, 'drift').until(E - 1, 'gaze');
+    if (!out) { T.until(leave, 'gaze').walk([HOME.sheep], SHV, 'drift'); return; }
+    shOut(T); T.walk([SH_BOW], SHR, 'drift');
+  }
+  T.until(leave, 'arc').pose(1, 'float').walk([atB(104, 118, 44)], SHR, 'drift'); shIn(T);
+}
 const SHEEP = {
-  show(T, r) { SHEEP.sunny(T, r); },
+  show(T, r) { T.pose(4 + r() * 6, 'float'); shOut(T); T.walk([SH_FLOWER], SHR, 'drift'); sheepCaught(T, r, RAIN_SHOW); },
   drift(T, r) {
     T.pose(5 + r() * 8, 'float');
     for (let n = 0; n < 2; n++) T.walk([at1(68, 60, 18 + r() * 8), at1(68, 75, 16), at1(40, 75, 18 + r() * 8), at1(40, 60, 16)], SHV, 'drift').pose(2 + r() * 3, 'float');
   },
   rain(T, r) { T.pose(10 + r() * 10, 'float').pose(9, 'g2').pose(16, 'snooze').pose(2, 'float'); },
-  rest(T, r) { T.pose(14 + r() * 10, 'float').pose(30 + r() * 20, 'snooze').pose(2, 'float'); },
+  rest(T, r) {
+    if (present('pup')) {   // up to the puppy's floor, for a sleep beside it
+      T.pose(6 + r() * 2, 'float'); shOut(T);
+      T.walk([atB(100, 100, 118), at2(86, 68, 10)], SHR, 'drift').until(80, 'snooze').pose(1, 'float');
+      T.walk([atB(100, 100, 118), atB(104, 118, 44)], SHR, 'drift'); shIn(T);
+      return;
+    }
+    T.pose(14 + r() * 10, 'float').pose(30 + r() * 20, 'snooze').pose(2, 'float');
+  },
+  /* puts out the dragon's flame */
+  douse(T, r) {
+    T.pose(4 + r() * 4, 'float'); shOut(T);
+    T.walk([atB(146, 110, 30)], SHR, 'drift').until(44, 'float').pose(6, 'rainy').pose(5, 'happy').pose(1, 'float');
+    T.walk([atB(104, 118, 44)], SHR, 'drift'); shIn(T);
+  },
   /* waters the sunflowers */
   sunny(T, r) {
     T.pose(6 + r() * 6, 'float'); shOut(T);
@@ -2298,10 +2465,10 @@ const SHEEP = {
     T.walk([atB(118, 140, Math.min(300, roofBase() + 30))], SHR, 'drift').pose(14 + r() * 6, 'snooze').pose(4, 'float');
     T.walk([atB(104, 118, 44)], SHR, 'drift'); shIn(T);
   },
-  /* out into the rain, then a small rainbow of its own under the big one */
+  /* over the flowers when it starts; maybe a small rainbow of its own under the big one */
   arc(T, r) {
-    T.pose(10 + r() * 6, 'float'); shOut(T);
-    T.until(40, 'rainy').until(54, 'float').pose(20, 'arc').pose(3, 'float'); shIn(T);
+    T.pose(4 + r() * 4, 'float'); shOut(T); T.walk([SH_FLOWER], SHR, 'drift');
+    sheepCaught(T, r, RAIN_DAY);
   },
 };
 
@@ -2312,8 +2479,30 @@ const dragonHome = T => T.walk([at2(32, 58, 16), HOME.dragon], DRV, 'fly');
 const drOut = T => T.walk([at2(60, 84, 18), DR_GATE], DRR, 'fly');
 const drIn = T => T.walk([DR_GATE, at2(60, 84, 18), HOME.dragon], DRR, 'fly');
 const atCrown = p => { const c = trunk(p, 1); return { x: c.x, y: c.y, z: c.z + 2 }; };
+const DR_WIN = at2(24, 68, 20);
+/* it likes the rain: out it goes, nearly always, and dances in it */
+function dragonRain(T, r, day) {
+  const { start: S, end: E, leave } = day, out = r() < WET.dragon, after = r() < .5;
+  T.until(S, 'perch');
+  if (out) {
+    drOut(T); T.walk([atB(140, 120, 44)], DRR, 'fly');
+    T.pose(5, 'rainy').walk([atB(160, 104, 54), atB(150, 136, 40)], DRV, 'fly').pose(5, 'rainy').walk([atB(140, 120, 44)], DRV, 'fly').until(E - 1, 'rainy');
+  } else {
+    T.walk([DR_WIN], DRV, 'fly').until(E - 1, 'gaze');
+    if (!after) { T.until(leave, 'gaze').walk([HOME.dragon], DRV, 'fly'); return; }
+    drOut(T);
+  }
+  T.walk([DR_BOW], DRR, 'fly').until(leave, 'gaze').pose(1, 'hover');
+  T.walk([DR_GATE], DRR, 'fly'); drIn(T);
+}
 const DRAGON = {
-  show(T, r) { DRAGON.crab(T, r); },
+  show(T, r) { dragonRain(T, r, RAIN_SHOW); },
+  /* a small flame on the sand, until the sheep comes over */
+  fire(T, r) {
+    T.pose(14 + r() * 4, 'perch'); drOut(T);
+    T.walk([atB(160, 110, 14)], DRR, 'fly').until(40, 'hover').pose(10, 'blow').pose(5, 'happy', { hearts: 1 }).pose(1, 'hover');
+    T.walk([DR_GATE], DRR, 'fly'); drIn(T);
+  },
   oven(T, r) {
     T.pose(12 + r() * 12, 'perch');
     if (own('oven')) { dragonToOven(T); T.pose(5, 'light').pose(3, 'hover'); dragonHome(T); }
@@ -2345,19 +2534,23 @@ const DRAGON = {
     T.walk([atB(190, 104, 34)], DRR, 'fly').pose(32 + r() * 8, 'gaze').pose(5, 'g4');
     T.walk([DR_GATE], DRR, 'fly'); drIn(T);
   },
-  rainbow(T, r) {
-    T.pose(36 + r() * 6, 'perch'); drOut(T);
-    T.walk([atB(100, 110, roofBase() + 30), rf(6, 10, 37)], DRR, 'fly').until(82, 'gaze').pose(2, 'perch');
-    T.walk([atB(100, 110, roofBase() + 30), DR_GATE], DRR, 'fly'); drIn(T);
-  },
+  rainbow(T, r) { dragonRain(T, r, RAIN_DAY); },
 };
 
 /* ── the penguin: paces the jetty, then the sand, with great seriousness ─ */
 const PGV = 7, deckEnd = atB(154, 119, 5), sand = atB(146, 119, 0);
 const pgOff = T => T.walk([deckEnd], PGV + 2, 'waddle').hop(sand, .5, 'flap');
 const pgOn = T => T.hop(deckEnd, .55, 'flap').walk([HOME.penguin], PGV + 2, 'waddle');
+/* no room to run to: it waits under the parasol, then walks round for a clear view */
+function penguinRain(T, day) {
+  const { start: S, end: E, leave } = day, gap = atB(60, 128);
+  T.until(S, 'stand'); pgOff(T);
+  T.walk([PG_SHADE], PGV + 6, 'waddle').until(E - 1, 'stand').pose(2, 'flap');
+  T.walk([gap, PG_BOW], PGV + 2, 'waddle').until(leave, 'gaze').pose(2, 'flap');
+  T.walk([gap, sand], PGV + 3, 'waddle'); pgOn(T);
+}
 const PENGUIN = {
-  show(T, r) { PENGUIN.crab(T, r); },
+  show(T) { penguinRain(T, RAIN_SHOW); },
   beach(T, r) {
     T.pose(10 + r() * 10, 'stand'); pgOff(T);
     T.walk([atB(146, 100), atB(132, 100)], PGV, 'waddle').pose(10 + r() * 10, 'stand').pose(4, 'flap');
@@ -2376,7 +2569,7 @@ const PENGUIN = {
     T.walk([atB(120, 135), sand], PGV + 2, 'waddle'); pgOn(T);
   },
   jetty(T, r) {
-    T.pose(8 + r() * 8, 'stand').walk([atB(204, 122, 5)], PGV, 'waddle');
+    T.pose(8 + r() * 8, 'stand').walk([atB(172, 124, 5)], PGV, 'waddle');
     T.pose(34 + r() * 8, 'gaze').pose(3, 'flap').pose(4, 'g4').walk([HOME.penguin], PGV, 'waddle');
   },
   pool(T, r) {
@@ -2384,27 +2577,38 @@ const PENGUIN = {
     T.walk([atB(110, 122), atB(56, 124)], PGV + 3, 'waddle').pose(6, 'peck').pose(8, 'stand').pose(6, 'peck').pose(2, 'flap');
     T.walk([atB(110, 122), sand], PGV + 3, 'waddle'); pgOn(T);
   },
-  rainbow(T, r) {
-    T.pose(12 + r() * 8, 'stand'); pgOff(T);
-    T.walk([atB(140, 100)], PGV, 'waddle').until(50, 'stand').until(80, 'gaze').pose(3, 'flap').walk([sand], PGV, 'waddle'); pgOn(T);
-  },
+  rainbow(T) { penguinRain(T, RAIN_DAY); },
 };
 
 const SCRIPTS = {
   /* everyone's best moment in one loop */
-  showcase: { cat: CAT.show, pup: PUP.show, rabbit: RAB.show, sheep: SHEEP.show, dragon: DRAGON.show, penguin: PENGUIN.show, shower: [58, 74] },
+  showcase: { cat: CAT.show, pup: PUP.show, rabbit: RAB.show, sheep: SHEEP.show, dragon: DRAGON.show, penguin: PENGUIN.show, shower: [RAIN_SHOW.start, RAIN_SHOW.end] },
   /* everyone has a go at the crab, one at a time */
   crab: { cat: CAT.crab, pup: PUP.crab, rabbit: RAB.rug, sheep: SHEEP.sunny, dragon: DRAGON.crab, penguin: PENGUIN.crab },
   /* a sail on the horizon: the jetty fills up */
   boat: { cat: CAT.boat, pup: PUP.boat, rabbit: RAB.roof, sheep: SHEEP.drift, dragon: DRAGON.boat, penguin: PENGUIN.jetty },
-  /* a sun shower, then everyone comes out for the rainbow */
-  rainbow: { cat: CAT.rainbow, pup: PUP.rainbow, rabbit: RAB.rainbow, sheep: SHEEP.arc, dragon: DRAGON.rainbow, penguin: PENGUIN.rainbow, shower: [30, 52] },
+  /* a sun shower: everyone runs for it, except the dragon; then a rainbow */
+  rainbow: { cat: CAT.rainbow, pup: PUP.rainbow, rabbit: RAB.rainbow, sheep: SHEEP.arc, dragon: DRAGON.rainbow, penguin: PENGUIN.rainbow, shower: [RAIN_DAY.start, RAIN_DAY.end] },
   palm: { cat: CAT.palm, pup: PUP.palm, rabbit: RAB.flowers, sheep: SHEEP.rain, dragon: DRAGON.palm, penguin: PENGUIN.pool },
   roof: { cat: CAT.roof, pup: PUP.roof, rabbit: RAB.bed, sheep: SHEEP.sky, dragon: DRAGON.roof, penguin: PENGUIN.rest },
   beach: { cat: CAT.lounge, pup: PUP.beach, rabbit: RAB.flowers, sheep: SHEEP.sunny, dragon: DRAGON.loop, penguin: PENGUIN.slide },
-  play: { cat: CAT.play, pup: PUP.play, rabbit: RAB.rug, sheep: SHEEP.drift, dragon: DRAGON.loop, penguin: PENGUIN.beach },
-  perch: { cat: CAT.perch, pup: PUP.bowls, rabbit: RAB.bed, sheep: SHEEP.rain, dragon: DRAGON.oven, penguin: PENGUIN.rest },
-  snack: { cat: CAT.rest, pup: PUP.beg, rabbit: RAB.bed, sheep: SHEEP.drift, dragon: DRAGON.oven, penguin: PENGUIN.beach },
+  play: { cat: CAT.play, pup: PUP.play, rabbit: RAB.rug, sheep: SHEEP.drift, dragon: DRAGON.loop, penguin: PENGUIN.jetty },
+  /* a nap against the cat, or the cat up its tree */
+  perch: {
+    cat: CAT.perch,
+    pup: (T, r, ctx) => (ctx.nap && !present('rabbit') ? PUP.nap(T, r) : PUP.bowls(T, r)),
+    rabbit: (T, r, ctx) => (ctx.nap ? RAB.nap(T, r) : RAB.bed(T, r)),
+    sheep: SHEEP.rain, dragon: DRAGON.oven, penguin: PENGUIN.rest,
+  },
+  /* the dragon's flame and the sheep's rain; without them, the cat calls on the puppy */
+  snack: {
+    cat: (T, r) => (present('pup') && !both('dragon', 'sheep') ? CAT.visit(T, r) : CAT.rest(T, r)),
+    pup: (T, r) => (both('dragon', 'sheep') ? PUP.beg(T, r) : PUP.visited(T)),
+    rabbit: RAB.bed,
+    sheep: (T, r) => (both('dragon', 'sheep') ? SHEEP.douse(T, r) : SHEEP.drift(T, r)),
+    dragon: (T, r) => (both('dragon', 'sheep') ? DRAGON.fire(T, r) : DRAGON.oven(T, r)),
+    penguin: PENGUIN.pool,
+  },
   /* the tower simply breathes */
   quiet: { cat: CAT.rest, pup: PUP.rest, rabbit: RAB.rest, sheep: SHEEP.rest, dragon: DRAGON.rest, penguin: PENGUIN.rest },
 };
@@ -2422,9 +2626,11 @@ function assignFaces(segs) {
 }
 function compileBlock(name, seed) {
   const r = mulberry(seed), def = SCRIPTS[name], b = { name };
+  // decided once for the whole block, so two animals agree
+  const ctx = { duoOut: r() < .7, nap: r() < .5 || !own('catTree') };
   for (const id of ACTOR_IDS) {
     const T = new Track(HOME[id]);
-    def[id](T, r);
+    def[id](T, r, ctx);
     const home = HOME[id];
     if (T.t > LOOP) console.warn(`script ${name}: ${id} runs ${T.t.toFixed(1)}s`);
     if (T.p.x !== home.x || T.p.y !== home.y || T.p.z !== home.z) console.warn(`script ${name}: ${id} ends away from home`);
@@ -2456,8 +2662,9 @@ function storyAt(k) {
 }
 const blockCache = new Map();
 function blockFor(k) {
-  // furniture is left out on purpose: a purchase changes the next block, not the one playing
-  const key = (CFG.loop ? 'L' : 'F') + CFG.seed + ':' + storeys + ':' + k;
+  // furniture is left out on purpose: a purchase changes the next block, not the one playing.
+  // who is here is in: it only changes when the tower grows or the page has been away.
+  const key = (CFG.loop ? 'L' : 'F') + CFG.seed + ':' + storeys + ':' + (WORLD.pets.dragon ? 1 : 0) + (WORLD.pets.sheep ? 1 : 0) + (WORLD.pets.penguin ? 1 : 0) + ':' + k;
   let b = blockCache.get(key);
   if (b) return b;
   const name = CFG.loop ? SCRIPT_NAMES[((k % SCRIPT_NAMES.length) + SCRIPT_NAMES.length) % SCRIPT_NAMES.length] : storyAt(k);
@@ -2518,6 +2725,7 @@ const WORLD = {
   pets: { dragon: false, sheep: false, penguin: false },
   aff: { cat: 0, pup: 0, rabbit: 0, sheep: 0, dragon: 0, penguin: 0 },
   beach: [],
+  presents: [],
   sillTreat: false,
   react: {},
   sparks: [],
@@ -2814,27 +3022,36 @@ const FROND = [];
 function initFronds() {
   FROND.length = 0;
   for (const p of PALMS) {
-    const px = frondPixels(p.lean, p.h), map = new Map();
-    for (const [dx, dy, col] of px) map.set(dx * 4096 + dy, col);
-    const xs = [], ys = [], cs = [], us = [];
-    const push = (dx, dy, pi) => { xs.push(dx); ys.push(dy); cs.push(pi); us.push(Math.min(1, Math.hypot(dx, dy * 1.4) / 26)); };
-    for (const key of map.keys()) {
-      const dx = Math.round(key / 4096), dy = key - dx * 4096;
-      for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const k2 = (dx + a) * 4096 + dy + b;
-        if (!map.has(k2)) push(dx + a, dy + b, P.lef1);
-      }
+    // each frond keeps its own pixels and moves alone; outlines go first so they only show at the edge of the crown
+    const parts = new Map(), line = [], fill = [];
+    for (const [dx, dy, col, f, u] of frondPixels(p.lean, p.h)) {
+      if (!parts.has(f)) parts.set(f, new Map());
+      const m = parts.get(f), key = dx * 4096 + dy, old = m.get(key);
+      if (!old || u > old.u) m.set(key, { col, u });
     }
-    for (const [key, col] of map) { const dx = Math.round(key / 4096), dy = key - dx * 4096; push(dx, dy, PIDX.get(col)); }
-    FROND.push({ tx: OX + p.x - p.y + p.lean, ty: OY + ((p.x + p.y) >> 1) - p.h, xs: Int16Array.from(xs), ys: Int16Array.from(ys), cs: Uint8Array.from(cs), us: Float32Array.from(us), seed: p.h });
+    for (const [f, m] of parts) for (const [key, { col, u }] of m) {
+      const dx = Math.round(key / 4096), dy = key - dx * 4096;
+      fill.push([dx, dy, PIDX.get(col), u, f]);
+      for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!m.has((dx + a) * 4096 + dy + b)) line.push([dx + a, dy + b, P.lef1, u, f]);
+    }
+    const all = line.concat(fill);
+    FROND.push({
+      tx: OX + p.x - p.y + p.lean, ty: OY + ((p.x + p.y) >> 1) - p.h, seed: p.h,
+      xs: Int16Array.from(all, a => a[0]), ys: Int16Array.from(all, a => a[1]), cs: Uint8Array.from(all, a => a[2]),
+      us: Float32Array.from(all, a => a[3] * a[3]), fs: Uint8Array.from(all, a => a[4]),   // the base of a frond stays put
+    });
   }
 }
+const frondDX = new Float32Array(8), frondDY = new Float32Array(8);
 function drawPalms(t, on) {
   for (const f of FROND) {
-    const a = on ? osc(t, 9, f.seed * .01) * 1.3 + (pnoise(t, 30, f.seed) - .5) * 2.4 : 0, b = on ? osc(t, 14, f.seed * .03) * .9 : 0;
-    const { xs, ys, cs, us, tx, ty } = f;
+    for (let k = 0; k < 8; k++) {
+      frondDX[k] = on ? osc(t, 4 + k % 2, f.seed * .01 + k * .29) * .9 : 0;
+      frondDY[k] = on ? osc(t, 5 + k % 3, f.seed * .03 + k * .41) * 1.6 : 0;
+    }
+    const { xs, ys, cs, us, fs, tx, ty } = f;
     for (let n = 0; n < xs.length; n++) {
-      const u = us[n], sx = tx + xs[n] + Math.round(a * u), sy = ty + ys[n] + Math.round(b * u);
+      const u = us[n], k = fs[n], sx = tx + xs[n] + Math.round(frondDX[k] * u), sy = ty + ys[n] + Math.round(frondDY[k] * u);
       if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
       dyn[sy * W + sx] = PAL32[cs[n]];
     }
@@ -3156,6 +3373,7 @@ const POSE = {
       case 'crouch': SHOT.s = K.leap[0]; SHOT.flip = side; break;
       case 'climb': SHOT.s = K.walkNE[fr(t, 10, 4)]; break;
       case 'gaze': SHOT.s = K.back[earS]; SHOT.tail = 'window'; break;
+      case 'nose': SHOT.s = K.walkSE[0]; SHOT.flip = !!(A.o && A.o.flip); break;
       case 'tease': SHOT.s = A.local % 1 < .25 ? K.bat[0] : A.local % 1 < .5 ? K.bat[1] : K.sitWide; SHOT.flip = true; SHOT.tail = 'sit'; break;
       case 'stretch': SHOT.s = K.stretch[A.local > .6 && A.local < 1.8 ? 1 : 0]; SHOT.flip = true; break;
       case 'groom': SHOT.s = K.groom[A.local % 2.4 < 1.8 ? fr(t, 5, 2) : 2]; SHOT.tail = 'sit'; break;
@@ -3187,6 +3405,7 @@ const POSE = {
       case 'sniff': case 'eat': SHOT.s = D.sniff[fr(t, 5, 2)]; break;
       case 'climb': SHOT.s = D.walkNE[fr(t, 13, 4)]; break;
       case 'gaze': SHOT.s = D.walkNE[0]; break;
+      case 'nose': SHOT.s = D.standSE[fr(t, 7, 4)]; SHOT.flip = !!(A.o && A.o.flip); break;
       case 'tease': case 'bark': SHOT.s = D.stretch[fr(t, 4, 2)]; SHOT.flip = true; SHOT.oz = fr(t, 4, 2) * 2; break;
       case 'g2': SHOT.s = D.sitTilt[tail]; SHOT.flip = A.local % 3 > 1.5; break;
       case 'g4': {
@@ -3229,6 +3448,7 @@ const POSE = {
     SHOT.h = 12; SHOT.flip = side; SHOT.oz = Math.round(osc(t, 30, .15) * 1.5); SHOT.floats = true;
     switch (an) {
       case 'drift': SHOT.s = (A.face >= 2 ? S.back : S.front)[f]; break;
+      case 'gaze': SHOT.s = S.back[f]; break;
       case 'snooze': SHOT.s = S.blink; SHOT.oz = Math.round(osc(t, 20, .15) * 1); SHOT.sleep = true; break;
       case 'g2': case 'rainy': SHOT.s = S.blink; SHOT.effect = 'rain'; break;
       case 'arc': SHOT.s = S.happy[f]; SHOT.effect = 'bow'; break;
@@ -3246,6 +3466,8 @@ const POSE = {
       case 'hover': SHOT.s = Y.fly[fr(t, 8, 4)]; SHOT.floats = true; SHOT.oz = Math.round(osc(t, 40) * 2); break;
       case 'gaze': SHOT.s = Y.back[fr(t, 8, 4)]; SHOT.flip = false; SHOT.floats = hexAt(A.x, A.y) >= 1.1; break;
       case 'tease': SHOT.s = Y.puff; SHOT.floats = true; SHOT.effect = 'ring'; SHOT.flip = true; break;
+      case 'blow': SHOT.s = Y.puff; SHOT.floats = true; SHOT.effect = 'flame'; SHOT.flip = true; break;
+      case 'rainy': SHOT.s = Y.happy[fr(t, 6, 2)]; SHOT.floats = true; SHOT.oz = Math.round(Math.abs(Math.sin(t * 5)) * 3); break;
       case 'light': SHOT.s = Y.back[fr(t, 8, 4)]; SHOT.floats = true; SHOT.flip = false; SHOT.effect = 'breath'; break;
       case 'sleep': SHOT.s = Y.sleep[Math.sin(TAU * 26 * t / LOOP) > 0 ? 1 : 0]; SHOT.h = 8; SHOT.sleep = true; break;
       case 'g2': SHOT.s = Y.puff; SHOT.effect = 'ring'; break;
@@ -3387,6 +3609,16 @@ function drawActors(t, b, local) {
       const c = cyc(t, 60, i / 6);
       spx(sx - Math.round(c * 8), sy - 7 - Math.round(c * 4 * (i % 2 ? 1 : -1)), c < .5 ? P.amb7 : P.ter5);
     }
+    /* the sheep's rain reaches it at 4 s, and it's out by 7 */
+    if (SHOT.effect === 'flame') {
+      const g = A.local < 4 ? smooth(A.local / 1.5) : 1 - smooth((A.local - 4) / 3), len = Math.round(g * 11), f = fr(t, 12, 8);
+      for (let k = 0; k < len; k++) {
+        const w = Math.round((1 - k / len) * 2.4 + hsh(k, f, 143) * .9);
+        for (let v = -w; v <= w; v++) spx(sx - 9 - k, sy - 8 + v, Math.abs(v) < w * .5 && k < len * .55 ? P.amb7 : k < len * .8 ? P.amb5 : P.ter5);
+      }
+      if (A.local > 4.5) wisps(sx - 13, sy - 10, 5, 48, 12, 144, t, P.cld7, P.cld5);
+    }
+    if (A.o && A.o.hearts && !Rx) drawHearts(sx + 10, sy - SHOT.s.h - 2, A.local);
     if (Rx && Rx.anim !== 'land' && e > .3) drawHearts(sx, sy - SHOT.s.h - 2, e);
   }
 }
@@ -3526,11 +3758,17 @@ function togglePanel(force) {
    ═══════════════════════════════════════════════════════════════════════ */
 const SAVE_KEY = 'summer-tower-save-v1';
 const RULES = {
-  floorCost: { 2: 50, 3: 300 },
+  floorCost: { 2: 120, 3: 300 },
   spawnEvery: 10,          // a new piece of glass, seconds
   beachCap: 12,            // never more than this lying about
   bottleEvery: 45,         // while closed: one piece per this many seconds
-  bottleCap: 30,           // and no more than this in the bottle
+  bottleCaps: [10, 20, 30, 45, 60],   // and no more than this in the bottle, level by level
+  bottlePrices: [15, 30, 50, 80],     // what the next size costs
+  balloonFirst: 180,       // the first balloon comes early, so it gets noticed
+  balloonEvery: [240, 360],  // then one per this many seconds, while the game is open
+  balloonCross: 30,        // seconds to cross the sea
+  presentCap: 12,
+  highlightFor: 3,         // how long a new piece of furniture glows
   resumeAfter: 60,         // a hidden tab this long counts as having been closed
   sillPrice: 10,
 };
@@ -3577,10 +3815,12 @@ const FURNITURE = {
 };
 const FURN_KEYS = Object.keys(FURNITURE);
 const PET_ORDER = ['dragon', 'sheep', 'penguin'];
+const PRESENT_VALUES = [15, 25, 50];
 const newState = () => ({
   v: 1, glass: 0, stash: 0, total: 0, storeys: 1, pets: [],
   aff: { cat: 0, pup: 0, rabbit: 0, sheep: 0, dragon: 0, penguin: 0 },
   beach: [], n: 0, spawnIn: 6, sill: false, played: 0, doneAt: 0, lastSeen: 0, furn: [],
+  bottleLv: 0, presents: [], balloonIn: RULES.balloonFirst, bn: 0,
 });
 let GS = newState();
 let gameOn = false;
@@ -3603,7 +3843,12 @@ function readSave() {
   if (!o || o.v !== 1) return null;
   const s = newState();
   s.glass = cleanNum(o.glass, 0, 1e7, 0) | 0;
-  s.stash = cleanNum(o.stash, 0, RULES.bottleCap, 0) | 0;
+  // what's already in the bottle stays, even above the size of an old save's bottle
+  s.stash = cleanNum(o.stash, 0, RULES.bottleCaps.at(-1), 0) | 0;
+  s.bottleLv = cleanNum(o.bottleLv, 0, RULES.bottlePrices.length, 0) | 0;
+  s.presents = Array.isArray(o.presents) ? o.presents.filter(p => p && Number.isInteger(p.slot) && p.slot >= 0 && p.slot < 60 && PRESENT_VALUES.includes(p.value)).slice(0, RULES.presentCap) : [];
+  s.balloonIn = cleanNum(o.balloonIn, 0, RULES.balloonEvery[1], RULES.balloonFirst);
+  s.bn = cleanNum(o.bn, 0, 1e9, 0) | 0;
   s.total = cleanNum(o.total, 0, 1e9, 0) | 0;
   s.storeys = cleanNum(o.storeys, 1, 3, 1) | 0;
   s.pets = Array.isArray(o.pets) ? PET_ORDER.filter(p => o.pets.includes(p)) : [];
@@ -3643,7 +3888,40 @@ const GLASS_SPR = [
   mk(['.oooo..', 'oWaaao.', 'oaaaabo', '.oaabbo', '..oooo.'], 'o:lef1 W:cld7 a:lef6 b:lef4', 3, 3),
   mk(['..ooo..', '.oWaao.', 'oWaaabo', 'oaaabbo', '.oabbo.', '..ooo..'], 'o:hon1 W:cld7 a:amb7 b:amb5', 3, 3),
 ];
+/* big enough to see from the whole-island camera */
+const BALLOON_SPR = (() => {
+  const rx = 10, ry = 12, rows = [];
+  for (let y = -ry; y <= ry; y++) {
+    let row = '';
+    for (let x = -rx; x <= rx; x++) {
+      const w = rx * (y > 0 ? 1 - y / ry * .28 : 1), d = (x / w) ** 2 + (y / ry) ** 2;
+      row += d > 1 ? '.' : d > .8 ? 'o' : Math.hypot(x + 4, y + 5) < 2.4 ? 'W' : x + y > 7 ? 'p' : 'P';
+    }
+    rows.push(row);
+  }
+  rows.push('.........ooo.........', '........oPPPo........', '.........ooo.........');
+  return mk(rows, 'o:ter3 P:ter6 p:ter5 W:cld7', rx, rows.length - 1);
+})();
+const PRESENT_SPR = mk([
+  '....rr.rr....',
+  '.....rrr.....',
+  'ooooooroooooo',
+  'oBBBBBrBBBBBo',
+  'oBBBBBrBBBBbo',
+  'oBBBBBrBBBbbo',
+  'oBBBBBrBBbbbo',
+  'oBBBBBrBbbbbo',
+  'ooooooooooooo',
+], 'o:rose2 r:amb7 B:pin6 b:pin5', 6, 8);
 function drawGameGround(t) {
+  for (const p of WORLD.presents) {
+    if (FALLING.some(f => f.slot === p.slot)) continue;
+    const s = SLOTS[p.slot];
+    if (!s) continue;
+    const c = cyc(t, 16, p.slot * .13), hop = c < .05 ? Math.round(Math.sin(c / .05 * Math.PI) * 3) : 0;
+    sblit(PRESENT_SPR, s.x, s.y - hop);
+    if (c > .1 && c < .16) { spx(s.x + 4, s.y - 9, P.cld7); spx(s.x + 3, s.y - 9, P.cld7); spx(s.x + 5, s.y - 9, P.cld7); spx(s.x + 4, s.y - 10, P.cld7); spx(s.x + 4, s.y - 8, P.cld7); }
+  }
   for (const g of WORLD.beach) {
     const s = SLOTS[g.slot];
     if (!s) continue;
@@ -3662,6 +3940,7 @@ function drawGameGround(t) {
 }
 function drawGameSparks() {
   const S_ = WORLD.sparks, now = WORLD.now;
+  drawBalloons(now);
   for (let n = S_.length - 1; n >= 0; n--) {
     const p = S_[n], e = now - p.t0;
     if (e < 0) continue;
@@ -3670,6 +3949,47 @@ function drawGameSparks() {
     for (let i = 0; i < 8; i++) {
       const a = i / 8 * TAU + p.seed;
       spx(Math.round(p.x + Math.cos(a) * r), Math.round(p.y + Math.sin(a) * r * .7 - u * 5), u < .6 ? P.cld7 : P[p.col]);
+    }
+  }
+}
+/* ── the balloon: it belongs to the open game, never to the 120 s picture ── */
+let FLOAT = null;                 // the balloon on its way across; a closed page has none
+const FALLING = [], LOOSE = [], BURSTS = [];
+function balloonAt() {
+  if (!FLOAT) return null;
+  const u = FLOAT.e / RULES.balloonCross, x = FLOAT.dir > 0 ? -20 + u * 400 : 380 - u * 400;
+  return [x + Math.sin(FLOAT.e * .9 + FLOAT.n) * 4, FLOAT.y + Math.sin(FLOAT.e * .6 + FLOAT.n * 2) * 7];
+}
+function drawBalloonSprite(x, y, withGift) {
+  const X = Math.round(x), Y = Math.round(y);
+  sblit(BALLOON_SPR, X, Y - 17);
+  for (let k = 0; k < 8; k++) spx(X + (k % 4 === 1 ? 1 : 0), Y - 16 + k, P.cld5);
+  if (withGift) sblit(PRESENT_SPR, X, Y);
+}
+function drawBalloons(now) {
+  const at = balloonAt();
+  if (at) drawBalloonSprite(at[0], at[1], true);
+  for (let n = LOOSE.length - 1; n >= 0; n--) {
+    const b = LOOSE[n], e = now - b.t0;
+    if (e > 2.4 || e < 0) { LOOSE.splice(n, 1); continue; }
+    drawBalloonSprite(b.x + Math.sin(e * 3) * 3, b.y - e * e * 34 - e * 12, false);
+  }
+  for (let n = FALLING.length - 1; n >= 0; n--) {
+    const f = FALLING[n], u = (now - f.t0) / .9, s = SLOTS[f.slot];
+    if (u >= 1 || u < 0) {
+      FALLING.splice(n, 1);
+      for (let i = 0; i < 4; i++) spark(s.x + (i - 1.5) * 4, s.y, 'crm7', 6, .4);
+      continue;
+    }
+    sblit(PRESENT_SPR, Math.round(lerp(f.x, s.x, u)), Math.round(lerp(f.y, s.y, u * u)));
+  }
+  for (let n = BURSTS.length - 1; n >= 0; n--) {
+    const b = BURSTS[n], e = now - b.t0;
+    if (e > 1.1 || e < 0) { BURSTS.splice(n, 1); continue; }
+    for (let i = 0; i < b.count; i++) {
+      const a = hsh(i, b.seed, 183) * TAU, v = 22 + hsh(i, b.seed, 184) * 34;
+      const x = b.x + Math.cos(a) * v * e, y = b.y - 6 + Math.sin(a) * v * e * .6 - 46 * e + 74 * e * e;
+      if (e < .8 || i % 2) sblit(GLASS_SPR[i % 3], Math.round(x), Math.round(y));
     }
   }
 }
@@ -3685,11 +4005,12 @@ function pushWorld() {
   WORLD.pets.penguin = GS.pets.includes('penguin');
   for (const k in GS.aff) WORLD.aff[k] = GS.aff[k];
   WORLD.beach = GS.beach;
+  WORLD.presents = GS.presents;
   WORLD.sillTreat = GS.sill;
 }
 function spawnGlass() {
   if (GS.beach.length >= RULES.beachCap || !SLOTS.length) return false;
-  const n = GS.n++, used = new Set(GS.beach.map(g => g.slot));
+  const n = GS.n++, used = new Set([...GS.beach, ...GS.presents].map(g => g.slot));
   let slot = hsh(n, 161) * SLOTS.length | 0;
   while (used.has(slot)) slot = (slot + 1) % SLOTS.length;
   const roll = hsh(n, 162);
@@ -3700,6 +4021,56 @@ function advance(sec) {
   GS.played += sec;
   GS.spawnIn -= sec;
   while (GS.spawnIn <= 0) { GS.spawnIn += RULES.spawnEvery; spawnGlass(); }
+  if (FLOAT && (FLOAT.e += sec) >= RULES.balloonCross) FLOAT = null;   // missed: it's gone
+  GS.balloonIn -= sec;
+  while (GS.balloonIn <= 0) {
+    launchBalloon();
+    GS.balloonIn += lerp(RULES.balloonEvery[0], RULES.balloonEvery[1], hsh(GS.bn, 185));
+  }
+}
+function launchBalloon() {
+  const n = GS.bn++;
+  if (GS.presents.length >= RULES.presentCap || FLOAT) return;
+  // low enough over the water to stay in view from every floor's camera
+  FLOAT = { n, e: 0, dir: hsh(n, 180) < .5 ? 1 : -1, y: 345 + hsh(n, 181) * 40 };
+}
+/* the present drops to the nearest free spot of sand that's on the screen */
+function catchBalloon() {
+  const at = balloonAt();
+  if (!at) return false;
+  const n = FLOAT.n, v = CAM.to, used = new Set([...GS.beach, ...GS.presents].map(g => g.slot));
+  const shown = s => s.x > v[0] + 8 && s.x < v[0] + v[2] - 8 && s.y > v[1] + 10 && s.y < v[1] + v[3] * .86;
+  let best = -1, bd = Infinity, inView = false;
+  SLOTS.forEach((s, i) => {
+    if (used.has(i)) return;
+    const seen = shown(s), d = Math.hypot(s.x - at[0], s.y - at[1]);
+    if ((seen && !inView) || (seen === inView && d < bd)) { best = i; bd = d; inView = seen; }
+  });
+  if (best < 0) return false;
+  const roll = hsh(n, 182), value = roll < .4 ? 15 : roll < .84 ? 25 : 50;
+  GS.presents.push({ slot: best, value });
+  FLOAT = null;
+  FALLING.push({ slot: best, x: at[0], y: at[1], t0: WORLD.now });
+  LOOSE.push({ x: at[0], y: at[1], t0: WORLD.now });
+  spark(at[0], at[1], 'amb7', 12, .6);
+  if (!inView) setView('all');
+  return true;
+}
+function openPresent(index) {
+  const p = GS.presents[index];
+  if (!p) return 0;
+  GS.presents.splice(index, 1);
+  GS.glass += p.value; GS.total += p.value;
+  return p.value;
+}
+const bottleCap = () => RULES.bottleCaps[GS.bottleLv];
+const nextBottlePrice = () => RULES.bottlePrices[GS.bottleLv] || 0;
+function upgradeBottle() {
+  const price = nextBottlePrice();
+  if (!price || GS.glass < price) return false;
+  GS.glass -= price;
+  GS.bottleLv++;
+  return true;
 }
 function collectAt(index) {
   const g = GS.beach[index];
@@ -3719,7 +4090,8 @@ function settleAbsence(sec) {
   const out = { glass: 0, pet: null };
   if (!(sec > 0)) return out;
   const before = GS.stash;
-  GS.stash = Math.min(RULES.bottleCap, GS.stash + Math.floor(sec / RULES.bottleEvery));
+  // an old save may hold more than its bottle: that's kept, it just doesn't grow
+  if (before < bottleCap()) GS.stash = Math.min(bottleCap(), before + Math.floor(sec / RULES.bottleEvery));
   out.glass = GS.stash - before;
   if (GS.sill) {
     const next = PET_ORDER.find(p => !GS.pets.includes(p));
@@ -3767,6 +4139,106 @@ function furnish(key) {
   pushWorld();
   rebake();
   return true;
+}
+/* ── the furniture's picture: the room's own art, cut out ───────────────── */
+const ART = {};
+/* parts that only exist on the moving layer */
+const MOVING_ART = {
+  chime: t => fxChime(t), mobile: t => fxMobile(t), lantern: t => fxLantern(t),
+  stoolB: () => sblit(BOWL, iX(78, 84), iY(78, 84, Z2 + 13)),
+};
+const SWAYS = new Set(['chime', 'mobile', 'lantern']);
+function furnitureArt(key) {
+  if (ART[key]) return ART[key];
+  const px = new Map();
+  for (const ob of paintOrder(OBJ.slice(1).filter(ob => ob.o.furn === key))) {
+    tCur = ++paintSerial; tCount = 0;
+    ob.paint(ob);
+    const outl = ob.o.outline === undefined ? .7 : ob.o.outline;
+    for (let k = 0; k < tCount; k++) {
+      const i = touched[k], edge = outl && ((i < W || tStamp[i - W] !== tCur) || (i >= N - W || tStamp[i + W] !== tCur) || tStamp[i - 1] !== tCur || tStamp[i + 1] !== tCur);
+      const c = edge && tN[i] !== NEMIT ? lite(tCol[i], outl) : tCol[i];
+      px.set(i, PAL32[nearest(c >> 16 & 255, c >> 8 & 255, c & 255)]);
+    }
+  }
+  if (MOVING_ART[key]) {       // between frames: the next frame clears this anyway
+    dyn.fill(0);
+    MOVING_ART[key](0);
+    for (let i = 0; i < N; i++) if (dyn[i]) px.set(i, dyn[i]);
+  }
+  let x0 = W, y0 = H, x1 = 0, y1 = 0;
+  for (const i of px.keys()) { const sx = i % W, sy = i / W | 0; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
+  const w = x1 - x0 + 1, h = y1 - y0 + 1, d = new Uint32Array(w * h);
+  for (const [i, v] of px) d[((i / W | 0) - y0) * w + i % W - x0] = v;
+  return ART[key] = { w, h, d, n: px.size };
+}
+function artCanvas(a, box = 46) {
+  const c = document.createElement('canvas');
+  c.width = a.w; c.height = a.h;
+  const g = c.getContext('2d'), im = g.createImageData(a.w, a.h);
+  new Uint32Array(im.data.buffer).set(a.d);
+  g.putImageData(im, 0, 0);
+  // small things are shown bigger, big things shrink to fit
+  let s = Math.min(2, box / Math.max(a.w, a.h));
+  if (s > 1) s = Math.floor(s * 2) / 2;
+  c.style.width = `calc(var(--u) * ${a.w * s})`; c.style.height = `calc(var(--u) * ${a.h * s})`;
+  c.className = 'px';
+  return c;
+}
+
+/* ── a new piece of furniture glows, once ─────────────────────────────── */
+let HILITE = null;
+const hiMask = new Uint8Array(N);
+function ringOf(list) {
+  const ring = [], ring2 = [];
+  for (const i of list) hiMask[i] = 1;
+  for (const i of list) for (const j of [i - 1, i + 1, i - W, i + W]) if (j >= 0 && j < N && !hiMask[j]) { hiMask[j] = 2; ring.push(j); }
+  for (const i of ring) for (const j of [i - 1, i + 1, i - W, i + W]) if (j >= 0 && j < N && !hiMask[j]) { hiMask[j] = 3; ring2.push(j); }
+  for (const i of list) hiMask[i] = 0;
+  for (const i of ring) hiMask[i] = 0;
+  for (const i of ring2) hiMask[i] = 0;
+  return { ring, ring2 };
+}
+function movingPixels(key, t) {
+  const list = [];
+  dyn.fill(0);
+  MOVING_ART[key](t);
+  for (let i = 0; i < N; i++) if (dyn[i]) list.push(i);
+  return list;
+}
+function startHighlight(key) {
+  const list = [];
+  for (let i = 0; i < N; i++) { const id = gId[i]; if (id && OBJ[id].o.furn === key) list.push(i); }
+  const moving = MOVING_ART[key] ? movingPixels(key, 0) : [];
+  let x0 = W, y0 = H, x1 = 0, y1 = 0;
+  for (const l of [list, moving]) for (const i of l) { const sx = i % W, sy = i / W | 0; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
+  const pad = SWAYS.has(key) ? 6 : 1;
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(W - 1, x1 + pad); y1 = Math.min(H - 1, y1 + pad);
+  const w = x1 - x0 + 1, h = y1 - y0 + 1, cut = makeCanvas(w, h), g = cut.getContext('2d'), im = g.createImageData(w, h), d = new Uint32Array(im.data.buffer);
+  for (const i of list) d[((i / W | 0) - y0) * w + i % W - x0] = PAL32[baseIdx[i]];
+  g.putImageData(im, 0, 0);
+  HILITE = { key, t0: WORLD.now, cut, x: x0, y: y0, w, h, list, ...(SWAYS.has(key) ? {} : ringOf(list.concat(moving))) };
+}
+function drawHighlight(t) {
+  const L = HILITE;
+  if (!L) return;
+  const e = WORLD.now - L.t0, on = RULES.highlightFor;
+  if (e < 0 || e >= on + .4) { HILITE = null; return; }
+  const a = Math.min(1, e / .3) * (1 - smooth((e - on) / .4));
+  fctx.fillStyle = '#16204a';
+  fctx.globalAlpha = .42 * a;
+  fctx.fillRect(0, 0, W, H);
+  fctx.globalAlpha = a;
+  fctx.drawImage(L.cut, L.x, L.y);
+  fctx.drawImage(dynCanvas, L.x, L.y, L.w, L.h, L.x, L.y, L.w, L.h);   // whatever's in front stays in front
+  const { ring, ring2 } = SWAYS.has(L.key) ? ringOf(movingPixels(L.key, t)) : L;
+  const pulse = .68 + .32 * Math.sin(e * 6);
+  fctx.fillStyle = '#ffe27a';
+  fctx.globalAlpha = a * pulse;
+  for (const i of ring) fctx.fillRect(i % W, i / W | 0, 1, 1);
+  fctx.globalAlpha = a * pulse * .4;
+  for (const i of ring2) fctx.fillRect(i % W, i / W | 0, 1, 1);
+  fctx.globalAlpha = 1;
 }
 function growNow() {
   const cost = nextFloorCost();
@@ -3951,6 +4423,22 @@ function renderShop() {
   if (!shopOpen) return;
   m.innerHTML = '<button class="x" aria-label="とじる">×</button>';
   m.querySelector('.x').onclick = closeSheets;
+  const picture = (b, canvas, name, price) => {
+    b.className = 'good pic'; b.disabled = GS.glass < price;
+    b.innerHTML = `<span class="gi"></span><span class="gc"><span class="gt">${name}</span><span class="gp ${GS.glass >= price ? '' : 'no'}">${price}</span></span>`;
+    b.querySelector('.gi').appendChild(canvas);
+  };
+  const bottlePrice = nextBottlePrice();
+  if (bottlePrice) {
+    const h = document.createElement('h3'); h.textContent = '小びん';
+    const box = document.createElement('div'); box.className = 'goods';
+    const b = document.createElement('button');
+    picture(b, spriteCanvas(BOTTLE, 3), `${RULES.bottleCaps[GS.bottleLv + 1]}個入りの小びん`, bottlePrice);
+    b.dataset.bottle = '1';
+    b.onclick = () => { if (upgradeBottle()) { saveGame(); refreshUI(); } };
+    box.appendChild(b);
+    m.append(h, box);
+  }
   const left = furnitureLeft();
   for (let n = 1; n <= GS.storeys; n++) {
     const keys = left.filter(k => FURNITURE[k].floor === n);
@@ -3958,9 +4446,9 @@ function renderShop() {
     const h = document.createElement('h3'); h.textContent = n + '階';
     const box = document.createElement('div'); box.className = 'goods';
     for (const key of keys) {
-      const f = FURNITURE[key], b = document.createElement('button'), afford = GS.glass >= f.price;
-      b.className = 'good'; b.dataset.furn = key; b.disabled = !afford;
-      b.innerHTML = `<span class="gt">${f.name}</span><span class="gp ${afford ? '' : 'no'}">${f.price}</span>`;
+      const f = FURNITURE[key], b = document.createElement('button');
+      picture(b, artCanvas(furnitureArt(key)), f.name, f.price);
+      b.dataset.furn = key;
       b.onclick = () => placeFurniture(key);
       box.appendChild(b);
     }
@@ -3972,6 +4460,7 @@ function placeFurniture(key) {
   const f = FURNITURE[key], sx = iX(f.at[0], f.at[1]), sy = iY(f.at[0], f.at[1], f.at[2]);
   closeSheets();
   setView(f.floor);
+  startHighlight(key);
   for (let i = 0; i < 7; i++) spark(sx + hsh(i, 173) * 24 - 12, sy + hsh(i, 174) * 18 - 9, 'amb7', 11, .9);
   // whoever lives on this floor comes over to see
   for (const id of ACTOR_IDS) if (present(id) && inOwnRoom(ACTOR[id]) && FLOOR_OF[id] === FLOOR_Z[f.floor - 1]) petAnimal(id);
@@ -3980,7 +4469,8 @@ function placeFurniture(key) {
 const HELP = [
   '波打ち際に光るシーグラスをタップして集めます。閉じている間も、小びんに少したまります。',
   '集めたシーグラスで塔を建て増しします。階が増えると動物がやってきます。',
-  '「家具」から家具を買うと、部屋に置かれます。動物たちも使います。',
+  '「おみせ」で家具を買うと、部屋に置かれます。動物たちも使います。小びんを大きくすると、閉じている間にたくさんたまります。',
+  'プレゼント付きの風船が流れてきたら、タップしましょう。浜に落ちたプレゼントを開くと、シーグラスがたくさん出てきます。',
   '動物をタップすると、おやつやおもちゃをあげられます。なつくと新しいしぐさを見せてくれます。',
   '動物たちは、はしごで屋根や浜辺にも出かけます。',
   '3階まで建ったら、窓辺におやつを置きましょう。次に開いたとき、新しい動物が来ているかもしれません。',
@@ -4013,7 +4503,7 @@ function refreshUI() {
   UI.glassN.textContent = GS.glass;
   UI.bottleBtn.hidden = !GS.stash;
   UI.bottleN.textContent = '+' + GS.stash;
-  UI.shopBtn.hidden = !furnitureLeft().length;
+  UI.shopBtn.hidden = !furnitureLeft().length && !nextBottlePrice();
   if (shopOpen) renderShop();
   for (const b of UI.floors.children) {
     const v = b.dataset.view;
@@ -4055,6 +4545,17 @@ function hitTest(ix, iy) {
     const d = Math.hypot(s.x - ix, s.y - iy);
     if (d < bd) { bd = d; best = { kind: 'glass', n }; }
   });
+  GS.presents.forEach((p, n) => {
+    const s = SLOTS[p.slot];
+    if (!s || FALLING.some(f => f.slot === p.slot)) return;
+    const d = Math.hypot(s.x - ix, s.y - 3 - iy) - 3;
+    if (d < bd) { bd = d; best = { kind: 'present', n }; }
+  });
+  const flying = balloonAt();
+  if (flying) {
+    const d = Math.hypot(flying[0] - ix, flying[1] - 22 - iy) - 18;   // it's tall, and moving: forgive a near miss
+    if (d < bd) { bd = d; best = { kind: 'balloon' }; }
+  }
   for (const id of ACTOR_IDS) {
     if (!present(id)) continue;
     const A = ACTOR[id], d = Math.hypot(A.sx - ix, A.sy - iy) - 3;
@@ -4067,7 +4568,15 @@ function onCanvasTap(e) {
   if (menuOpen || shopOpen || helpOpen) { closeSheets(); return; }
   const [ix, iy] = toInternal(e), hit = hitTest(ix, iy);
   if (!hit) { closeCard(); return; }
-  if (hit.kind === 'glass') {
+  if (hit.kind === 'balloon') {
+    if (catchBalloon()) { saveGame(); refreshUI(); }
+  } else if (hit.kind === 'present') {
+    const s = SLOTS[GS.presents[hit.n].slot], v = openPresent(hit.n);
+    BURSTS.push({ x: s.x, y: s.y, count: Math.min(16, 6 + (v >> 2)), seed: GS.n + v, t0: WORLD.now });
+    for (let i = 0; i < 5; i++) spark(s.x + (i - 2) * 5, s.y - 3, ['sea6', 'lef6', 'amb7'][i % 3], 12, .7);
+    floatNumber(s.x, s.y - 8, '+' + v);
+    saveGame(); refreshUI();
+  } else if (hit.kind === 'glass') {
     const s = SLOTS[GS.beach[hit.n].slot], k = GS.beach[hit.n].kind, v = collectAt(hit.n);
     spark(s.x, s.y, ['sea6', 'lef6', 'amb7'][k]);
     floatNumber(s.x, s.y, '+' + v);
@@ -4082,6 +4591,8 @@ function onCanvasTap(e) {
 function resetGame() {
   try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* the store is blocked: the new game just won't persist */ }
   GS = newState();
+  FLOAT = null; HILITE = null;
+  FALLING.length = LOOSE.length = BURSTS.length = 0;
   for (let i = 0; i < 3; i++) spawnGlass();
   GS.lastSeen = nowMs();
   storeys = 1;
@@ -4152,6 +4663,15 @@ const GAME = {
   buy: (id, good) => { delete WORLD.react[id]; const ok = buyFor(id, good); delete WORLD.react[id]; if (UI.ui) refreshUI(); return ok; },
   grow: () => { const ok = growNow(); pushWorld(); if (UI.ui) refreshUI(); return ok; },
   sill: placeSill,
+  bottle: () => { const ok = upgradeBottle(); if (UI.ui) refreshUI(); return ok; },
+  bottleCap,
+  fillBottle: n => { GS.stash = n; },
+  balloon: () => { const b = balloonAt(); return b && [b[0], b[1] - 22]; },
+  launch: launchBalloon,
+  catchBalloon,
+  openPresents: () => { let v = 0; while (GS.presents.length) v += openPresent(0); if (UI.ui) refreshUI(); return v; },
+  art: key => { const a = furnitureArt(key); return [a.w, a.h, a.n]; },
+  highlight: () => HILITE && { key: HILITE.key, px: HILITE.list.length, ring: HILITE.ring ? HILITE.ring.length : -1 },
   comeBack: sec => { GS.lastSeen = nowMs() - sec * 1000; comeBack(); return JSON.parse(JSON.stringify(GS)); },
   save: saveGame, read: readSave, reset: () => resetGame(),
   slots: () => SLOTS.map(s => [s.x, s.y]),
@@ -4200,6 +4720,7 @@ function renderFrame(time) {
   drawDynamic(t, st);
   dynCtx.putImageData(dynImg, 0, 0);
   fctx.drawImage(dynCanvas, 0, 0);
+  drawHighlight(t);
   const z = CFG.zoom;
   if (z.length === 4 && z.every(Number.isFinite)) dctx.drawImage(frame, z[0], z[1], z[2], z[3], 0, 0, DW, DH);
   else dctx.drawImage(frame, 0, 0, DW, DH);
@@ -4257,11 +4778,18 @@ const dollhouse = {
   scripts: (seed = 1) => SCRIPT_NAMES.map(n => { const b = compileBlock(n, seed); return [n, ...ACTOR_IDS.map(id => b[id].at(-1).t0)]; }),
   story: storyAt,
   /* every script at a given height and with or without the furniture, for checking lengths and endings */
-  scriptsAt: (n, furnished, seed = 1) => {
-    const s = storeys, a = OWNED.all;
+  scriptsAt: (n, furnished, seed = 1, pets = true) => {
+    const s = storeys, a = OWNED.all, p = { ...WORLD.pets };
     storeys = n; OWNED.all = furnished;
+    for (const k in WORLD.pets) WORLD.pets[k] = pets;
     const out = SCRIPT_NAMES.map(name => { const b = compileBlock(name, seed); return [name, ...ACTOR_IDS.map(id => b[id].at(-1).t0)]; });
-    storeys = s; OWNED.all = a;
+    storeys = s; OWNED.all = a; Object.assign(WORLD.pets, p);
+    return out;
+  },
+  /* everyone's place at one moment of a story, without drawing it */
+  poseIn: (name, seed, t) => {
+    const b = compileBlock(name, seed), out = {};
+    for (const id of ACTOR_IDS) { const A = ACTOR[id]; sampleActor(A, b[id], t); out[id] = { x: A.x, y: A.y, z: A.z, anim: A.anim, sx: 180 + A.x - A.y, out: isOutdoors(A), roof: A.z >= TOP_Z(storeys) }; }
     return out;
   },
   timeline: k => { const b = blockFor(k); return ACTOR_IDS.map(w => w + ': ' + b[w].map(s => `${s.t0.toFixed(1)} ${s.anim}`).join(', ')); },
