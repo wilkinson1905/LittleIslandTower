@@ -44,15 +44,19 @@
 
   #toast { position: absolute; left: calc(var(--u) * 24); right: calc(var(--u) * 24); top: calc(var(--u) * 46); padding: calc(var(--u) * 8) calc(var(--u) * 12); margin-right: calc(var(--u) * 26); background: #fff8e7f2; border-radius: calc(var(--u) * 12); box-shadow: 0 calc(var(--u) * 2) 0 #d9c49a; text-align: center; opacity: 0; transform: translateY(calc(var(--u) * -6)); transition: opacity .25s, transform .25s; }
   #toast.on { opacity: 1; transform: none; }
-  #tut { display: none; position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 54); top: calc(var(--u) * 46); padding: calc(var(--u) * 8) calc(var(--u) * 10); align-items: center; gap: calc(var(--u) * 8); background: #fff8e7f7; border-radius: calc(var(--u) * 12); box-shadow: 0 calc(var(--u) * 3) 0 #d9c7a0; font-size: calc(var(--u) * 13); font-weight: 700; }
+  #tutDim { display: none; position: absolute; box-shadow: 0 0 0 200vmax #0009; pointer-events: none; }
+  #tutDim.on { display: block; }
+  #tutDim.whole { inset: 0; background: #0009; box-shadow: none; }
+  #ui.tutOn .sheet { overflow: hidden; }
+  #tut { display: none; position: absolute; left: calc(var(--u) * 24); right: calc(var(--u) * 24); padding: calc(var(--u) * 14) calc(var(--u) * 16); flex-direction: column; align-items: center; gap: calc(var(--u) * 10); text-align: center; background: #fff8e7; border-radius: calc(var(--u) * 14); box-shadow: 0 calc(var(--u) * 3) 0 #d9c7a0; font-size: calc(var(--u) * 14); font-weight: 700; }
   #tut.on { display: flex; }
-  #tut.bottom { top: auto; right: calc(var(--u) * 8); bottom: calc(var(--u) * 8); }
-  #tut span { flex: 1; min-width: 0; }
-  #tut button { flex: none; height: calc(var(--u) * 28); padding: 0 calc(var(--u) * 8); background: #e2f6fb; border-radius: calc(var(--u) * 9); font-size: calc(var(--u) * 11); font-weight: 500; }
-  #tut button.go { background: #ffd978; font-weight: 700; }
-  #tutArrow { display: none; position: absolute; left: 0; top: 0; width: calc(var(--u) * 22); height: calc(var(--u) * 16); margin: calc(var(--u) * -18) 0 0 calc(var(--u) * -11); background: #ff8f3a; clip-path: polygon(0 0, 100% 0, 50% 100%); animation: tutBob .55s ease-in-out infinite alternate; }
+  #tut button { min-width: calc(var(--u) * 96); height: calc(var(--u) * 36); padding: 0 calc(var(--u) * 14); background: #ffd978; border-radius: calc(var(--u) * 10); font-weight: 700; font-size: calc(var(--u) * 13); }
+  #tutSkip { display: none; position: absolute; right: calc(var(--u) * 2); bottom: calc(var(--u) * 14); height: calc(var(--u) * 34); padding: 0 calc(var(--u) * 6); background: transparent; color: #ffffffa8 !important; font-size: calc(var(--u) * 11) !important; }
+  #tutSkip.on { display: block; }
+  #tutSkip.on[hidden] { display: none; }
+  #tutArrow { display: none; position: absolute; left: 0; top: 0; width: calc(var(--u) * 22); height: calc(var(--u) * 16); margin: calc(var(--u) * -20) 0 0 calc(var(--u) * -11); background: #ff8f3a; clip-path: polygon(0 0, 100% 0, 50% 100%); animation: tutBob .55s ease-in-out infinite alternate; }
   #tutArrow.on { display: block; }
-  #tutArrow.up { margin-top: calc(var(--u) * 2); clip-path: polygon(50% 0, 100% 100%, 0 100%); animation-name: tutBobUp; }
+  #tutArrow.up { margin-top: calc(var(--u) * 4); clip-path: polygon(50% 0, 100% 100%, 0 100%); animation-name: tutBobUp; }
   @keyframes tutBob { to { translate: 0 calc(var(--u) * -6); } }
   @keyframes tutBobUp { to { translate: 0 calc(var(--u) * 6); } }
 
@@ -163,7 +167,9 @@ window.__analytics = (function () {
     <div id="help" class="sheet"></div>
     <div id="menu" class="sheet"></div>
     <div id="consent" class="sheet"></div>
+    <div id="tutDim"></div>
     <div id="tut"><span></span><button></button></div>
+    <button id="tutSkip">スキップ</button>
     <div id="tutArrow"></div>
     <div id="reloadBox" class="sheet"><p>絵がうまく表示できませんでした。</p><button id="reloadBtn" class="wide">再読み込み</button></div>
     <div id="puff"></div>
@@ -2734,17 +2740,36 @@ const FURN_SPOT = {
   telescope: { f: 3, far: 1, look: [86, 38] },
   bed3: { f: 3, look: [58, 76], on: [38, 62, 10] },
 };
+/* the roof and the outdoors. Outside: [x, y, height]. On the roof: [s, t, height]. pier: up the step at the end of the sand. */
+const PLACES = {
+  out: [
+    { look: [132, 100], also: [146, 100], free: 1 },
+    { look: [110, 100], sit: 1 },
+    { look: [96, 124] },
+    { via: [[108, 108]], look: [126, 60] },
+    { via: [[108, 108]], look: [124, 40], sit: 1 },
+    { via: [[130, 112], [146, 119]], pier: 1, look: [194, 118, 5], not: 'penguin' },   // it lives there
+    { via: [[66, 124]], look: [58, 140] },
+    { via: [[66, 124]], look: [46, 146], sit: 1 },
+  ],
+  roof: [
+    { look: [-14, 14, 30] },
+    { look: [12, 18, 27], sit: 1 },
+    { look: [-26, 18, 24], sit: 1 },
+  ],
+};
 const PGR = PGV + 5, nothing = () => {};
-/* air: how high it flies about a room, high: how far above a thing it hovers. only: the one floor it visits. */
+const AWAY = .75;   // how often it picks somewhere else when there's time: short gaps can only be spent nearby, so this comes to about half of all outings
+/* z: its own part of the world. air: how high it flies about a place, high: how far above a thing it hovers. */
 const MOVER = {
-  cat: { f: 1, v: CATV, anim: 'walk', hop: 'leap', jump: 45, wait: 'sit', on: ['sit', 'groom'], eat: 'eat', off: catOff, in: catOn },
-  pup: { f: 2, v: PUPV, anim: 'walk', hop: 'land', jump: 16, wait: 'sitWag', on: ['sitWag', 'g2'], eat: 'sniff', off: nothing, in: nothing },
-  rabbit: { f: 3, v: RABR, anim: 'hop', hop: 'hop', jump: 16, wait: 'sit', on: ['sit', 'look'], eat: 'nibble', off: rabOff, in: rabOn },
-  sheep: { f: 1, only: 1, v: SHR, anim: 'drift', air: 18, high: 8, jump: 99, wait: 'float', on: ['float', 'float'], eat: 'eat' },
-  dragon: { f: 2, only: 2, v: DRV, anim: 'fly', air: 18, high: 0, jump: 99, wait: 'hover', on: ['perch', 'g2'], eat: 'eat' },
-  penguin: { f: 1, only: 1, v: PGR, anim: 'waddle', hop: 'flap', jump: 3, wait: 'stand', on: ['stand', 'flap'], eat: 'peck',
-    off: T => T.walk([deckEnd], PGR, 'waddle').hop(sand, .5, 'flap').walk([atB(130, 112), FRONT], PGR, 'waddle').hop(at1(78, 96), .5, 'flap').walk([at1(77, 84), catFront], PGR, 'waddle'),
-    in: T => T.walk([at1(77, 84), at1(78, 96)], PGR, 'waddle').hop(FRONT, .5, 'flap').walk([atB(130, 112), sand], PGR, 'waddle').hop(deckEnd, .55, 'flap').walk([HOME.penguin], PGR, 'waddle') },
+  cat: { z: 1, v: CATV, anim: 'walk', hop: 'leap', jump: 45, wait: 'sit', on: ['sit', 'groom'], eat: 'eat', off: catOff, in: catOn },
+  pup: { z: 2, v: PUPV, anim: 'walk', hop: 'land', jump: 16, wait: 'sitWag', on: ['sitWag', 'g2'], eat: 'sniff', off: nothing, in: nothing },
+  rabbit: { z: 3, v: RABR, anim: 'hop', hop: 'hop', jump: 16, wait: 'sit', on: ['sit', 'look'], eat: 'nibble', off: rabOff, in: rabOn },
+  sheep: { z: 1, v: SHR + 4, anim: 'drift', air: 18, high: 8, jump: 99, wait: 'float', on: ['float', 'float'], eat: 'eat' },
+  dragon: { z: 2, v: DRR, anim: 'fly', air: 18, high: 0, jump: 99, wait: 'hover', on: ['perch', 'g2'], eat: 'eat' },
+  penguin: { z: 'out', v: PGR, anim: 'waddle', hop: 'flap', jump: 3, wait: 'stand', on: ['stand', 'flap'], eat: 'peck',
+    off: T => T.walk([deckEnd], PGR, 'waddle').hop(sand, .5, 'flap'),
+    in: T => T.hop(deckEnd, .55, 'flap').walk([HOME.penguin], PGR, 'waddle') },
 };
 const AT_HOME = {
   cat: [['sit', 3], ['groom', 5], ['stretch', 2.4], ['sit', 4], ['g2', 4]],
@@ -2763,68 +2788,119 @@ const NAP = {
   penguin: { chance: .06, len: [6, 9] },
   pup: { chance: .03, len: [5, 8] },
 };
-const changeFloor = (T, M, a, b) => {
-  const A = ROOMS[a], B = ROOMS[b], za = FLOOR_Z[a - 1], zb = FLOOR_Z[b - 1];
-  T.walk(A.way, M.v, M.anim).hop(lad(za), .4, 'land').walk([lad(zb)], CLIMB, 'climb').hop(entry(zb), .4, 'land');
-  T.walk([...B.way.slice(0, -1).reverse(), B.door], M.v, M.anim);
-};
+const doorOf = (zone, M) => zone === 'out' ? (M.z === 'out' ? sand : FRONT) : zone === 'roof' ? ROOF_WAY()[1] : ROOMS[zone].door;
+/* on foot from one part of the world to another: from its door to the other's. Everything but the front door is the ladder. */
+function between(T, M, a, b) {
+  const w = nodes => T.walk(nodes, M.v, M.anim), home = () => { if (M.z === 'out') w([sand]); };
+  if (a === 'out' && b === 1) {
+    if (M.z === 'out') w([FRONT]);
+    T.hop(at1(78, 96), .5, M.hop); w([at1(77, 84), ROOMS[1].door]);
+    return;
+  }
+  if (a === 1 && b === 'out') { w([at1(77, 84), at1(78, 96)]); T.hop(FRONT, .5, M.hop); home(); return; }
+  if (a === 'out') { w([TO_FOOT, FOOT]); T.hop(lad(1), .35, 'land'); }
+  else if (a === 'roof') { w([ROOF_WAY()[0], rf(-60, 7, 4)]); T.hop(lad(roofBase() + 2), .45, 'land'); }
+  else { w(ROOMS[a].way); T.hop(lad(FLOOR_Z[a - 1]), .4, 'land'); }
+  T.walk([lad(b === 'out' ? 1 : b === 'roof' ? roofBase() + 2 : FLOOR_Z[b - 1])], CLIMB, 'climb');
+  if (b === 'out') { T.hop(FOOT, .35, 'land'); w([TO_FOOT, FRONT]); home(); }
+  else if (b === 'roof') { T.hop(rf(-60, 7, 4), .45, 'land'); w(ROOF_WAY()); }
+  else { T.hop(entry(FLOOR_Z[b - 1]), .4, 'land'); w([...ROOMS[b].way.slice(0, -1).reverse(), ROOMS[b].door]); }
+}
+/* on the wing: out of the open front of a room, and along the face of the tower */
+const flyGate = f => { const z = FLOOR_Z[f - 1]; return [atB(68, 75, z + 18), atB(84, 100, z + 24), atB(104, 118, z + 40)]; };
+const roofAir = () => atB(100, 110, roofBase() + 30);
+const flyLeave = (T, M, zone) => T.walk(zone === 'out' ? [atB(104, 118, 44)] : zone === 'roof' ? [roofAir()] : flyGate(zone), M.v, M.anim);
+const flyEnter = (T, M, zone) => T.walk(zone === 'out' ? [] : zone === 'roof' ? [roofAir()] : flyGate(zone).reverse(), M.v, M.anim);
 /* there and back from home, with so many seconds at the far end: no dice in here, so it can be timed first */
-function trip(T, s, on, dwell) {
-  const M = MOVER[T.id], R = ROOMS[s.f], z = FLOOR_Z[s.f - 1], at = p => ({ x: p[0], y: p[1], z: z + (p[2] || 0) });
+function trip(T, c, on, dwell) {
+  const M = MOVER[T.id], s = c.s, zone = c.zone, w = nodes => T.walk(nodes, M.v, M.anim);
+  const at = p => zone === 'out' ? atB(p[0], p[1], p[2] || 0) : zone === 'roof' ? rf(p[0], p[1], p[2] || 0) : { x: p[0], y: p[1], z: FLOOR_Z[zone - 1] + (p[2] || 0) };
+  const flown = p => M.air ? { ...p, z: p.z + M.air } : p;
+  const hub = s.far ? [ROOMS[zone].hub] : [];
   const stay = () => {
     if (on) T.pose(dwell * .6, M.on[0]).pose(dwell * .4, M.on[1]);
-    else if (s.free) T.pose(dwell * .5, M.on[1]).pose(dwell * .5, M.wait);
+    else if (s.free) { T.pose(dwell * .5, M.on[1]); w([...hub, at(s.also)].map(flown)); T.pose(dwell * .5, M.wait); }
+    else if (s.sit) T.pose(dwell * .6, M.air ? M.wait : M.on[0]).pose(dwell * .4, M.air ? M.wait : M.on[1]);
     else T.pose(dwell * .8, s.act ? M.eat : 'gaze').pose(dwell * .2, M.wait);
   };
   const stand = at(s.look || s.on);
   if (M.air) {
-    T.walk([on ? { ...at(s.on), z: z + s.on[2] + M.high } : { ...stand, z: z + M.air }], M.v, M.anim);
+    if (zone !== M.z) { flyLeave(T, M, M.z); flyEnter(T, M, zone); }
+    w([on ? { ...at(s.on), z: at(s.on).z + M.high } : flown(stand)]);
     stay();
-    T.walk([HOME[T.id]], M.v, M.anim);
+    if (zone !== M.z) { flyLeave(T, M, zone); flyEnter(T, M, M.z); }
+    w([HOME[T.id]]);
     return;
   }
-  const via = s.far ? [R.hub] : (s.via || []).map(at), up = on && s.look;
+  const via = s.far ? hub : (s.via || []).map(at), up = on && s.look;
   M.off(T);
-  if (s.f !== M.f) changeFloor(T, M, M.f, s.f);
-  T.walk([...via, stand], M.v, M.anim);
+  if (zone !== M.z) between(T, M, M.z, zone);
+  w(via);
+  if (s.pier) T.hop(PIER, .4, M.hop);
+  w([stand]);
   if (up) { if (s.mid) T.hop(at(s.mid), .5, M.hop); T.hop(at(s.on), .55, M.hop); }
   stay();
   if (up) { if (s.mid) T.hop(at(s.mid), .5, M.hop); T.hop(stand, .5, M.hop); }
-  T.walk([...via.slice().reverse(), R.door], M.v, M.anim);
-  if (s.f !== M.f) changeFloor(T, M, s.f, M.f);
+  if (s.pier) { w([PIER]); T.hop(SAND, .4, M.hop); w(via.slice(0, -1).reverse()); }
+  else w(via.slice().reverse());
+  w([doorOf(zone, M)]);
+  if (zone !== M.z) between(T, M, zone, M.z);
   M.in(T);
 }
-/* its own floor first, and the newest thing in the tower most of all */
-function pickSpot(T, r) {
-  const M = MOVER[T.id], list = [];
-  let newest = null, total = 0;
-  for (const k of OWNED.set) newest = k;
+/* everywhere it could go just now, part of the world by part of the world */
+function spotsFor(T) {
+  const M = MOVER[T.id], by = new Map();
+  const add = (zone, s, key, furn) => {
+    if (s.not === T.id) return;
+    if (!by.has(zone)) by.set(zone, []);
+    by.get(zone).push({ s, key, zone, furn });
+  };
+  for (let f = 1; f <= storeys; f++) ROOMS[f].free.forEach((look, i, all) => add(f, { far: 1, look, free: 1, also: all[(i + 1) % all.length] }, 'free' + f + i, false));
   for (const key in FURN_SPOT) {
     const s = FURN_SPOT[key];
-    if (!own(key) || s.f > storeys || s.not === T.id || (M.only && s.f !== M.only)) continue;
-    if (!s.look && s.on[2] > M.jump) continue;
-    list.push({ s, key, w: (s.f === M.f ? 3 : 1) * (key === newest ? 3 : 1) });
+    if (!own(key) || s.f > storeys || (!s.look && s.on[2] > M.jump)) continue;
+    add(s.f, s, key, true);
   }
-  if (T.id !== 'penguin') for (const look of ROOMS[M.f].free) list.push({ s: { f: M.f, far: 1, look, free: 1 }, key: null, w: 1 });
-  for (const c of list) total += c.w;
+  for (const zone in PLACES) PLACES[zone].forEach((s, i) => add(zone, s, zone + i, false));
+  return by;
+}
+function tripTime(T, c, on) {
+  const k = T.id + c.key + on, seen = T.ctx.dry;
+  if (seen[k] === undefined) { const dry = new Track(HOME[T.id], T.id); trip(dry, c, on, 0); seen[k] = dry.t; }
+  return seen[k];
+}
+/* about half the time its own part of the world, and any of the others alike; only what can be there and back in time */
+function pickSpot(T, r, end) {
+  const M = MOVER[T.id], by = spotsFor(T), fits = c => tripTime(T, c, false) + 3 <= end - T.t;
+  let newest = null, near = [];
+  const far = [];
+  for (const k of OWNED.set) newest = k;
+  for (const [zone, list] of by) {
+    const ok = list.filter(fits);
+    if (zone === M.z) near = ok;
+    else if (ok.length) far.push(ok);
+  }
+  const list = far.length && (!near.length || r() < AWAY) ? far[r() * far.length | 0] : near;
+  const best = far.flat().concat(near).find(c => c.key === newest);
+  if (best && r() < .15) return best;
+  let total = 0;
+  for (const c of list) total += c.key === newest ? 3 : 1;
   let d = r() * total;
-  for (const c of list) { d -= c.w; if (d <= 0) return c; }
+  for (const c of list) { d -= c.key === newest ? 3 : 1; if (d <= 0) return c; }
   return list[list.length - 1] || null;
 }
 function tryTrip(T, r, end) {
   if (!present(T.id)) return false;
-  const c = pickSpot(T, r);
+  const c = pickSpot(T, r, end);
   if (!c) return false;
   const M = MOVER[T.id], s = c.s, can = s.on && s.on[2] <= M.jump && !(s.not && present(s.not)), on = can && (!s.look || r() < .5);
   if (!on && !s.look) return false;
-  const dry = new Track(HOME[T.id], T.id);
-  trip(dry, s, on, 0);
-  const room = end - T.t - dry.t;
+  const time = tripTime(T, c, on), room = end - T.t - time;
   if (room < 3) return false;
-  const t0 = T.t, t1 = t0 + dry.t + Math.min(room, 5 + r() * 9);
-  if (c.key && T.ctx.visits.some(v => v.key === c.key && v.t0 < t1 && t0 < v.t1)) return false;
-  trip(T, s, on, t1 - t0 - dry.t);
-  if (c.key) T.ctx.visits.push({ id: T.id, key: c.key, on, t0, t1 });
+  const t0 = T.t, t1 = t0 + time + Math.min(room, 5 + r() * 9);
+  if (T.ctx.visits.some(v => v.key === c.key && v.t0 < t1 && t0 < v.t1)) return false;
+  trip(T, c, on, t1 - t0 - time);
+  T.ctx.visits.push({ id: T.id, key: c.key, zone: c.zone, furn: c.furn, on, t0, t1 });
   return true;
 }
 function fidget(T, r, end) {
@@ -2896,7 +2972,7 @@ function assignFaces(segs) {
 function compileBlock(name, seed) {
   const r = mulberry(seed), def = SCRIPTS[name], b = { name };
   // decided once for the whole block, so two animals agree
-  const ctx = { duoOut: r() < .7, nap: r() < .5 || !own('catTree'), visits: [] };
+  const ctx = { duoOut: r() < .7, nap: r() < .5 || !own('catTree'), visits: [], dry: {} };
   for (const id of ACTOR_IDS) {
     const T = new Track(HOME[id], id, ctx);
     if (BLOCK_TIER[id]) hungryRest(T, r, id, BLOCK_TIER[id]);
@@ -3877,7 +3953,7 @@ const POSE = {
     SHOT.h = 14;
     switch (an) {
       case 'waddle': SHOT.s = (A.o && A.o.to ? Q.walk : face >= 2 ? Q.back : Q.walk)[fr(t, 6, 4)]; SHOT.flip = A.o && A.o.to ? true : side; break;
-      case 'flap': case 'land': case 'tease': SHOT.s = Q.flap[fr(t, 6, 2)]; break;
+      case 'flap': case 'land': case 'tease': case 'climb': SHOT.s = Q.flap[fr(t, 6, 2)]; break;
       case 'gaze': SHOT.s = Q.back[1]; break;
       case 'peck': SHOT.s = Q.eat[fr(t, 4, 2)]; break;
       case 'g2': SHOT.s = Q.slide[0]; SHOT.flip = true; SHOT.h = 7; break;
@@ -3911,7 +3987,7 @@ function applyReact(A, time) {
     const home = inOwnRoom(A);
     R_.sp = !R_.stay && home ? SPOT[A.id] : { x: A.x, y: A.y, z: A.z };
     R_.moves = !R_.stay && home;
-    R_.flat = home || A.z <= 5;                  // somewhere a dish can stand: not a ladder, a roof or a palm
+    R_.flat = home || A.z <= 5 || FLOOR_Z.includes(A.z);   // somewhere a dish can stand: not a ladder, a roof or a palm
   }
   const end = R_.dur + (R_.stay ? .35 : .6), sp = R_.sp;
   if (e >= end || e < 0) { delete WORLD.react[A.id]; return null; }
@@ -3952,6 +4028,7 @@ function drawItem(R_, A, t, e) {
   } else blit(ITEM.wheel[fr(t, 6, 2)], x0, y0, floorZ, false, lut);
 }
 const FLOOR_OF = { cat: Z1, pup: Z2, rabbit: Z3, sheep: Z1, dragon: Z2, penguin: 0 };
+const floorUnder = z => FLOOR_Z[z >= FLOOR_Z[2] ? 2 : z >= FLOOR_Z[1] ? 1 : 0];
 const isOutdoors = A => hexAt(A.x, A.y) >= 1 || A.z >= TOP_Z(storeys);
 const inOwnRoom = A => A.id !== 'penguin' && !isOutdoors(A) && roomZone(A.z) === roomZone(FLOOR_OF[A.id] + 1);
 const drawOrder = [];
@@ -3978,7 +4055,7 @@ function drawActors(t, b, local) {
     if (SHOT.floats || A.id === 'sheep') { // a soft shadow says how far off the floor it is
       const outside = hexAt(A.x, A.y) >= 1.1, onRoof = !outside && A.z >= TOP_Z(storeys);
       if (!onRoof) {
-        const fz = outside ? 0 : FLOOR_OF[A.id], sx = iX(A.x, A.y), sy = iY(A.x, A.y, fz);
+        const fz = outside ? 0 : floorUnder(A.z), sx = iX(A.x, A.y), sy = iY(A.x, A.y, fz);
         for (let a = -7; a <= 7; a++) for (let c = -2; c <= 2; c++) if ((a * a) / 49 + (c * c) / 6 < 1) shiftAt(sx + a, sy + c, DOWNP);
       }
     }
@@ -4229,7 +4306,7 @@ const newState = () => ({
   roof: 'blue',
   beach: [], n: 0, spawnIn: 6, sill: false, played: 0, doneAt: 0, lastSeen: 0, furn: [],
   presents: [], balloonIn: RULES.balloonFirst, bn: 0,
-  tut: QS.has('notut') ? null : { gift: false, fed: false, furn: false },   // null: finished, or a game from before there was one
+  tut: QS.has('notut') ? null : { intro: 0, gift: false, fed: false, furn: false },   // null: finished, or a game from before there was one
 });
 let GS = newState();
 let gameOn = false;
@@ -4270,7 +4347,7 @@ function readSave() {
   s.doneAt = cleanNum(o.doneAt, 0, 1e10, 0);
   s.lastSeen = cleanNum(o.lastSeen, 0, 1e15, 0);
   // a save from before furniture could be bought keeps its progress and starts with the beds
-  s.tut = o.tut ? { gift: !!o.tut.gift, fed: !!o.tut.fed, furn: !!o.tut.furn } : null;
+  s.tut = o.tut ? { intro: cleanNum(o.tut.intro, 0, 2, 2) | 0, gift: !!o.tut.gift, fed: !!o.tut.fed, furn: !!o.tut.furn } : null;   // no intro: it began before there was one
   s.furn = Array.isArray(o.furn) ? FURN_KEYS.filter(k => o.furn.includes(k)) : [];
   if (s.pets.includes('dragon') && !s.furn.includes('stoolA')) s.furn.push('stoolA');
   return s;
@@ -4809,7 +4886,7 @@ function floatNumber(ix, iy, text) {
 }
 function buildUI() {
   UI.ui = $('ui'); UI.ui.hidden = false;
-  for (const k of ['tut', 'tutArrow', 'glassN', 'reloadBox', 'consent', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
+  for (const k of ['tut', 'tutDim', 'tutSkip', 'tutArrow', 'glassN', 'reloadBox', 'consent', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
   const keep = (s, scale) => { const c = spriteCanvas(s, scale); UI.icons.push([c, s]); return c; };
   UI.icons = [];
   $('glassIcon').appendChild(keep(GLASS_SPR[0], 2));
@@ -4835,7 +4912,9 @@ function buildUI() {
     UI.floors.appendChild(b);
   }
   UI.growBtn.onclick = onMainButton;
-  UI.tut.lastChild.onclick = finishTutorial;
+  UI.tut.lastChild.onclick = tutNext;
+  UI.tutSkip.onclick = finishTutorial;
+  $('stage').addEventListener('click', tutGuard, true);
   UI.shopBtn.onclick = () => { const on = !shopOpen; closeSheets(); shopOpen = on; renderShop(); };
   UI.helpBtn.onclick = () => { const on = !helpOpen; closeSheets(); helpOpen = on; renderHelp(); };
   UI.menuBtn.onclick = () => { const on = !menuOpen; closeSheets(); menuOpen = on; renderMenu(); };
@@ -5121,6 +5200,7 @@ function onCanvasTap(e) {
   if (growing) return;
   if (menuOpen || shopOpen || helpOpen) { closeSheets(); return; }
   const [ix, iy] = toInternal(e), hit = hitTest(ix, iy);
+  if (tutDark && (!hit || hit.kind !== 'glass')) return;   // whoever happens to be walking through the bright spot
   if (!hit) { closeCard(); return; }
   if (hit.kind === 'critter') {
     closeCard();
@@ -5258,6 +5338,8 @@ function gameBoot() {
 /* runs once the first bake has told us where the sand is */
 /* ── the first time: what to do next, read from the state, so closing a sheet simply steps back ─ */
 const TUT_TEXT = {
+  intro1: 'ここは動物が暮らす小さな島',
+  intro2: 'シーグラスを集めて動物のお世話をしてあげてね',
   glass: '光るシーグラスをタップしよう',
   card: 'シーグラスをおまけしたよ。ねこをタップしてみよう',
   treat: 'おやつをあげよう',
@@ -5265,30 +5347,48 @@ const TUT_TEXT = {
   buy: 'これを買ってみよう',
   grow: 'たくさん集めると次の階を建てられるよ。新しいペットが来るかも！',
 };
+const TUT_BUTTON = { intro1: 'つぎへ', intro2: 'つぎへ', grow: 'はじめる' };
+const TUT_GLOW = 18;   // the radius of the bright spot on a piece of glass
 function tutStep() {
   const T = GS.tut;
   if (!T) return null;
+  if (T.intro < 2) return T.intro ? 'intro2' : 'intro1';
   if (!T.gift) return 'glass';
   if (!T.fed) return cardFor === 'cat' ? 'treat' : 'card';
   if (!T.furn) return shopOpen ? 'buy' : 'shop';
   return 'grow';
 }
 const finishTutorial = () => { GS.tut = null; saveGame(); tutorialFrame(); };
-let tutShown = null;
-/* where the arrow points, in the screen's own units: x, y, and whether it has to come from below */
-function tutTarget(step) {
-  const box = UI.ui.getBoundingClientRect(), u = box.width / W;
-  if (step === 'glass') {
-    const g = GS.beach[0], v = CAM.cur;
-    if (!g) return null;
-    const s = SLOTS[g.slot], x = (s.x - v[0]) / v[2] * box.width, y = (s.y - v[1]) / v[3] * box.height;
-    return x < 0 || y < 0 || x > box.width || y > box.height ? null : [x, y - 6 * u, false];
+const tutNext = () => {
+  if (tutStep() === 'grow') finishTutorial();
+  else { GS.tut.intro++; saveGame(); tutorialFrame(); }
+};
+let tutShown = null, tutDark = false, tutGlass = null;
+/* the thing to press at each step, if it's a button */
+function tutElement(step) {
+  return step === 'card' ? UI.faceBtns.cat : step === 'treat' ? UI.card.querySelector('.good[data-good="cookie"]')
+    : step === 'shop' ? UI.shopBtn : step === 'buy' ? tutButton() : step === 'grow' ? UI.growBtn : null;
+}
+/* where the piece of glass to pick up is on the screen, in the screen's own units; null while out of view */
+function tutGlassAt(box) {
+  const g = GS.beach[0], v = CAM.cur;
+  if (!g) return null;
+  const s = SLOTS[g.slot], x = (s.x - v[0]) / v[2] * box.width, y = (s.y - v[1]) / v[3] * box.height;
+  return x < 0 || y < 0 || x > box.width || y > box.height ? null : [x, y];
+}
+/* while it's dark, only the bright spot and the tutorial's own buttons answer */
+function tutGuard(e) {
+  if (!tutDark) return;
+  const on = e.target && e.target.closest ? e.target : e.target.parentElement;
+  if (on.closest('#tut button, #tutSkip, #reloadBox')) return;
+  const step = tutStep(), el = step === 'grow' ? null : tutElement(step);
+  if (el && el.contains(on)) return;
+  if (step === 'glass' && tutGlass) {
+    const box = UI.ui.getBoundingClientRect(), u = box.width / W;
+    if (Math.hypot(e.clientX - box.left - tutGlass[0], e.clientY - box.top - tutGlass[1]) <= TUT_GLOW * u) return;
   }
-  const el = step === 'card' ? UI.faceBtns.cat : step === 'treat' ? UI.card.querySelector('.good[data-good="cookie"]')
-    : step === 'shop' ? UI.shopBtn : step === 'buy' ? tutButton() : UI.growBtn;
-  if (!el) return null;
-  const r = el.getBoundingClientRect(), x = r.left + r.width / 2 - box.left, top = r.top - box.top;
-  return top < 40 * u ? [x, r.bottom - box.top, true] : [x, top, false];
+  e.stopPropagation();
+  e.preventDefault();
 }
 function tutorialFrame() {
   const T = GS.tut, step = tutStep();
@@ -5301,25 +5401,39 @@ function tutorialFrame() {
   }
   const blocked = growing || CAM.close || HILITE || menuOpen || helpOpen || UI.consent.classList.contains('on') || (shopOpen && step !== 'buy');
   const show = !!step && !blocked;
-  UI.tut.classList.toggle('on', show);
-  UI.tutArrow.classList.toggle('on', show);
+  tutDark = show;
+  UI.ui.classList.toggle('tutOn', show);
+  for (const k of ['tut', 'tutDim', 'tutSkip', 'tutArrow']) UI[k].classList.toggle('on', show);
   if (!show) return;
   if (step !== tutShown) {
     if (tutShown === 'treat' && step === 'shop') closeCard();
     tutShown = step;
     UI.tut.firstChild.textContent = TUT_TEXT[step];
     const b = UI.tut.lastChild;
-    b.textContent = step === 'grow' ? 'はじめる' : 'スキップ';
-    b.classList.toggle('go', step === 'grow');
+    b.hidden = !TUT_BUTTON[step];
+    b.textContent = TUT_BUTTON[step] || '';
+    UI.tutSkip.hidden = step === 'grow';
     if (step === 'buy') { const el = tutButton(); if (el) el.scrollIntoView({ block: 'center' }); }
   }
-  // clear of whatever sheet is open: over the dock for the shop, under a card that sits up top
-  UI.tut.classList.toggle('bottom', step === 'buy');
-  UI.tut.style.top = '';
-  if (cardFor && UI.card.classList.contains('top')) UI.tut.style.top = UI.card.offsetTop + UI.card.offsetHeight + 6 + 'px';
-  const at = tutTarget(step);
-  UI.tutArrow.classList.toggle('on', !!at);
-  if (at) { UI.tutArrow.style.left = at[0] + 'px'; UI.tutArrow.style.top = at[1] + 'px'; UI.tutArrow.classList.toggle('up', at[2]); }
+  /* the bright spot, in the screen's own units: left, top, width, height */
+  const box = UI.ui.getBoundingClientRect(), u = box.width / W, el = tutElement(step);
+  let hole = null, round = 10 * u;
+  tutGlass = step === 'glass' ? tutGlassAt(box) : null;
+  if (tutGlass) { const d = TUT_GLOW * u; hole = [tutGlass[0] - d, tutGlass[1] - d, d * 2, d * 2]; round = d; }
+  else if (el) { const r = el.getBoundingClientRect(), pad = 3 * u; hole = [r.left - box.left - pad, r.top - box.top - pad, r.width + pad * 2, r.height + pad * 2]; }
+  UI.tutDim.classList.toggle('whole', !hole);
+  const d = UI.tutDim.style;
+  if (hole) { d.left = hole[0] + 'px'; d.top = hole[1] + 'px'; d.width = hole[2] + 'px'; d.height = hole[3] + 'px'; d.borderRadius = round + 'px'; }
+  else d.left = d.top = d.width = d.height = d.borderRadius = '';
+  /* the message: the middle, unless that's on top of the bright spot and its arrow */
+  const h = UI.tut.offsetHeight, room = 26 * u, mid = (box.height - h) / 2;
+  let top = mid;
+  if (hole && mid < hole[1] + hole[3] + room && hole[1] - room < mid + h) top = hole[1] - room - h >= 8 * u ? hole[1] - room - h : hole[1] + hole[3] + room;
+  UI.tut.style.top = top + 'px';
+  /* the arrow comes down onto it, or up from below if it's at the very top */
+  const above = !hole || hole[1] >= 40 * u;
+  UI.tutArrow.classList.toggle('on', !!hole);
+  if (hole) { UI.tutArrow.style.left = hole[0] + hole[2] / 2 + 'px'; UI.tutArrow.style.top = (above ? hole[1] : hole[1] + hole[3]) + 'px'; UI.tutArrow.classList.toggle('up', !above); }
 }
 const tutButton = () => UI.shop.querySelector('.good[data-furn="doorMat"]') || UI.shop.querySelector('.good[data-furn]');
 function gameStart() {
@@ -5496,7 +5610,8 @@ const dollhouse = {
     for (const id of ACTOR_IDS) { const A = ACTOR[id]; sampleActor(A, b[id], t); out[id] = { x: A.x, y: A.y, z: A.z, anim: A.anim, sx: 180 + A.x - A.y, out: isOutdoors(A), roof: A.z >= TOP_Z(storeys) }; }
     return out;
   },
-  visits: (name, seed) => compileBlock(name, seed).visits,
+  visits: (name, seed) => compileBlock(name, seed).visits.filter(v => v.furn),
+  outings: (name, seed) => compileBlock(name, seed).visits,
   timeline: k => { const b = blockFor(k); return ACTOR_IDS.map(w => w + ': ' + b[w].map(s => `${s.t0.toFixed(1)} ${s.anim}`).join(', ')); },
 };
 window.dollhouse = dollhouse;
