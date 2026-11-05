@@ -5,7 +5,7 @@ import { join } from 'node:path';
 const dir = process.argv[2] || 'preview/ui';
 mkdirSync(dir, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const page = await open('');
+const page = await open('notut=1');
 const ev = page.evaluate;
 await sleep(400);
 const size = (width, height, mobile) => page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile });

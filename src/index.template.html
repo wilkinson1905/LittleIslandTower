@@ -44,15 +44,19 @@
 
   #toast { position: absolute; left: calc(var(--u) * 24); right: calc(var(--u) * 24); top: calc(var(--u) * 46); padding: calc(var(--u) * 8) calc(var(--u) * 12); margin-right: calc(var(--u) * 26); background: #fff8e7f2; border-radius: calc(var(--u) * 12); box-shadow: 0 calc(var(--u) * 2) 0 #d9c49a; text-align: center; opacity: 0; transform: translateY(calc(var(--u) * -6)); transition: opacity .25s, transform .25s; }
   #toast.on { opacity: 1; transform: none; }
-  #tut { display: none; position: absolute; left: calc(var(--u) * 8); right: calc(var(--u) * 54); top: calc(var(--u) * 46); padding: calc(var(--u) * 8) calc(var(--u) * 10); align-items: center; gap: calc(var(--u) * 8); background: #fff8e7f7; border-radius: calc(var(--u) * 12); box-shadow: 0 calc(var(--u) * 3) 0 #d9c7a0; font-size: calc(var(--u) * 13); font-weight: 700; }
+  #tutDim { display: none; position: absolute; box-shadow: 0 0 0 200vmax #0009; pointer-events: none; }
+  #tutDim.on { display: block; }
+  #tutDim.whole { inset: 0; background: #0009; box-shadow: none; }
+  #ui.tutOn .sheet { overflow: hidden; }
+  #tut { display: none; position: absolute; left: calc(var(--u) * 24); right: calc(var(--u) * 24); padding: calc(var(--u) * 14) calc(var(--u) * 16); flex-direction: column; align-items: center; gap: calc(var(--u) * 10); text-align: center; background: #fff8e7; border-radius: calc(var(--u) * 14); box-shadow: 0 calc(var(--u) * 3) 0 #d9c7a0; font-size: calc(var(--u) * 14); font-weight: 700; }
   #tut.on { display: flex; }
-  #tut.bottom { top: auto; right: calc(var(--u) * 8); bottom: calc(var(--u) * 8); }
-  #tut span { flex: 1; min-width: 0; }
-  #tut button { flex: none; height: calc(var(--u) * 28); padding: 0 calc(var(--u) * 8); background: #e2f6fb; border-radius: calc(var(--u) * 9); font-size: calc(var(--u) * 11); font-weight: 500; }
-  #tut button.go { background: #ffd978; font-weight: 700; }
-  #tutArrow { display: none; position: absolute; left: 0; top: 0; width: calc(var(--u) * 22); height: calc(var(--u) * 16); margin: calc(var(--u) * -18) 0 0 calc(var(--u) * -11); background: #ff8f3a; clip-path: polygon(0 0, 100% 0, 50% 100%); animation: tutBob .55s ease-in-out infinite alternate; }
+  #tut button { min-width: calc(var(--u) * 96); height: calc(var(--u) * 36); padding: 0 calc(var(--u) * 14); background: #ffd978; border-radius: calc(var(--u) * 10); font-weight: 700; font-size: calc(var(--u) * 13); }
+  #tutSkip { display: none; position: absolute; right: calc(var(--u) * 2); bottom: calc(var(--u) * 14); height: calc(var(--u) * 34); padding: 0 calc(var(--u) * 6); background: transparent; color: #ffffffa8 !important; font-size: calc(var(--u) * 11) !important; }
+  #tutSkip.on { display: block; }
+  #tutSkip.on[hidden] { display: none; }
+  #tutArrow { display: none; position: absolute; left: 0; top: 0; width: calc(var(--u) * 22); height: calc(var(--u) * 16); margin: calc(var(--u) * -20) 0 0 calc(var(--u) * -11); background: #ff8f3a; clip-path: polygon(0 0, 100% 0, 50% 100%); animation: tutBob .55s ease-in-out infinite alternate; }
   #tutArrow.on { display: block; }
-  #tutArrow.up { margin-top: calc(var(--u) * 2); clip-path: polygon(50% 0, 100% 100%, 0 100%); animation-name: tutBobUp; }
+  #tutArrow.up { margin-top: calc(var(--u) * 4); clip-path: polygon(50% 0, 100% 100%, 0 100%); animation-name: tutBobUp; }
   @keyframes tutBob { to { translate: 0 calc(var(--u) * -6); } }
   @keyframes tutBobUp { to { translate: 0 calc(var(--u) * 6); } }
 
@@ -133,7 +137,9 @@
     <div id="help" class="sheet"></div>
     <div id="menu" class="sheet"></div>
     <div id="consent" class="sheet"></div>
+    <div id="tutDim"></div>
     <div id="tut"><span></span><button></button></div>
+    <button id="tutSkip">スキップ</button>
     <div id="tutArrow"></div>
     <div id="reloadBox" class="sheet"><p>絵がうまく表示できませんでした。</p><button id="reloadBtn" class="wide">再読み込み</button></div>
     <div id="puff"></div>

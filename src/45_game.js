@@ -75,7 +75,7 @@ const newState = () => ({
   roof: 'blue',
   beach: [], n: 0, spawnIn: 6, sill: false, played: 0, doneAt: 0, lastSeen: 0, furn: [],
   presents: [], balloonIn: RULES.balloonFirst, bn: 0,
-  tut: QS.has('notut') ? null : { gift: false, fed: false, furn: false },   // null: finished, or a game from before there was one
+  tut: QS.has('notut') ? null : { intro: 0, gift: false, fed: false, furn: false },   // null: finished, or a game from before there was one
 });
 let GS = newState();
 let gameOn = false;
@@ -116,7 +116,7 @@ function readSave() {
   s.doneAt = cleanNum(o.doneAt, 0, 1e10, 0);
   s.lastSeen = cleanNum(o.lastSeen, 0, 1e15, 0);
   // a save from before furniture could be bought keeps its progress and starts with the beds
-  s.tut = o.tut ? { gift: !!o.tut.gift, fed: !!o.tut.fed, furn: !!o.tut.furn } : null;
+  s.tut = o.tut ? { intro: cleanNum(o.tut.intro, 0, 2, 2) | 0, gift: !!o.tut.gift, fed: !!o.tut.fed, furn: !!o.tut.furn } : null;   // no intro: it began before there was one
   s.furn = Array.isArray(o.furn) ? FURN_KEYS.filter(k => o.furn.includes(k)) : [];
   if (s.pets.includes('dragon') && !s.furn.includes('stoolA')) s.furn.push('stoolA');
   return s;
@@ -655,7 +655,7 @@ function floatNumber(ix, iy, text) {
 }
 function buildUI() {
   UI.ui = $('ui'); UI.ui.hidden = false;
-  for (const k of ['tut', 'tutArrow', 'glassN', 'reloadBox', 'consent', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
+  for (const k of ['tut', 'tutDim', 'tutSkip', 'tutArrow', 'glassN', 'reloadBox', 'consent', 'shopBtn', 'helpBtn', 'menuBtn', 'floors', 'toast', 'growBtn', 'growLabel', 'growFill', 'faces', 'card', 'shop', 'help', 'menu', 'puff', 'unhide']) UI[k] = $(k);
   const keep = (s, scale) => { const c = spriteCanvas(s, scale); UI.icons.push([c, s]); return c; };
   UI.icons = [];
   $('glassIcon').appendChild(keep(GLASS_SPR[0], 2));
@@ -681,7 +681,9 @@ function buildUI() {
     UI.floors.appendChild(b);
   }
   UI.growBtn.onclick = onMainButton;
-  UI.tut.lastChild.onclick = finishTutorial;
+  UI.tut.lastChild.onclick = tutNext;
+  UI.tutSkip.onclick = finishTutorial;
+  $('stage').addEventListener('click', tutGuard, true);
   UI.shopBtn.onclick = () => { const on = !shopOpen; closeSheets(); shopOpen = on; renderShop(); };
   UI.helpBtn.onclick = () => { const on = !helpOpen; closeSheets(); helpOpen = on; renderHelp(); };
   UI.menuBtn.onclick = () => { const on = !menuOpen; closeSheets(); menuOpen = on; renderMenu(); };
@@ -967,6 +969,7 @@ function onCanvasTap(e) {
   if (growing) return;
   if (menuOpen || shopOpen || helpOpen) { closeSheets(); return; }
   const [ix, iy] = toInternal(e), hit = hitTest(ix, iy);
+  if (tutDark && (!hit || hit.kind !== 'glass')) return;   // whoever happens to be walking through the bright spot
   if (!hit) { closeCard(); return; }
   if (hit.kind === 'critter') {
     closeCard();
@@ -1104,6 +1107,8 @@ function gameBoot() {
 /* runs once the first bake has told us where the sand is */
 /* ── the first time: what to do next, read from the state, so closing a sheet simply steps back ─ */
 const TUT_TEXT = {
+  intro1: 'ここは動物が暮らす小さな島',
+  intro2: 'シーグラスを集めて動物のお世話をしてあげてね',
   glass: '光るシーグラスをタップしよう',
   card: 'シーグラスをおまけしたよ。ねこをタップしてみよう',
   treat: 'おやつをあげよう',
@@ -1111,30 +1116,48 @@ const TUT_TEXT = {
   buy: 'これを買ってみよう',
   grow: 'たくさん集めると次の階を建てられるよ。新しいペットが来るかも！',
 };
+const TUT_BUTTON = { intro1: 'つぎへ', intro2: 'つぎへ', grow: 'はじめる' };
+const TUT_GLOW = 18;   // the radius of the bright spot on a piece of glass
 function tutStep() {
   const T = GS.tut;
   if (!T) return null;
+  if (T.intro < 2) return T.intro ? 'intro2' : 'intro1';
   if (!T.gift) return 'glass';
   if (!T.fed) return cardFor === 'cat' ? 'treat' : 'card';
   if (!T.furn) return shopOpen ? 'buy' : 'shop';
   return 'grow';
 }
 const finishTutorial = () => { GS.tut = null; saveGame(); tutorialFrame(); };
-let tutShown = null;
-/* where the arrow points, in the screen's own units: x, y, and whether it has to come from below */
-function tutTarget(step) {
-  const box = UI.ui.getBoundingClientRect(), u = box.width / W;
-  if (step === 'glass') {
-    const g = GS.beach[0], v = CAM.cur;
-    if (!g) return null;
-    const s = SLOTS[g.slot], x = (s.x - v[0]) / v[2] * box.width, y = (s.y - v[1]) / v[3] * box.height;
-    return x < 0 || y < 0 || x > box.width || y > box.height ? null : [x, y - 6 * u, false];
+const tutNext = () => {
+  if (tutStep() === 'grow') finishTutorial();
+  else { GS.tut.intro++; saveGame(); tutorialFrame(); }
+};
+let tutShown = null, tutDark = false, tutGlass = null;
+/* the thing to press at each step, if it's a button */
+function tutElement(step) {
+  return step === 'card' ? UI.faceBtns.cat : step === 'treat' ? UI.card.querySelector('.good[data-good="cookie"]')
+    : step === 'shop' ? UI.shopBtn : step === 'buy' ? tutButton() : step === 'grow' ? UI.growBtn : null;
+}
+/* where the piece of glass to pick up is on the screen, in the screen's own units; null while out of view */
+function tutGlassAt(box) {
+  const g = GS.beach[0], v = CAM.cur;
+  if (!g) return null;
+  const s = SLOTS[g.slot], x = (s.x - v[0]) / v[2] * box.width, y = (s.y - v[1]) / v[3] * box.height;
+  return x < 0 || y < 0 || x > box.width || y > box.height ? null : [x, y];
+}
+/* while it's dark, only the bright spot and the tutorial's own buttons answer */
+function tutGuard(e) {
+  if (!tutDark) return;
+  const on = e.target && e.target.closest ? e.target : e.target.parentElement;
+  if (on.closest('#tut button, #tutSkip, #reloadBox')) return;
+  const step = tutStep(), el = step === 'grow' ? null : tutElement(step);
+  if (el && el.contains(on)) return;
+  if (step === 'glass' && tutGlass) {
+    const box = UI.ui.getBoundingClientRect(), u = box.width / W;
+    if (Math.hypot(e.clientX - box.left - tutGlass[0], e.clientY - box.top - tutGlass[1]) <= TUT_GLOW * u) return;
   }
-  const el = step === 'card' ? UI.faceBtns.cat : step === 'treat' ? UI.card.querySelector('.good[data-good="cookie"]')
-    : step === 'shop' ? UI.shopBtn : step === 'buy' ? tutButton() : UI.growBtn;
-  if (!el) return null;
-  const r = el.getBoundingClientRect(), x = r.left + r.width / 2 - box.left, top = r.top - box.top;
-  return top < 40 * u ? [x, r.bottom - box.top, true] : [x, top, false];
+  e.stopPropagation();
+  e.preventDefault();
 }
 function tutorialFrame() {
   const T = GS.tut, step = tutStep();
@@ -1147,25 +1170,39 @@ function tutorialFrame() {
   }
   const blocked = growing || CAM.close || HILITE || menuOpen || helpOpen || UI.consent.classList.contains('on') || (shopOpen && step !== 'buy');
   const show = !!step && !blocked;
-  UI.tut.classList.toggle('on', show);
-  UI.tutArrow.classList.toggle('on', show);
+  tutDark = show;
+  UI.ui.classList.toggle('tutOn', show);
+  for (const k of ['tut', 'tutDim', 'tutSkip', 'tutArrow']) UI[k].classList.toggle('on', show);
   if (!show) return;
   if (step !== tutShown) {
     if (tutShown === 'treat' && step === 'shop') closeCard();
     tutShown = step;
     UI.tut.firstChild.textContent = TUT_TEXT[step];
     const b = UI.tut.lastChild;
-    b.textContent = step === 'grow' ? 'はじめる' : 'スキップ';
-    b.classList.toggle('go', step === 'grow');
+    b.hidden = !TUT_BUTTON[step];
+    b.textContent = TUT_BUTTON[step] || '';
+    UI.tutSkip.hidden = step === 'grow';
     if (step === 'buy') { const el = tutButton(); if (el) el.scrollIntoView({ block: 'center' }); }
   }
-  // clear of whatever sheet is open: over the dock for the shop, under a card that sits up top
-  UI.tut.classList.toggle('bottom', step === 'buy');
-  UI.tut.style.top = '';
-  if (cardFor && UI.card.classList.contains('top')) UI.tut.style.top = UI.card.offsetTop + UI.card.offsetHeight + 6 + 'px';
-  const at = tutTarget(step);
-  UI.tutArrow.classList.toggle('on', !!at);
-  if (at) { UI.tutArrow.style.left = at[0] + 'px'; UI.tutArrow.style.top = at[1] + 'px'; UI.tutArrow.classList.toggle('up', at[2]); }
+  /* the bright spot, in the screen's own units: left, top, width, height */
+  const box = UI.ui.getBoundingClientRect(), u = box.width / W, el = tutElement(step);
+  let hole = null, round = 10 * u;
+  tutGlass = step === 'glass' ? tutGlassAt(box) : null;
+  if (tutGlass) { const d = TUT_GLOW * u; hole = [tutGlass[0] - d, tutGlass[1] - d, d * 2, d * 2]; round = d; }
+  else if (el) { const r = el.getBoundingClientRect(), pad = 3 * u; hole = [r.left - box.left - pad, r.top - box.top - pad, r.width + pad * 2, r.height + pad * 2]; }
+  UI.tutDim.classList.toggle('whole', !hole);
+  const d = UI.tutDim.style;
+  if (hole) { d.left = hole[0] + 'px'; d.top = hole[1] + 'px'; d.width = hole[2] + 'px'; d.height = hole[3] + 'px'; d.borderRadius = round + 'px'; }
+  else d.left = d.top = d.width = d.height = d.borderRadius = '';
+  /* the message: the middle, unless that's on top of the bright spot and its arrow */
+  const h = UI.tut.offsetHeight, room = 26 * u, mid = (box.height - h) / 2;
+  let top = mid;
+  if (hole && mid < hole[1] + hole[3] + room && hole[1] - room < mid + h) top = hole[1] - room - h >= 8 * u ? hole[1] - room - h : hole[1] + hole[3] + room;
+  UI.tut.style.top = top + 'px';
+  /* the arrow comes down onto it, or up from below if it's at the very top */
+  const above = !hole || hole[1] >= 40 * u;
+  UI.tutArrow.classList.toggle('on', !!hole);
+  if (hole) { UI.tutArrow.style.left = hole[0] + hole[2] / 2 + 'px'; UI.tutArrow.style.top = (above ? hole[1] : hole[1] + hole[3]) + 'px'; UI.tutArrow.classList.toggle('up', !above); }
 }
 const tutButton = () => UI.shop.querySelector('.good[data-furn="doorMat"]') || UI.shop.querySelector('.good[data-furn]');
 function gameStart() {

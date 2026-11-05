@@ -109,7 +109,8 @@ const dollhouse = {
     for (const id of ACTOR_IDS) { const A = ACTOR[id]; sampleActor(A, b[id], t); out[id] = { x: A.x, y: A.y, z: A.z, anim: A.anim, sx: 180 + A.x - A.y, out: isOutdoors(A), roof: A.z >= TOP_Z(storeys) }; }
     return out;
   },
-  visits: (name, seed) => compileBlock(name, seed).visits,
+  visits: (name, seed) => compileBlock(name, seed).visits.filter(v => v.furn),
+  outings: (name, seed) => compileBlock(name, seed).visits,
   timeline: k => { const b = blockFor(k); return ACTOR_IDS.map(w => w + ': ' + b[w].map(s => `${s.t0.toFixed(1)} ${s.anim}`).join(', ')); },
 };
 window.dollhouse = dollhouse;

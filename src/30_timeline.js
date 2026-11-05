@@ -625,17 +625,36 @@ const FURN_SPOT = {
   telescope: { f: 3, far: 1, look: [86, 38] },
   bed3: { f: 3, look: [58, 76], on: [38, 62, 10] },
 };
+/* the roof and the outdoors. Outside: [x, y, height]. On the roof: [s, t, height]. pier: up the step at the end of the sand. */
+const PLACES = {
+  out: [
+    { look: [132, 100], also: [146, 100], free: 1 },
+    { look: [110, 100], sit: 1 },
+    { look: [96, 124] },
+    { via: [[108, 108]], look: [126, 60] },
+    { via: [[108, 108]], look: [124, 40], sit: 1 },
+    { via: [[130, 112], [146, 119]], pier: 1, look: [194, 118, 5], not: 'penguin' },   // it lives there
+    { via: [[66, 124]], look: [58, 140] },
+    { via: [[66, 124]], look: [46, 146], sit: 1 },
+  ],
+  roof: [
+    { look: [-14, 14, 30] },
+    { look: [12, 18, 27], sit: 1 },
+    { look: [-26, 18, 24], sit: 1 },
+  ],
+};
 const PGR = PGV + 5, nothing = () => {};
-/* air: how high it flies about a room, high: how far above a thing it hovers. only: the one floor it visits. */
+const AWAY = .75;   // how often it picks somewhere else when there's time: short gaps can only be spent nearby, so this comes to about half of all outings
+/* z: its own part of the world. air: how high it flies about a place, high: how far above a thing it hovers. */
 const MOVER = {
-  cat: { f: 1, v: CATV, anim: 'walk', hop: 'leap', jump: 45, wait: 'sit', on: ['sit', 'groom'], eat: 'eat', off: catOff, in: catOn },
-  pup: { f: 2, v: PUPV, anim: 'walk', hop: 'land', jump: 16, wait: 'sitWag', on: ['sitWag', 'g2'], eat: 'sniff', off: nothing, in: nothing },
-  rabbit: { f: 3, v: RABR, anim: 'hop', hop: 'hop', jump: 16, wait: 'sit', on: ['sit', 'look'], eat: 'nibble', off: rabOff, in: rabOn },
-  sheep: { f: 1, only: 1, v: SHR, anim: 'drift', air: 18, high: 8, jump: 99, wait: 'float', on: ['float', 'float'], eat: 'eat' },
-  dragon: { f: 2, only: 2, v: DRV, anim: 'fly', air: 18, high: 0, jump: 99, wait: 'hover', on: ['perch', 'g2'], eat: 'eat' },
-  penguin: { f: 1, only: 1, v: PGR, anim: 'waddle', hop: 'flap', jump: 3, wait: 'stand', on: ['stand', 'flap'], eat: 'peck',
-    off: T => T.walk([deckEnd], PGR, 'waddle').hop(sand, .5, 'flap').walk([atB(130, 112), FRONT], PGR, 'waddle').hop(at1(78, 96), .5, 'flap').walk([at1(77, 84), catFront], PGR, 'waddle'),
-    in: T => T.walk([at1(77, 84), at1(78, 96)], PGR, 'waddle').hop(FRONT, .5, 'flap').walk([atB(130, 112), sand], PGR, 'waddle').hop(deckEnd, .55, 'flap').walk([HOME.penguin], PGR, 'waddle') },
+  cat: { z: 1, v: CATV, anim: 'walk', hop: 'leap', jump: 45, wait: 'sit', on: ['sit', 'groom'], eat: 'eat', off: catOff, in: catOn },
+  pup: { z: 2, v: PUPV, anim: 'walk', hop: 'land', jump: 16, wait: 'sitWag', on: ['sitWag', 'g2'], eat: 'sniff', off: nothing, in: nothing },
+  rabbit: { z: 3, v: RABR, anim: 'hop', hop: 'hop', jump: 16, wait: 'sit', on: ['sit', 'look'], eat: 'nibble', off: rabOff, in: rabOn },
+  sheep: { z: 1, v: SHR + 4, anim: 'drift', air: 18, high: 8, jump: 99, wait: 'float', on: ['float', 'float'], eat: 'eat' },
+  dragon: { z: 2, v: DRR, anim: 'fly', air: 18, high: 0, jump: 99, wait: 'hover', on: ['perch', 'g2'], eat: 'eat' },
+  penguin: { z: 'out', v: PGR, anim: 'waddle', hop: 'flap', jump: 3, wait: 'stand', on: ['stand', 'flap'], eat: 'peck',
+    off: T => T.walk([deckEnd], PGR, 'waddle').hop(sand, .5, 'flap'),
+    in: T => T.hop(deckEnd, .55, 'flap').walk([HOME.penguin], PGR, 'waddle') },
 };
 const AT_HOME = {
   cat: [['sit', 3], ['groom', 5], ['stretch', 2.4], ['sit', 4], ['g2', 4]],
@@ -654,68 +673,119 @@ const NAP = {
   penguin: { chance: .06, len: [6, 9] },
   pup: { chance: .03, len: [5, 8] },
 };
-const changeFloor = (T, M, a, b) => {
-  const A = ROOMS[a], B = ROOMS[b], za = FLOOR_Z[a - 1], zb = FLOOR_Z[b - 1];
-  T.walk(A.way, M.v, M.anim).hop(lad(za), .4, 'land').walk([lad(zb)], CLIMB, 'climb').hop(entry(zb), .4, 'land');
-  T.walk([...B.way.slice(0, -1).reverse(), B.door], M.v, M.anim);
-};
+const doorOf = (zone, M) => zone === 'out' ? (M.z === 'out' ? sand : FRONT) : zone === 'roof' ? ROOF_WAY()[1] : ROOMS[zone].door;
+/* on foot from one part of the world to another: from its door to the other's. Everything but the front door is the ladder. */
+function between(T, M, a, b) {
+  const w = nodes => T.walk(nodes, M.v, M.anim), home = () => { if (M.z === 'out') w([sand]); };
+  if (a === 'out' && b === 1) {
+    if (M.z === 'out') w([FRONT]);
+    T.hop(at1(78, 96), .5, M.hop); w([at1(77, 84), ROOMS[1].door]);
+    return;
+  }
+  if (a === 1 && b === 'out') { w([at1(77, 84), at1(78, 96)]); T.hop(FRONT, .5, M.hop); home(); return; }
+  if (a === 'out') { w([TO_FOOT, FOOT]); T.hop(lad(1), .35, 'land'); }
+  else if (a === 'roof') { w([ROOF_WAY()[0], rf(-60, 7, 4)]); T.hop(lad(roofBase() + 2), .45, 'land'); }
+  else { w(ROOMS[a].way); T.hop(lad(FLOOR_Z[a - 1]), .4, 'land'); }
+  T.walk([lad(b === 'out' ? 1 : b === 'roof' ? roofBase() + 2 : FLOOR_Z[b - 1])], CLIMB, 'climb');
+  if (b === 'out') { T.hop(FOOT, .35, 'land'); w([TO_FOOT, FRONT]); home(); }
+  else if (b === 'roof') { T.hop(rf(-60, 7, 4), .45, 'land'); w(ROOF_WAY()); }
+  else { T.hop(entry(FLOOR_Z[b - 1]), .4, 'land'); w([...ROOMS[b].way.slice(0, -1).reverse(), ROOMS[b].door]); }
+}
+/* on the wing: out of the open front of a room, and along the face of the tower */
+const flyGate = f => { const z = FLOOR_Z[f - 1]; return [atB(68, 75, z + 18), atB(84, 100, z + 24), atB(104, 118, z + 40)]; };
+const roofAir = () => atB(100, 110, roofBase() + 30);
+const flyLeave = (T, M, zone) => T.walk(zone === 'out' ? [atB(104, 118, 44)] : zone === 'roof' ? [roofAir()] : flyGate(zone), M.v, M.anim);
+const flyEnter = (T, M, zone) => T.walk(zone === 'out' ? [] : zone === 'roof' ? [roofAir()] : flyGate(zone).reverse(), M.v, M.anim);
 /* there and back from home, with so many seconds at the far end: no dice in here, so it can be timed first */
-function trip(T, s, on, dwell) {
-  const M = MOVER[T.id], R = ROOMS[s.f], z = FLOOR_Z[s.f - 1], at = p => ({ x: p[0], y: p[1], z: z + (p[2] || 0) });
+function trip(T, c, on, dwell) {
+  const M = MOVER[T.id], s = c.s, zone = c.zone, w = nodes => T.walk(nodes, M.v, M.anim);
+  const at = p => zone === 'out' ? atB(p[0], p[1], p[2] || 0) : zone === 'roof' ? rf(p[0], p[1], p[2] || 0) : { x: p[0], y: p[1], z: FLOOR_Z[zone - 1] + (p[2] || 0) };
+  const flown = p => M.air ? { ...p, z: p.z + M.air } : p;
+  const hub = s.far ? [ROOMS[zone].hub] : [];
   const stay = () => {
     if (on) T.pose(dwell * .6, M.on[0]).pose(dwell * .4, M.on[1]);
-    else if (s.free) T.pose(dwell * .5, M.on[1]).pose(dwell * .5, M.wait);
+    else if (s.free) { T.pose(dwell * .5, M.on[1]); w([...hub, at(s.also)].map(flown)); T.pose(dwell * .5, M.wait); }
+    else if (s.sit) T.pose(dwell * .6, M.air ? M.wait : M.on[0]).pose(dwell * .4, M.air ? M.wait : M.on[1]);
     else T.pose(dwell * .8, s.act ? M.eat : 'gaze').pose(dwell * .2, M.wait);
   };
   const stand = at(s.look || s.on);
   if (M.air) {
-    T.walk([on ? { ...at(s.on), z: z + s.on[2] + M.high } : { ...stand, z: z + M.air }], M.v, M.anim);
+    if (zone !== M.z) { flyLeave(T, M, M.z); flyEnter(T, M, zone); }
+    w([on ? { ...at(s.on), z: at(s.on).z + M.high } : flown(stand)]);
     stay();
-    T.walk([HOME[T.id]], M.v, M.anim);
+    if (zone !== M.z) { flyLeave(T, M, zone); flyEnter(T, M, M.z); }
+    w([HOME[T.id]]);
     return;
   }
-  const via = s.far ? [R.hub] : (s.via || []).map(at), up = on && s.look;
+  const via = s.far ? hub : (s.via || []).map(at), up = on && s.look;
   M.off(T);
-  if (s.f !== M.f) changeFloor(T, M, M.f, s.f);
-  T.walk([...via, stand], M.v, M.anim);
+  if (zone !== M.z) between(T, M, M.z, zone);
+  w(via);
+  if (s.pier) T.hop(PIER, .4, M.hop);
+  w([stand]);
   if (up) { if (s.mid) T.hop(at(s.mid), .5, M.hop); T.hop(at(s.on), .55, M.hop); }
   stay();
   if (up) { if (s.mid) T.hop(at(s.mid), .5, M.hop); T.hop(stand, .5, M.hop); }
-  T.walk([...via.slice().reverse(), R.door], M.v, M.anim);
-  if (s.f !== M.f) changeFloor(T, M, s.f, M.f);
+  if (s.pier) { w([PIER]); T.hop(SAND, .4, M.hop); w(via.slice(0, -1).reverse()); }
+  else w(via.slice().reverse());
+  w([doorOf(zone, M)]);
+  if (zone !== M.z) between(T, M, zone, M.z);
   M.in(T);
 }
-/* its own floor first, and the newest thing in the tower most of all */
-function pickSpot(T, r) {
-  const M = MOVER[T.id], list = [];
-  let newest = null, total = 0;
-  for (const k of OWNED.set) newest = k;
+/* everywhere it could go just now, part of the world by part of the world */
+function spotsFor(T) {
+  const M = MOVER[T.id], by = new Map();
+  const add = (zone, s, key, furn) => {
+    if (s.not === T.id) return;
+    if (!by.has(zone)) by.set(zone, []);
+    by.get(zone).push({ s, key, zone, furn });
+  };
+  for (let f = 1; f <= storeys; f++) ROOMS[f].free.forEach((look, i, all) => add(f, { far: 1, look, free: 1, also: all[(i + 1) % all.length] }, 'free' + f + i, false));
   for (const key in FURN_SPOT) {
     const s = FURN_SPOT[key];
-    if (!own(key) || s.f > storeys || s.not === T.id || (M.only && s.f !== M.only)) continue;
-    if (!s.look && s.on[2] > M.jump) continue;
-    list.push({ s, key, w: (s.f === M.f ? 3 : 1) * (key === newest ? 3 : 1) });
+    if (!own(key) || s.f > storeys || (!s.look && s.on[2] > M.jump)) continue;
+    add(s.f, s, key, true);
   }
-  if (T.id !== 'penguin') for (const look of ROOMS[M.f].free) list.push({ s: { f: M.f, far: 1, look, free: 1 }, key: null, w: 1 });
-  for (const c of list) total += c.w;
+  for (const zone in PLACES) PLACES[zone].forEach((s, i) => add(zone, s, zone + i, false));
+  return by;
+}
+function tripTime(T, c, on) {
+  const k = T.id + c.key + on, seen = T.ctx.dry;
+  if (seen[k] === undefined) { const dry = new Track(HOME[T.id], T.id); trip(dry, c, on, 0); seen[k] = dry.t; }
+  return seen[k];
+}
+/* about half the time its own part of the world, and any of the others alike; only what can be there and back in time */
+function pickSpot(T, r, end) {
+  const M = MOVER[T.id], by = spotsFor(T), fits = c => tripTime(T, c, false) + 3 <= end - T.t;
+  let newest = null, near = [];
+  const far = [];
+  for (const k of OWNED.set) newest = k;
+  for (const [zone, list] of by) {
+    const ok = list.filter(fits);
+    if (zone === M.z) near = ok;
+    else if (ok.length) far.push(ok);
+  }
+  const list = far.length && (!near.length || r() < AWAY) ? far[r() * far.length | 0] : near;
+  const best = far.flat().concat(near).find(c => c.key === newest);
+  if (best && r() < .15) return best;
+  let total = 0;
+  for (const c of list) total += c.key === newest ? 3 : 1;
   let d = r() * total;
-  for (const c of list) { d -= c.w; if (d <= 0) return c; }
+  for (const c of list) { d -= c.key === newest ? 3 : 1; if (d <= 0) return c; }
   return list[list.length - 1] || null;
 }
 function tryTrip(T, r, end) {
   if (!present(T.id)) return false;
-  const c = pickSpot(T, r);
+  const c = pickSpot(T, r, end);
   if (!c) return false;
   const M = MOVER[T.id], s = c.s, can = s.on && s.on[2] <= M.jump && !(s.not && present(s.not)), on = can && (!s.look || r() < .5);
   if (!on && !s.look) return false;
-  const dry = new Track(HOME[T.id], T.id);
-  trip(dry, s, on, 0);
-  const room = end - T.t - dry.t;
+  const time = tripTime(T, c, on), room = end - T.t - time;
   if (room < 3) return false;
-  const t0 = T.t, t1 = t0 + dry.t + Math.min(room, 5 + r() * 9);
-  if (c.key && T.ctx.visits.some(v => v.key === c.key && v.t0 < t1 && t0 < v.t1)) return false;
-  trip(T, s, on, t1 - t0 - dry.t);
-  if (c.key) T.ctx.visits.push({ id: T.id, key: c.key, on, t0, t1 });
+  const t0 = T.t, t1 = t0 + time + Math.min(room, 5 + r() * 9);
+  if (T.ctx.visits.some(v => v.key === c.key && v.t0 < t1 && t0 < v.t1)) return false;
+  trip(T, c, on, t1 - t0 - time);
+  T.ctx.visits.push({ id: T.id, key: c.key, zone: c.zone, furn: c.furn, on, t0, t1 });
   return true;
 }
 function fidget(T, r, end) {
@@ -787,7 +857,7 @@ function assignFaces(segs) {
 function compileBlock(name, seed) {
   const r = mulberry(seed), def = SCRIPTS[name], b = { name };
   // decided once for the whole block, so two animals agree
-  const ctx = { duoOut: r() < .7, nap: r() < .5 || !own('catTree'), visits: [] };
+  const ctx = { duoOut: r() < .7, nap: r() < .5 || !own('catTree'), visits: [], dry: {} };
   for (const id of ACTOR_IDS) {
     const T = new Track(HOME[id], id, ctx);
     if (BLOCK_TIER[id]) hungryRest(T, r, id, BLOCK_TIER[id]);

@@ -899,7 +899,7 @@ const POSE = {
     SHOT.h = 14;
     switch (an) {
       case 'waddle': SHOT.s = (A.o && A.o.to ? Q.walk : face >= 2 ? Q.back : Q.walk)[fr(t, 6, 4)]; SHOT.flip = A.o && A.o.to ? true : side; break;
-      case 'flap': case 'land': case 'tease': SHOT.s = Q.flap[fr(t, 6, 2)]; break;
+      case 'flap': case 'land': case 'tease': case 'climb': SHOT.s = Q.flap[fr(t, 6, 2)]; break;
       case 'gaze': SHOT.s = Q.back[1]; break;
       case 'peck': SHOT.s = Q.eat[fr(t, 4, 2)]; break;
       case 'g2': SHOT.s = Q.slide[0]; SHOT.flip = true; SHOT.h = 7; break;
@@ -933,7 +933,7 @@ function applyReact(A, time) {
     const home = inOwnRoom(A);
     R_.sp = !R_.stay && home ? SPOT[A.id] : { x: A.x, y: A.y, z: A.z };
     R_.moves = !R_.stay && home;
-    R_.flat = home || A.z <= 5;                  // somewhere a dish can stand: not a ladder, a roof or a palm
+    R_.flat = home || A.z <= 5 || FLOOR_Z.includes(A.z);   // somewhere a dish can stand: not a ladder, a roof or a palm
   }
   const end = R_.dur + (R_.stay ? .35 : .6), sp = R_.sp;
   if (e >= end || e < 0) { delete WORLD.react[A.id]; return null; }
@@ -974,6 +974,7 @@ function drawItem(R_, A, t, e) {
   } else blit(ITEM.wheel[fr(t, 6, 2)], x0, y0, floorZ, false, lut);
 }
 const FLOOR_OF = { cat: Z1, pup: Z2, rabbit: Z3, sheep: Z1, dragon: Z2, penguin: 0 };
+const floorUnder = z => FLOOR_Z[z >= FLOOR_Z[2] ? 2 : z >= FLOOR_Z[1] ? 1 : 0];
 const isOutdoors = A => hexAt(A.x, A.y) >= 1 || A.z >= TOP_Z(storeys);
 const inOwnRoom = A => A.id !== 'penguin' && !isOutdoors(A) && roomZone(A.z) === roomZone(FLOOR_OF[A.id] + 1);
 const drawOrder = [];
@@ -1000,7 +1001,7 @@ function drawActors(t, b, local) {
     if (SHOT.floats || A.id === 'sheep') { // a soft shadow says how far off the floor it is
       const outside = hexAt(A.x, A.y) >= 1.1, onRoof = !outside && A.z >= TOP_Z(storeys);
       if (!onRoof) {
-        const fz = outside ? 0 : FLOOR_OF[A.id], sx = iX(A.x, A.y), sy = iY(A.x, A.y, fz);
+        const fz = outside ? 0 : floorUnder(A.z), sx = iX(A.x, A.y), sy = iY(A.x, A.y, fz);
         for (let a = -7; a <= 7; a++) for (let c = -2; c <= 2; c++) if ((a * a) / 49 + (c * c) / 6 < 1) shiftAt(sx + a, sy + c, DOWNP);
       }
     }
